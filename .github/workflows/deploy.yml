@@ -1,0 +1,42 @@
+name: Deploy to Bunny CDN
+
+on:
+  push:
+    branches: [main]
+
+env:
+  STORAGE_ZONE_ID: "1692834"
+  STORAGE_ZONE_NAME: "belinuswebsite"
+  PULLZONE_ID: "6223909"
+
+jobs:
+  deploy:
+    if: "!contains(github.event.head_commit.message, '[skip deploy]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload site files to Bunny Storage
+        env:
+          BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}
+        run: |
+          set -euo pipefail
+          SK=$(curl -fsS -H "AccessKey: $BUNNY_API_KEY" "https://api.bunny.net/storagezone/$STORAGE_ZONE_ID" | python3 -c 'import sys,json;print(json.load(sys.stdin)["Password"])')
+          find . -type f \
+            ! -path './.git/*' \
+            ! -path './.github/*' \
+            ! -name 'README.md' \
+            | while IFS= read -r f; do
+                rel="${f#./}"
+                echo "PUT $rel"
+                curl -fsS -X PUT -H "AccessKey: $SK" \
+                  --data-binary "@$f" \
+                  "https://storage.bunnycdn.com/$STORAGE_ZONE_NAME/$rel" > /dev/null
+              done
+
+      - name: Purge pull zone cache
+        env:
+          BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}
+        run: |
+          curl -fsS -X POST -H "AccessKey: $BUNNY_API_KEY" \
+            "https://api.bunny.net/pullzone/$PULLZONE_ID/purgeCache" -d ''
