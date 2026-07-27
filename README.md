@@ -12,7 +12,7 @@ Files deleted from the repo are not auto-deleted from the storage zone.
 
 - [x] Repo + deploy workflow
 - [x] Bunny storage zone + pull zone + hostnames
-- [ ] Org secret `BUNNY_API_KEY` (org Settings → Secrets and variables → Actions, visibility \"Public repositories\")
+- [x] Org secret `BUNNY_API_KEY` (added 27.07.2026, visibility "Public repositories")
 - [ ] Production site files pushed to `main`
 - [ ] DNS cutover: belinus.com zone 832388 — swap `@` and `www` to Pull Zone records (done by Claude on request)
 - [ ] Let's Encrypt certificates for belinus.com + www.belinus.com (only possible after DNS cutover)
