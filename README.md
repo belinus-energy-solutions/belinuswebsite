@@ -25,9 +25,8 @@ Based on the `vanbeirs-ventures/bunny-site-template` pattern.
 - Single-page apps with hash routes (`#products`, `#contact`, …); React 18 UMD from cdnjs, JSX precompiled.
 - `consent.js` — cookie banner + remembered region/language (shared by B2B and B2C).
 - `b2c/datasheets/` — product data sheets (EN; legacy Energywall LV/HV in NL).
-- Forms (contact, partner, service, B2C quote, referral) post to the forms API in the
-  `belinus-solar-google` container (`https://mc-6dau2ixzuj.bunny.run/api/forms`), which mails
-  service@belinus.com via the imap-mcp container. If the API is unreachable the visitor gets a
-  prepared e-mail to service@belinus.com.
+- Forms (contact, partner, service, B2C quote, referral) post directly to the imap-mcp mail container
+  (`https://mc-vze57riyau.bunny.run/webforms/belinus/forms`), which mails service@belinus.com from
+  service@belinus.com (Reply-To = visitor). If it is unreachable the visitor gets a prepared e-mail instead.
 - The pages are built from the design sources (not in this repo); do not edit the HTML here by hand.
 - Older pages kept: `*/algemene-voorwaarden*`, `*/terms-and-conditions*`, `*/conditions-generales*`, `*/agb*`.
