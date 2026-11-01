@@ -1,3 +1,12 @@
+/* Always show the site on belinus.com: visitors arriving on Bunny's default
+   address (belinuswebsite.b-cdn.net) are sent to the same page on belinus.com. */
+(function () {
+  try {
+    if (/\.b-cdn\.net$/i.test(location.hostname)) {
+      location.replace('https://belinus.com' + location.pathname + location.search + location.hash);
+    }
+  } catch (e) {}
+})();
 /* =====================================================================
    Belinus — cookie consent + remembered region (shared by B2B and B2C)
    ---------------------------------------------------------------------
