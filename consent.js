@@ -132,6 +132,26 @@
       pref: 'Präferenzen', prefD: 'Merken sich Region, Sprache und B2B- oder B2C-Website für Ihren nächsten Besuch. Gespeichert für 12 Monate.',
       stat: 'Statistik', statD: 'Anonyme Besucherstatistik. Derzeit nicht im Einsatz; nur mit Ihrer Einwilligung.',
       always: 'Immer aktiv', close: 'Schließen'
+    },
+    it: {
+      title: 'Cookie su belinus.com',
+      body: 'Utilizziamo cookie necessari per il funzionamento di questo sito. Con il suo consenso memorizziamo anche la sua regione, la lingua e se visita il sito per le aziende (B2B) o per i privati (B2C). Non utilizziamo cookie pubblicitari.',
+      accept: 'Accetta tutti', reject: 'Solo necessari', settings: 'Impostazioni', save: 'Salva le scelte',
+      policy: 'Informativa su privacy e cookie',
+      nec: 'Necessari', necD: 'Memorizzano la sua scelta sui cookie. Sempre attivi.',
+      pref: 'Preferenze', prefD: 'Memorizzano regione, lingua e sito B2B o B2C per la sua prossima visita. Conservati per 12 mesi.',
+      stat: 'Statistiche', statD: 'Statistiche anonime sui visitatori. Attualmente non in uso; attivate solo con il suo consenso.',
+      always: 'Sempre attivi', close: 'Chiudi'
+    },
+    es: {
+      title: 'Cookies en belinus.com',
+      body: 'Utilizamos cookies necesarias para que este sitio web funcione. Con su consentimiento, también recordamos su región, su idioma y si visita el sitio para empresas (B2B) o para particulares (B2C). No utilizamos cookies publicitarias.',
+      accept: 'Aceptar todas', reject: 'Solo las necesarias', settings: 'Configuración', save: 'Guardar selección',
+      policy: 'Política de privacidad y cookies',
+      nec: 'Necesarias', necD: 'Guardan su elección de cookies. Siempre activas.',
+      pref: 'Preferencias', prefD: 'Recuerdan su región, idioma y sitio B2B o B2C para su próxima visita. Se conservan durante 12 meses.',
+      stat: 'Estadísticas', statD: 'Estadísticas anónimas de visitas. Actualmente no se utilizan; solo se activan con su consentimiento.',
+      always: 'Siempre activas', close: 'Cerrar'
     }
   };
   function lang() {
