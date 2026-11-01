@@ -1,0 +1,1851 @@
+<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" sizes="32x32" href="b2c/assets/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="b2c/assets/favicon-180.png">
+<link rel="canonical" href="https://belinus.com/">
+<link rel="alternate" hreflang="en" href="https://belinus.com/">
+<link rel="alternate" hreflang="nl" href="https://belinus.com/nl.html">
+<link rel="alternate" hreflang="fr" href="https://belinus.com/fr.html">
+<meta property="og:title" content="Belinus | Power and energy storage">
+<meta property="og:description" content="Belinus develops supercapacitor, sodium-ion and hybrid ultracapacitor power and energy storage solutions for industry, mobility and homes.">
+<meta property="og:type" content="website">
+<style>body{background:#0A0C0F}</style>
+<meta charset="utf-8">
+<title>Belinus | Power and energy storage</title>
+<meta name="description" content="Belinus develops supercapacitor, sodium-ion and hybrid ultracapacitor power and energy storage solutions for industry, mobility and homes.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>/* ============================================================================
+   Belinus — Colors & Type
+   ----------------------------------------------------------------------------
+   Derived from: Belinus Logo Vector.pdf (#2EB9EA), Style guide.pdf (dark cinematic
+   photography, neon-blue accents, premium/confident mood) and belinus.com
+   product copy. The brand reads: Belgian, engineered, premium, ultra-black.
+   ========================================================================= */
+
+
+
+/* ---- Arial Nova — brand font (replaces Helvetica/Arial fallback) -------- */
+@font-face {
+  font-family: 'Arial Nova';
+  src: url('fonts/ArialNova-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Arial Nova';
+  src: url('fonts/ArialNova-LightItalic.woff2') format('woff2');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Arial Nova';
+  src: url('fonts/ArialNova.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Arial Nova';
+  src: url('fonts/ArialNova-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Arial Nova';
+  src: url('fonts/ArialNova-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Arial Nova Cond';
+  src: url('fonts/ArialNovaCond-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Arial Nova Cond';
+  src: url('fonts/ArialNovaCond.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Arial Nova Cond';
+  src: url('fonts/ArialNovaCond-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+:root {
+  /* ---- Brand -------------------------------------------------------------- */
+  --brand-blue:        #2EB9EA;   /* logo blue, exact (from vector PDF) */
+  --brand-blue-bright: #3FCBFF;   /* neon / glow accent */
+  --brand-blue-deep:   #1B8FBE;   /* pressed / shadow variant */
+  --brand-blue-ink:    #003A54;   /* deep teal-blue for tinted dark surfaces */
+
+  /* ---- Ultra black (core identity) --------------------------------------- */
+  --ink-0:  #000000;   /* true black — panel glass, full bleed backgrounds */
+  --ink-1:  #0A0C0F;   /* app background */
+  --ink-2:  #121519;   /* elevated surface */
+  --ink-3:  #1C2128;   /* card */
+  --ink-4:  #272D36;   /* hairline / divider on dark */
+  --ink-5:  #3A424D;   /* muted outline on dark */
+
+  /* ---- Neutrals (light side) --------------------------------------------- */
+  --paper:   #FFFFFF;
+  --bone:    #F5F6F7;   /* page background on light */
+  --mist:    #E7EAEE;   /* divider on light */
+  --steel:   #AFB6BF;   /* muted text on light */
+  --slate:   #5A6370;   /* secondary text on light */
+  --graphite:#222830;   /* primary text on light */
+
+  /* ---- Semantic (foreground on dark) ------------------------------------ */
+  --fg-1: #FFFFFF;                 /* primary */
+  --fg-2: rgba(255,255,255,0.72);  /* secondary */
+  --fg-3: rgba(255,255,255,0.48);  /* tertiary / captions */
+  --fg-4: rgba(255,255,255,0.24);  /* disabled / hairline labels */
+
+  /* ---- Semantic (foreground on light) ----------------------------------- */
+  --fgL-1: #0A0C0F;
+  --fgL-2: #3A424D;
+  --fgL-3: #7A828C;
+  --fgL-4: #AFB6BF;
+
+  /* ---- Status ------------------------------------------------------------ */
+  --success: #37C98A;   /* "producing" / "savings" */
+  --warning: #F5B301;   /* mid-day / caution */
+  --danger:  #E85D4D;   /* fault / offline */
+  --sun:     #FFB547;   /* sunlight accent (sparingly) */
+
+  /* ---- Effects ----------------------------------------------------------- */
+  --glow-blue:   0 0 24px rgba(0,161,233,0.55), 0 0 60px rgba(0,161,233,0.25);
+  --glow-hair:   0 0 1px rgba(43,184,255,0.9),   0 0 8px rgba(43,184,255,0.45);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 32px rgba(0,0,0,0.45);
+  --shadow-lift: 0 24px 60px rgba(0,0,0,0.55), 0 2px 0 rgba(255,255,255,0.04) inset;
+  --shadow-soft: 0 8px 24px rgba(10,12,15,0.08), 0 1px 2px rgba(10,12,15,0.06);
+
+  /* ---- Radii — restrained, engineered ------------------------------------ */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* ---- Spacing (4px base) ------------------------------------------------ */
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-5: 24px;  --s-6: 32px;  --s-7: 48px;  --s-8: 64px;
+  --s-9: 96px;  --s-10: 128px;
+
+  /* ---- Type families -----------------------------------------------------
+     belinus.com uses Helvetica (Wix "helvetica-w01-light/roman") for the hero
+     display and for most headings; Space Grotesk is used for the all-caps
+     tag/subhead copy. We mirror that pairing.
+
+     Helvetica is not a webfont we can embed freely; the brand uses Arial Nova
+     (TTF files in /fonts) as its primary type. It loads via @font-face above. */
+  --font-display: 'Arial Nova', 'Helvetica Neue', Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    'Arial Nova', 'Helvetica Neue', Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-cond:    'Arial Nova Cond', 'Arial Narrow', 'Arial Nova', Helvetica, Arial, sans-serif;
+  --font-caps:    'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- Type scale (semantic) -------------------------------------------- */
+  /* ---- Type scale (semantic) --------------------------------------------
+     belinus.com uses Helvetica LIGHT (300) for all display sizes — mirror that.
+     Tight tracking and generous leading (1.4) are the house defaults. */
+  --t-hero-size:   clamp(48px, 7vw, 96px);
+  --t-hero-lh:     1.08;
+  --t-hero-ls:     -0.02em;
+  --t-hero-w:      300;
+
+  --t-h1-size: 56px;  --t-h1-lh: 1.1;   --t-h1-ls: -0.015em; --t-h1-w: 300;
+  --t-h2-size: 40px;  --t-h2-lh: 1.15;  --t-h2-ls: -0.01em;  --t-h2-w: 300;
+  --t-h3-size: 28px;  --t-h3-lh: 1.25;  --t-h3-ls: -0.005em; --t-h3-w: 400;
+  --t-h4-size: 20px;  --t-h4-lh: 1.4;   --t-h4-ls: 0;        --t-h4-w: 500;
+
+  --t-body-size:  16px; --t-body-lh: 1.55; --t-body-w: 400;
+  --t-lead-size:  18px; --t-lead-lh: 1.55; --t-lead-w: 400;
+  --t-small-size: 14px; --t-small-lh: 1.5;
+  --t-cap-size:   12px; --t-cap-lh: 1.35; --t-cap-ls: 0.12em; /* uppercase */
+  --t-mono-size:  13px;
+
+  /* ---- Motion ------------------------------------------------------------ */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in:    cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-std:   cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 600ms;
+}
+
+/* ==========================================================================
+   Semantic element defaults — drop this stylesheet in and get sane defaults
+   ========================================================================= */
+
+html, body {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+  color: var(--fgL-1);
+  background: var(--bone);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.on-dark, body.on-dark {
+  background: var(--ink-1);
+  color: var(--fg-1);
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  margin: 0;
+  text-wrap: balance;
+}
+h1 { font-size: var(--t-h1-size); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls); font-weight: var(--t-h1-w); }
+h2 { font-size: var(--t-h2-size); line-height: var(--t-h2-lh); letter-spacing: var(--t-h2-ls); font-weight: var(--t-h2-w); }
+h3 { font-size: var(--t-h3-size); line-height: var(--t-h3-lh); letter-spacing: var(--t-h3-ls); font-weight: var(--t-h3-w); }
+h4 { font-size: var(--t-h4-size); line-height: var(--t-h4-lh); letter-spacing: var(--t-h4-ls); font-weight: var(--t-h4-w); }
+
+.hero {
+  font-family: var(--font-display);
+  font-size: var(--t-hero-size);
+  line-height: var(--t-hero-lh);
+  letter-spacing: var(--t-hero-ls);
+  font-weight: var(--t-hero-w);
+}
+
+p { margin: 0 0 var(--s-3) 0; text-wrap: pretty; }
+.lead  { font-size: var(--t-lead-size); line-height: var(--t-lead-lh); }
+.small { font-size: var(--t-small-size); line-height: var(--t-small-lh); }
+
+.eyebrow, .caption {
+  font-family: var(--font-caps);
+  font-size: var(--t-cap-size);
+  line-height: var(--t-cap-lh);
+  letter-spacing: var(--t-cap-ls);
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--fgL-2);
+}
+.on-dark .eyebrow, .on-dark .caption { color: var(--fg-2); }
+
+code, .mono {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono-size);
+  letter-spacing: 0;
+}
+
+/* The lowercase "belinus" wordmark style (for inline brand mentions) */
+.wordmark {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--brand-blue);
+  text-transform: lowercase;
+}
+
+/* Utility: a subtle neon-blue hairline accent (seen in product photos) */
+.accent-hair {
+  position: relative;
+}
+.accent-hair::after {
+  content: "";
+  position: absolute; inset: auto 0 0 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-blue) 50%, transparent);
+  box-shadow: var(--glow-hair);
+}
+/* ================================================================
+   Corporate site — layout & chrome on top of colors_and_type.css
+   ================================================================ */
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--ink-0);
+  color: var(--fg-1);
+  overflow-x: hidden;
+}
+
+/* ---- Grain + vignette treatment for cinematic feel ---- */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(46,185,234,0.05), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(0,0,0,0.6), transparent 60%);
+}
+
+/* ---- Layout containers ---- */
+.wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+.wrap-narrow { max-width: 960px; margin: 0 auto; padding: 0 48px; }
+.wrap-wide   { max-width: 1480px; margin: 0 auto; padding: 0 48px; }
+
+/* ---- Section rhythm ---- */
+section {
+  position: relative;
+  padding: clamp(96px, 14vh, 180px) 0;
+  z-index: 2;
+}
+section + section {
+  border-top: 1px solid var(--ink-4);
+}
+
+/* ---- Eyebrows ---- */
+.eyebrow {
+  display: inline-block;
+  color: var(--brand-blue);
+  font-family: var(--font-caps);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+.eyebrow.muted { color: var(--fg-3); }
+
+.eyebrow-dot::before {
+  content: "";
+  display: inline-block;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand-blue);
+  vertical-align: middle;
+  margin-right: 10px;
+  box-shadow: 0 0 8px var(--brand-blue);
+  transform: translateY(-2px);
+}
+
+/* ---- Display type ---- */
+.display {
+  font-family: var(--font-display);
+  font-weight: 200;
+  font-size: clamp(44px, 7.2vw, 112px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  color: var(--fg-1);
+  text-wrap: balance;
+}
+.display em {
+  font-style: normal;
+  color: var(--brand-blue);
+}
+
+.display-mid {
+  font-family: var(--font-display);
+  font-weight: 250;
+  font-size: clamp(32px, 4.4vw, 64px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.display-sm {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(22px, 2.2vw, 30px);
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+}
+
+.body-lg {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--fg-2);
+  max-width: 62ch;
+  text-wrap: pretty;
+  font-weight: 300;
+}
+.body-md {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--fg-2);
+  max-width: 60ch;
+  font-weight: 300;
+}
+
+/* ---- Rule / divider ---- */
+.rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ink-4) 20%, var(--ink-4) 80%, transparent);
+}
+.rule-blue {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-blue) 50%, transparent);
+  opacity: 0.65;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 24px;
+  font-family: var(--font-caps);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  background: transparent;
+  color: var(--fg-1);
+  border: 1px solid var(--ink-5);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 200ms var(--ease-out);
+}
+.btn:hover {
+  border-color: var(--brand-blue);
+  color: var(--brand-blue);
+  box-shadow: 0 0 0 4px rgba(46,185,234,0.08);
+}
+.btn-arrow::after {
+  content: "→";
+  font-family: var(--font-sans);
+  font-size: 16px;
+  letter-spacing: 0;
+  transition: transform 200ms var(--ease-out);
+}
+.btn:hover.btn-arrow::after { transform: translateX(4px); }
+
+.btn-ghost {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--fg-2);
+}
+.btn-ghost:hover { color: var(--brand-blue); box-shadow: none; }
+
+/* ---- Label system ---- */
+.label {
+  font-family: var(--font-caps);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.num {
+  font-family: var(--font-caps);
+  font-feature-settings: "tnum";
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+/* ---- Card surfaces ---- */
+.panel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  padding: 32px;
+  transition: border-color 300ms var(--ease-out), background 300ms var(--ease-out);
+}
+.panel:hover {
+  border-color: var(--ink-5);
+  background: linear-gradient(180deg, rgba(46,185,234,0.03), rgba(255,255,255,0));
+}
+
+/* ---- Grid utilities ---- */
+.cols-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 48px; }
+.cols-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; }
+.cols-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; }
+.cols-12 { display: grid; grid-template-columns: repeat(12,1fr); gap: 24px; }
+
+@media (max-width: 900px) {
+  .cols-2, .cols-3, .cols-4 { grid-template-columns: 1fr; gap: 32px; }
+  .wrap, .wrap-narrow, .wrap-wide { padding: 0 24px; }
+  section { padding: 80px 0; }
+}
+
+/* ---- Reveal animation ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- Focus ring ---- */
+:focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 3px;
+}
+/* ================================================================
+   Corporate site — component styles (header, hero, innovation,
+   architecture, ems, products, partners, references, roadmap,
+   contact, footer)
+   ================================================================ */
+
+/* ------------------ Header ------------------ */
+.site-header {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 16px 0;
+  transition: background 300ms var(--ease-out), padding 300ms var(--ease-out);
+  background: linear-gradient(180deg, rgba(0,0,0,0.55), transparent);
+}
+.site-header.is-scrolled {
+  padding: 10px 0;
+  background: rgba(6,8,10,0.78);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 1px solid var(--ink-4);
+}
+.site-header-inner {
+  display: flex; align-items: center; justify-content: flex-start;
+  gap: 24px;
+}
+.site-header-right { margin-left: auto; }
+
+/* ---- Desktop page navigation ---- */
+.site-nav { display: none; gap: 32px; margin-left: 24px; }
+.site-nav a {
+  font-family: var(--font-caps);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--fg-2); text-decoration: none;
+  padding: 6px 0;
+  border-bottom: 1px solid transparent;
+  transition: color 200ms var(--ease-out), border-color 200ms var(--ease-out);
+}
+.site-nav a:hover { color: var(--fg-1); }
+.site-nav a.is-active { color: var(--fg-1); border-bottom-color: var(--brand-blue); }
+.site-nav a:focus-visible { outline: 1px solid var(--brand-blue); outline-offset: 4px; }
+@media (min-width: 1100px) { .site-nav { display: flex; } }
+.drawer-nav a.is-active .drawer-nav-label { color: var(--brand-blue); }
+.site-logo img { height: 22px; display: block; }
+.site-header-right {
+  display: flex; align-items: center; gap: 12px;
+}
+
+/* ---- Hamburger ---- */
+.hamburger {
+  width: 44px; height: 44px;
+  display: inline-flex; flex-direction: column;
+  justify-content: center; align-items: flex-start;
+  gap: 5px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+}
+.hamburger:focus-visible { outline: 1px solid var(--brand-blue); outline-offset: 2px; border-radius: 4px; }
+.hamburger span {
+  display: block; height: 1.5px;
+  background: var(--fg-1);
+  transform-origin: center;
+  transition: width 320ms var(--ease-out), transform 320ms var(--ease-out),
+              opacity 200ms var(--ease-out), background 200ms var(--ease-out);
+}
+.hamburger span { width: 24px; }
+/* hover: outer lines shorten (staggered), centre line steps forward once */
+.hamburger { overflow: hidden; }
+.hamburger:hover span { background: var(--brand-blue); }
+.hamburger:hover span:nth-child(1) { width: 14px; }
+.hamburger:hover span:nth-child(3) { width: 19px; transition-delay: 60ms; }
+.hamburger:hover span:nth-child(2) { transform: translateX(6px); transition-delay: 30ms; }
+/* open: morph into a cross */
+.hamburger.is-open span { width: 24px; transition-delay: 0ms; }
+.hamburger.is-open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.hamburger.is-open span:nth-child(2) { opacity: 0; transform: translateX(-8px); }
+.hamburger.is-open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+@media (prefers-reduced-motion: reduce) {
+  .hamburger span { transition: none; animation: none !important; }
+}
+
+/* ---- Region badge ---- */
+.region-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: transparent; border: 0;
+  color: var(--fg-2);
+  padding: 8px 4px;
+  font-family: var(--font-caps);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap;
+  transition: color 200ms var(--ease-out);
+}
+.region-badge:hover { color: var(--fg-1); }
+.region-badge:hover .region-country { color: var(--brand-blue); }
+.region-badge:focus-visible { outline: 1px solid var(--brand-blue); outline-offset: 4px; border-radius: 4px; }
+.region-country { color: var(--fg-1); transition: color 200ms var(--ease-out); }
+.region-seg { color: var(--brand-blue); }
+.region-sep { opacity: 0.35; }
+.intl-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--brand-blue);
+  box-shadow: 0 0 6px var(--brand-blue);
+}
+.header-cta { padding: 10px 18px !important; font-size: 11px !important; }
+
+@media (max-width: 640px) {
+  .header-cta { display: none; }
+  .region-badge { gap: 7px; letter-spacing: 0.08em; }
+  .region-country { max-width: 34vw; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* ------------------ Drawer ------------------ */
+.drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  opacity: 0; pointer-events: none;
+  transition: opacity 300ms var(--ease-out);
+}
+.drawer-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+.drawer {
+  position: fixed; top: 0; bottom: 0; left: 0;
+  width: min(460px, 100vw);
+  background: rgba(10,12,15,0.98);
+  backdrop-filter: blur(24px) saturate(140%);
+  border-right: 1px solid var(--ink-4);
+  box-shadow: 20px 0 60px rgba(0,0,0,0.5);
+  z-index: 201;
+  transform: translateX(-100%);
+  transition: transform 380ms var(--ease-out);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.drawer.is-open { transform: translateX(0); }
+
+.drawer-head, .drawer-foot {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 28px;
+}
+.drawer-head { border-bottom: 1px solid var(--ink-4); }
+.drawer-foot { border-top: 1px solid var(--ink-4); }
+.drawer-close {
+  position: relative;
+  width: 36px; height: 36px;
+  background: transparent; border: 0; padding: 0;
+  cursor: pointer;
+  transition: transform 260ms cubic-bezier(.2,.7,.2,1);
+}
+.drawer-close span {
+  position: absolute; left: 50%; top: 50%;
+  width: 22px; height: 2px; margin: -1px 0 0 -11px;
+  background: var(--fg-2); border-radius: 2px;
+  transition: background 200ms, transform 260ms cubic-bezier(.2,.7,.2,1);
+}
+.drawer-close span:nth-child(1) { transform: rotate(45deg) scaleX(0); }
+.drawer-close span:nth-child(2) { transform: rotate(-45deg) scaleX(0); }
+.drawer.is-open .drawer-close span:nth-child(1) { transform: rotate(45deg) scaleX(1); transition-delay: 180ms; }
+.drawer.is-open .drawer-close span:nth-child(2) { transform: rotate(-45deg) scaleX(1); transition-delay: 260ms; }
+.drawer-close:hover { transform: rotate(90deg); }
+.drawer-close:hover span { background: var(--brand-blue); transition-delay: 0ms; }
+.drawer-close:focus-visible { outline: 1px solid var(--brand-blue); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-close, .drawer-close span { transition: none !important; }
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 28px 32px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-5) transparent;
+}
+.drawer-body::-webkit-scrollbar { width: 6px; }
+.drawer-body::-webkit-scrollbar-thumb { background: var(--ink-5); border-radius: 3px; }
+
+/* Drawer nav */
+.drawer-nav {
+  display: flex; flex-direction: column;
+  border-top: 1px solid var(--ink-4);
+  margin-bottom: 32px;
+}
+.drawer-nav a {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 4px;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: var(--fg-1);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink-4);
+  transition: color 180ms var(--ease-out), padding 180ms var(--ease-out);
+}
+.drawer-nav a:hover {
+  color: var(--brand-blue);
+  padding-left: 12px;
+}
+.drawer-nav-arrow {
+  font-size: 16px; color: var(--fg-4);
+  transition: transform 180ms var(--ease-out), color 180ms var(--ease-out);
+}
+.drawer-nav a:hover .drawer-nav-arrow { color: var(--brand-blue); transform: translateX(4px); }
+
+/* Drawer sections */
+.drawer-section {
+  margin-bottom: 32px;
+  padding: 0;            /* not a page section: no section rhythm */
+  border-top: 0;
+}
+.drawer-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.drawer-seg {
+  display: inline-flex;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-pill);
+  padding: 2px;
+}
+.drawer-seg-btn {
+  background: transparent; border: none;
+  color: var(--fg-3);
+  font-family: var(--font-caps);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.16em;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: all 180ms var(--ease-out);
+}
+.drawer-seg-btn.is-active {
+  background: var(--brand-blue);
+  color: var(--ink-0);
+}
+
+/* Countries */
+.drawer-countries {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.drawer-country {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ink-4);
+  gap: 12px;
+  transition: background 180ms var(--ease-out);
+}
+.drawer-country:last-child { border-bottom: none; }
+.drawer-country.is-active { background: rgba(46,185,234,0.06); }
+.drawer-country-pick {
+  display: flex; align-items: center; gap: 12px;
+  background: transparent; border: none;
+  color: var(--fg-1);
+  cursor: pointer;
+  padding: 4px 0;
+  flex: 1;
+  text-align: left;
+}
+.drawer-country-code {
+  font-family: var(--font-caps);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--fg-3);
+  border: 1px solid var(--ink-5);
+  padding: 5px 7px;
+  border-radius: var(--r-xs);
+  min-width: 32px; text-align: center;
+}
+.drawer-country.is-active .drawer-country-code {
+  color: var(--brand-blue);
+  border-color: var(--brand-blue);
+}
+.drawer-country-name { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
+.drawer-country-name .n { font-size: 14px; color: var(--fg-1); }
+.drawer-country-name .native { font-size: 11px; color: var(--fg-3); }
+.drawer-country-langs { display: flex; gap: 4px; }
+.drawer-lang {
+  font-family: var(--font-caps);
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--fg-2);
+  background: transparent;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-xs);
+  padding: 4px 7px;
+  cursor: pointer;
+  transition: all 160ms var(--ease-out);
+}
+.drawer-lang:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
+.drawer-lang.is-active {
+  background: var(--brand-blue);
+  color: var(--ink-0);
+  border-color: var(--brand-blue);
+}
+
+/* Login */
+.drawer-login-stack { display: flex; flex-direction: column; gap: 8px; }
+.drawer-login-btn {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 16px;
+  background: transparent;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  color: var(--fg-1);
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: all 200ms var(--ease-out);
+}
+.drawer-login-btn:hover {
+  border-color: var(--brand-blue);
+  background: rgba(46,185,234,0.04);
+}
+.drawer-login-btn.primary {
+  border-color: var(--brand-blue);
+  background: rgba(46,185,234,0.08);
+}
+.drawer-login-btn .icon {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--ink-5);
+  border-radius: var(--r-xs);
+  font-family: var(--font-caps);
+  font-size: 12px;
+  color: var(--brand-blue);
+  flex-shrink: 0;
+}
+.drawer-login-btn > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.drawer-login-btn strong { font-weight: 500; font-size: 14px; color: var(--fg-1); }
+.drawer-login-btn .sub { font-size: 12px; color: var(--fg-3); font-weight: 300; }
+
+.drawer-login-form { display: flex; flex-direction: column; gap: 14px; }
+.drawer-login-form label { display: flex; flex-direction: column; gap: 6px; }
+.drawer-login-form input {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--ink-5);
+  border-radius: var(--r-sm);
+  color: var(--fg-1);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+}
+.drawer-login-form input:focus {
+  outline: none;
+  border-color: var(--brand-blue);
+  background: rgba(46,185,234,0.06);
+}
+.drawer-login-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.drawer-forgot { margin-top: 4px; text-decoration: none; }
+.drawer-forgot:hover { color: var(--brand-blue); }
+.muted { color: var(--fg-4); }
+
+/* ------------------ Hero (Puma full-bleed) ------------------ */
+.hero-section {
+  position: relative;
+  min-height: 100vh;
+  padding: 0;
+  display: flex; align-items: flex-end;
+  overflow: hidden;
+  border-top: none;
+}
+.hero-section + section { border-top: 1px solid var(--ink-4); }
+.hero-bg {
+  position: absolute; inset: 0;
+  z-index: 0;
+}
+.hero-bg img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: 65% 50%;
+  filter: contrast(1.1) brightness(0.95);
+}
+.hero-bg-mask {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.15) 25%, rgba(0,0,0,0.1) 55%, rgba(0,0,0,0.85) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.25) 45%, transparent 70%);
+}
+.hero-inner {
+  position: relative; z-index: 2;
+  padding-top: 120px; padding-bottom: 96px;
+  min-height: 100vh;
+  display: flex; align-items: flex-end;
+}
+.hero-left { max-width: 720px; }
+.hero-scrollhint {
+  position: absolute; bottom: 32px; right: 48px;
+  z-index: 2;
+  display: flex; align-items: center; gap: 12px;
+}
+.hero-scrolltick {
+  width: 40px; height: 1px;
+  background: var(--brand-blue);
+  box-shadow: 0 0 8px var(--brand-blue);
+  animation: tick 2.2s var(--ease-out) infinite;
+}
+@keyframes tick {
+  0%, 100% { transform: scaleX(0.2); transform-origin: left; opacity: 0.4; }
+  50%      { transform: scaleX(1);   transform-origin: left; opacity: 1;   }
+}
+@media (max-width: 900px) {
+  .hero-inner { padding-top: 100px; padding-bottom: 72px; }
+  .hero-scrollhint { left: 24px; right: auto; bottom: 24px; }
+  .hero-bg img { object-position: 60% 50%; }
+  .hero-bg-mask {
+    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.9) 100%);
+  }
+}
+
+/* ------------------ Section head shared ------------------ */
+.section-head {
+  max-width: 920px;
+  margin-bottom: 80px;
+}
+
+/* ------------------ Pillars ------------------ */
+.pillars-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--ink-4);
+  border: 1px solid var(--ink-4);
+}
+.pillar {
+  background: var(--ink-0);
+  padding: 64px 56px;
+  transition: background 300ms var(--ease-out);
+}
+.pillar:hover { background: rgba(46,185,234,0.03); }
+.pillar-num {
+  font-family: var(--font-caps);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--brand-blue);
+  margin-bottom: 32px;
+}
+@media (max-width: 900px) {
+  .pillars-grid { grid-template-columns: 1fr; }
+  .pillar { padding: 40px 32px; }
+}
+
+/* ------------------ Innovation / Cell switch ------------------ */
+.cell-switch {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--ink-4);
+  border: 1px solid var(--ink-4);
+  margin-bottom: 64px;
+}
+.cell-switch-btn {
+  background: var(--ink-0);
+  border: none;
+  padding: 24px 28px;
+  text-align: left;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: all 200ms var(--ease-out);
+  color: var(--fg-2);
+}
+.cell-switch-btn:hover { background: rgba(46,185,234,0.03); color: var(--fg-1); }
+.cell-switch-btn.is-active {
+  background: rgba(46,185,234,0.06);
+  color: var(--fg-1);
+  border-bottom: 1px solid var(--brand-blue);
+  box-shadow: inset 0 -1px 0 var(--brand-blue);
+}
+.cell-switch-btn.is-active .label { color: var(--brand-blue); }
+.cell-switch-code {
+  font-size: 13px;
+  font-weight: 400;
+}
+@media (max-width: 900px) { .cell-switch { grid-template-columns: 1fr; } }
+
+.cell-detail {
+  display: grid; grid-template-columns: 1.2fr 1fr;
+  gap: 80px;
+  align-items: start;
+}
+.cell-detail > * { min-width: 0; }
+.cell-detail .spec-list { margin-top: 8px; }
+@media (max-width: 900px) { .cell-detail { grid-template-columns: 1fr; gap: 48px; } }
+
+.cell-detail-vis {
+  display: flex; justify-content: center;
+  padding: 40px;
+  position: relative;
+}
+
+/* Cell visualisation (cylindrical) */
+.cell-tube {
+  position: relative;
+  width: 160px; height: 400px;
+}
+.cell-tube-body {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, #1a1f26 0%, #2a3240 20%, #434c5a 50%, #2a3240 80%, #1a1f26 100%);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 40px 80px rgba(0,0,0,0.7);
+}
+.cell-tube-stripe {
+  position: absolute; left: 0; right: 0; top: 38%;
+  height: 4px;
+  background: var(--brand-blue);
+  box-shadow: 0 0 16px var(--brand-blue), 0 0 32px rgba(46,185,234,0.4);
+}
+.cell-tube-code {
+  position: absolute; top: 48%; left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 0.1em;
+}
+.cell-tube-ridges {
+  position: absolute; inset: 12px 8px 80px;
+  display: flex; flex-direction: column; justify-content: space-around;
+}
+.cell-tube-ridges span {
+  height: 1px;
+  background: rgba(255,255,255,0.04);
+}
+.cell-tube-cap {
+  position: absolute; left: -2px; right: -2px; height: 14px;
+  background: linear-gradient(180deg, #6a7586 0%, #2a3240 100%);
+  border-radius: 4px;
+}
+.cell-tube-cap-top { top: -4px; }
+.cell-tube-cap-bot { bottom: -4px; background: linear-gradient(0deg, #6a7586 0%, #2a3240 100%); }
+.cell-tube-glow {
+  position: absolute; inset: -60px;
+  border-radius: 50%;
+  opacity: 0.6;
+  filter: blur(48px);
+  z-index: -1;
+}
+.cell-tube-glow-nib { background: radial-gradient(circle, rgba(46,185,234,0.55), transparent 70%); }
+.cell-tube-glow-sc  { background: radial-gradient(circle, rgba(120,220,255,0.55), transparent 70%); }
+.cell-tube-glow-huc { background: radial-gradient(circle, rgba(180,140,255,0.45), transparent 70%); }
+.cell-tube-dim {
+  position: absolute; bottom: -40px; left: 0; right: 0;
+  text-align: center;
+  font-family: var(--font-caps);
+  font-size: 10px; letter-spacing: 0.18em;
+  color: var(--fg-3);
+  text-transform: uppercase;
+}
+
+.spec-list {
+  margin: 40px 0 0;
+  border-top: 1px solid var(--ink-4);
+  padding: 0;
+}
+.spec-row {
+  display: grid; grid-template-columns: 1fr 1.4fr;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ink-4);
+  gap: 24px;
+  align-items: baseline;
+}
+.spec-row .label { color: var(--fg-3); }
+.spec-row .num { color: var(--fg-1); font-size: 15px; }
+.spec-row dt, .spec-row dd { margin: 0; }
+
+/* ------------------ Architecture / stack ------------------ */
+.stack-diagram {
+  display: flex; flex-direction: column;
+  gap: 2px;
+  max-width: 1040px;
+  margin: 0 auto 64px;
+}
+.stack-layer {
+  display: grid; grid-template-columns: 80px 1fr auto;
+  gap: 32px;
+  align-items: center;
+  padding: 22px 28px;
+  background: var(--ink-0);
+  border: 1px solid var(--ink-4);
+  transition: all 200ms var(--ease-out);
+}
+.stack-layer:hover {
+  background: rgba(46,185,234,0.03);
+  border-color: var(--ink-5);
+}
+.stack-layer-own { border-left: 2px solid var(--brand-blue); }
+.stack-layer-partner { border-left: 2px solid var(--ink-5); }
+.stack-level { color: var(--fg-3); }
+.stack-main { display: flex; flex-direction: column; gap: 4px; }
+.stack-label { color: var(--fg-1); font-size: 17px; font-weight: 400; }
+.stack-detail { color: var(--fg-2); font-size: 13px; }
+.stack-tag {
+  font-family: var(--font-caps);
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: var(--r-xs);
+}
+.stack-tag.own {
+  background: rgba(46,185,234,0.08);
+  color: var(--brand-blue);
+  border: 1px solid rgba(46,185,234,0.3);
+}
+.stack-tag.partner {
+  background: rgba(255,255,255,0.02);
+  color: var(--fg-2);
+  border: 1px solid var(--ink-5);
+}
+
+.arch-specs {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--ink-4);
+  border: 1px solid var(--ink-4);
+  max-width: 1040px;
+  margin: 0 auto;
+}
+.arch-specs-row {
+  background: var(--ink-0);
+  padding: 24px 20px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.arch-specs-row .num { color: var(--fg-1); font-size: 14px; }
+@media (max-width: 900px) {
+  .stack-layer { grid-template-columns: 60px 1fr; gap: 16px; }
+  .stack-layer .stack-tag { grid-column: 2; justify-self: start; }
+  .arch-specs { grid-template-columns: 1fr 1fr; }
+}
+
+/* ------------------ EMS ------------------ */
+.ems-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 80px;
+}
+@media (max-width: 900px) { .ems-grid { grid-template-columns: 1fr; } }
+.ems-card {
+  background: linear-gradient(180deg, rgba(46,185,234,0.02), transparent);
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  padding: 40px;
+}
+.ems-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--ink-4);
+}
+.ems-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.ems-list li {
+  color: var(--fg-2);
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ink-4);
+}
+.ems-list li:last-child { border-bottom: none; }
+.ems-list li b { color: var(--fg-1); font-weight: 500; }
+
+.ems-schematic {
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 40px 0;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(46,185,234,0.06), transparent 70%);
+}
+.ems-sig {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-pill);
+  background: var(--ink-0);
+}
+.ems-sig .mono { font-size: 11px; color: var(--fg-2); }
+.ems-sig-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand-blue);
+  box-shadow: 0 0 6px var(--brand-blue);
+}
+.ems-arrow { color: var(--brand-blue); font-size: 20px; opacity: 0.7; }
+.ems-core {
+  padding: 16px 24px;
+  border: 1px solid var(--brand-blue);
+  border-radius: var(--r-md);
+  background: rgba(46,185,234,0.1);
+  text-align: center;
+  box-shadow: 0 0 24px rgba(46,185,234,0.2);
+}
+.ems-core-name { color: var(--fg-1); font-weight: 500; font-size: 14px; letter-spacing: 0.02em; }
+.ems-core-sub  { color: var(--brand-blue); font-size: 10px; margin-top: 4px; }
+.ems-out {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ems-out .mono {
+  font-size: 11px; color: var(--fg-2);
+  padding: 4px 12px;
+  border-left: 1px solid var(--brand-blue);
+}
+
+/* ------------------ Products ------------------ */
+.products-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+}
+@media (max-width: 1100px) { .products-grid { grid-template-columns: 1fr; } }
+.products-grid > * { min-width: 0; }
+.product-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  padding: 48px;
+  transition: border 300ms var(--ease-out);
+}
+.product-card:hover { border-color: var(--brand-blue); }
+.product-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--ink-4);
+}
+.product-bom {
+  list-style: none; padding: 0; margin: 0;
+}
+.product-bom li {
+  display: grid; grid-template-columns: 32px 1fr;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ink-4);
+  color: var(--fg-2);
+  font-size: 14px;
+  align-items: baseline;
+}
+.product-bom li:last-child { border-bottom: none; }
+.product-bom li .label { color: var(--fg-3); font-size: 10px; }
+
+/* ------------------ Cell chips (lithium / energy density badges) ---------- */
+.cell-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.cell-chip {
+  font-family: var(--font-caps);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px solid var(--ink-5);
+  border-radius: var(--r-pill);
+  color: var(--fg-2);
+  background: rgba(255,255,255,0.02);
+}
+.cell-chip:first-child {
+  border-color: rgba(46,185,234,0.5);
+  color: var(--brand-blue);
+  background: rgba(46,185,234,0.06);
+}
+
+/* ------------------ Puma break ------------------ */
+.puma-break {
+  position: relative;
+  padding: clamp(140px, 22vh, 260px) 0;
+  overflow: hidden;
+  border-top: 1px solid var(--ink-4);
+}
+.puma-media {
+  position: absolute; inset: 0;
+  z-index: 0;
+}
+.puma-media img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: 60% 50%;
+  filter: contrast(1.1);
+}
+.puma-mask {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.1) 100%),
+    linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 40%, rgba(0,0,0,0.7) 100%);
+}
+.puma-inner {
+  position: relative; z-index: 1;
+  max-width: 1080px;
+}
+@media (max-width: 900px) {
+  .puma-mask {
+    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.65) 60%, rgba(0,0,0,0.9) 100%);
+  }
+}
+
+/* ------------------ F1 BMS spotlight ------------------ */
+.f1-bms-inner {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+@media (max-width: 900px) { .f1-bms-inner { grid-template-columns: 1fr; gap: 48px; } }
+.f1-bms-media {
+  position: relative;
+  aspect-ratio: 1/1;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid var(--ink-4);
+  box-shadow: var(--shadow-lift);
+}
+.f1-bms-media img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  filter: contrast(1.1) brightness(0.95);
+}
+.f1-bms-media-tag {
+  position: absolute; bottom: 16px; left: 16px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--brand-blue);
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(46,185,234,0.35);
+  border-radius: var(--r-xs);
+  backdrop-filter: blur(8px);
+}
+.f1-specs {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--ink-4);
+  border: 1px solid var(--ink-4);
+  margin-bottom: 32px;
+}
+.f1-spec {
+  background: var(--ink-0);
+  padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.f1-spec-v { color: var(--fg-1); font-size: 14px; }
+.f1-tags {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.f1-tag {
+  font-family: var(--font-caps);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px solid var(--ink-5);
+  border-radius: var(--r-pill);
+  color: var(--fg-2);
+}
+
+/* ------------------ Partners ------------------ */
+.partner-block-head {
+  display: flex; align-items: center; margin-bottom: 24px;
+}
+.partner-grid {
+  display: grid; grid-template-columns: 1fr;
+  gap: 0;
+}
+.partner-row {
+  display: grid; grid-template-columns: 260px 1fr;
+  gap: 56px;
+  align-items: center;
+  padding: 32px 0;
+  border-bottom: 1px solid var(--ink-4);
+}
+.partner-logo {
+  font-size: 32px;
+  line-height: 1;
+  color: var(--fg-1);
+  user-select: none;
+}
+.partner-desc {
+  color: var(--fg-2);
+  font-size: 14px;
+}
+@media (max-width: 900px) {
+  .partner-row { grid-template-columns: 1fr; gap: 8px; }
+}
+
+/* ------------------ References ------------------ */
+.ref-wall {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--ink-4);
+  border: 1px solid var(--ink-4);
+}
+.ref-cell {
+  background: var(--ink-0);
+  padding: 40px 32px;
+  min-height: 140px;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 8px;
+  transition: background 300ms var(--ease-out);
+}
+.ref-cell:hover { background: rgba(46,185,234,0.03); }
+.ref-name {
+  font-family: var(--font-display);
+  font-size: 20px; font-weight: 300;
+  letter-spacing: -0.005em;
+  color: var(--fg-1);
+  text-wrap: balance;
+}
+.ref-cell { min-width: 0; }
+.ref-segment { color: var(--fg-3); }
+@media (max-width: 900px) { .ref-wall { grid-template-columns: 1fr 1fr; } }
+
+/* ------------------ Roadmap ------------------ */
+.roadmap-list {
+  list-style: none; padding: 0; margin: 0;
+  max-width: 960px;
+}
+.roadmap-row {
+  display: grid; grid-template-columns: 120px 40px 1fr;
+  gap: 24px;
+  align-items: center;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--ink-4);
+}
+.roadmap-date { color: var(--fg-3); font-size: 13px; }
+.roadmap-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--ink-5);
+  justify-self: center;
+  position: relative;
+}
+.roadmap-event { color: var(--fg-1); font-size: 16px; font-weight: 300; }
+.roadmap-row.is-done .roadmap-dot { background: var(--fg-3); }
+.roadmap-row.is-done .roadmap-date { color: var(--fg-2); }
+.roadmap-row.is-now .roadmap-dot {
+  background: var(--brand-blue);
+  box-shadow: 0 0 12px var(--brand-blue), 0 0 0 3px rgba(46,185,234,0.18);
+}
+.roadmap-row.is-now .roadmap-date { color: var(--brand-blue); }
+.roadmap-row.is-next .roadmap-dot {
+  background: transparent; border: 2px solid var(--brand-blue);
+}
+.roadmap-row.is-future { opacity: 0.85; }
+
+/* ------------------ Contact ------------------ */
+.contact {
+  background:
+    radial-gradient(ellipse 60% 80% at 50% 30%, rgba(46,185,234,0.10), transparent 70%),
+    var(--ink-0);
+  padding: clamp(120px, 18vh, 220px) 0;
+}
+
+/* ------------------ Footer ------------------ */
+.site-footer {
+  background: var(--ink-0);
+  padding: 80px 0 40px;
+  border-top: 1px solid var(--ink-4);
+  position: relative; z-index: 2;
+}
+.site-footer-top {
+  display: grid; grid-template-columns: 1.2fr 2fr;
+  gap: 80px;
+}
+.site-footer-brand img { height: 26px; }
+.site-footer-cols {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+.site-footer-cols .label { margin-bottom: 16px; }
+.site-footer-cols a {
+  display: block;
+  color: var(--fg-2);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 0;
+  transition: color 150ms var(--ease-out);
+}
+.site-footer-cols a:hover { color: var(--brand-blue); }
+.site-footer-bottom {
+  display: flex; justify-content: space-between;
+  padding: 0 0;
+}
+@media (max-width: 900px) {
+  .site-footer-top { grid-template-columns: 1fr; gap: 48px; }
+  .site-footer-cols { grid-template-columns: 1fr 1fr; }
+}
+
+/* ------------------ Multi-page: entries + next-page ------------------ */
+.page { min-height: 60vh; }
+.page:not(.page-home) > section:first-child { padding-top: clamp(140px, 18vh, 200px); }
+
+.entry-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--ink-4); border: 1px solid var(--ink-4);
+}
+@media (max-width: 1000px) { .entry-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px)  { .entry-grid { grid-template-columns: 1fr; } }
+.entry-card {
+  background: var(--ink-0);
+  padding: 36px 28px;
+  display: flex; flex-direction: column; gap: 14px;
+  min-height: 260px; min-width: 0;
+  color: var(--fg-1); text-decoration: none;
+  transition: background 300ms var(--ease-out);
+}
+.entry-card:hover { background: rgba(46,185,234,0.05); }
+.entry-card:focus-visible { outline: 1px solid var(--brand-blue); outline-offset: -1px; }
+.entry-card h3 {
+  font-family: var(--font-display); font-weight: 300;
+  font-size: 22px; line-height: 1.25; letter-spacing: -0.005em;
+}
+.entry-card p { color: var(--fg-2); font-size: 15px; line-height: 1.55; margin: 0; }
+.entry-go {
+  margin-top: auto;
+  font-family: var(--font-caps); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--brand-blue);
+}
+
+section.next-page { padding: 48px 0 64px; border-top: 1px solid var(--ink-4); }
+.next-page-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.next-page-link {
+  font-family: var(--font-display); font-weight: 300;
+  font-size: clamp(28px, 4vw, 48px); letter-spacing: -0.01em;
+  color: var(--fg-1); text-decoration: none;
+  transition: color 200ms var(--ease-out);
+}
+.next-page-link:hover { color: var(--brand-blue); }
+
+/* ------------------ Conservative-claims additions ------------------ */
+.hero-sub { margin-top: 28px; max-width: 46ch; color: var(--fg-2); }
+.fineprint {
+  margin-top: 40px; max-width: 80ch;
+  font-size: 13px; line-height: 1.6; color: var(--fg-3);
+}
+.product-card { padding: 40px 36px; }
+.product-card.is-lead, .app-card.is-lead {
+  border-color: rgba(46,185,234,0.45);
+  background: linear-gradient(180deg, rgba(46,185,234,0.06), transparent 60%);
+}
+
+/* Applications */
+.app-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+@media (max-width: 1100px) { .app-grid { grid-template-columns: 1fr; } }
+.app-card {
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 18px;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  padding: 40px 36px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+}
+.app-card-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.app-tech {
+  font-family: var(--font-display); font-weight: 300;
+  font-size: clamp(30px, 3vw, 40px); letter-spacing: -0.015em; line-height: 1.1;
+  color: var(--fg-1);
+}
+.app-card .display-sm { color: var(--fg-2); }
+.app-card .body-md { margin: 0; }
+.app-uses {
+  list-style: none; margin: 4px 0 0; padding: 0;
+  border-top: 1px solid var(--ink-4);
+}
+.app-uses li {
+  padding: 12px 0 12px 22px; position: relative;
+  border-bottom: 1px solid var(--ink-4);
+  font-size: 15px; line-height: 1.45; color: var(--fg-1);
+}
+.app-uses li::before {
+  content: ""; position: absolute; left: 2px; top: 19px;
+  width: 8px; height: 1px; background: var(--brand-blue);
+}
+
+.app-compare {
+  margin-top: 64px;
+  border: 1px solid var(--ink-4);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+}
+.app-compare-row {
+  display: grid; grid-template-columns: 1.4fr repeat(3, 1fr);
+  gap: 16px; align-items: center;
+  min-width: 560px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--ink-4);
+}
+.app-compare-row:last-child { border-bottom: 0; }
+.app-compare-head { background: rgba(255,255,255,0.02); }
+.app-compare-head .label { color: var(--fg-3); }
+.app-compare-need { color: var(--fg-1); font-size: 15px; }
+.app-fit {
+  font-family: var(--font-caps); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-3);
+}
+.app-fit.fit-bestfit, .app-fit.fit-yes { color: var(--brand-blue); }
+.app-fit.fit-goodfit { color: var(--fg-1); }
+
+/* ------------------ Home intro: power vs energy ------------------ */
+.intro-scale {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 20px;
+  font-family: var(--font-caps); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3);
+}
+.intro-scale-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--brand-blue), var(--ink-5));
+}
+.intro-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; background: var(--ink-4); border: 1px solid var(--ink-4);
+}
+@media (max-width: 900px) { .intro-grid { grid-template-columns: 1fr; } .intro-scale { display: none; } }
+.intro-card {
+  min-width: 0; background: var(--ink-0);
+  padding: 40px 32px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.intro-card-head { display: flex; justify-content: space-between; gap: 12px; }
+.intro-card .body-md { margin: 0; }
+.intro-tech { margin-top: auto; padding-top: 12px; color: var(--fg-3); font-size: 12px; }
+.intro-power { background: linear-gradient(180deg, rgba(46,185,234,0.07), var(--ink-0) 70%); }
+
+.partner-logo-tile {
+  display: inline-flex; align-items: center; justify-content: flex-start;
+  background: transparent;
+  width: 200px; height: 84px; max-width: 100%;
+}
+.partner-logo-tile img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+
+.ref-cell.has-logo {
+  display: grid; grid-template-columns: auto 1fr;
+  column-gap: 20px; row-gap: 6px; align-content: center; align-items: center;
+}
+.ref-cell.has-logo .ref-logo { grid-row: 1 / span 2; }
+.ref-logo { height: 64px; width: auto; max-width: 96px; object-fit: contain; }
+
+/* ------------------ Header support link ------------------ */
+.header-support {
+  color: var(--fg-2); text-decoration: none; padding: 8px 6px;
+  border-bottom: 1px solid transparent;
+}
+.header-support:hover, .header-support.is-active { color: var(--fg-1); border-bottom-color: var(--brand-blue); }
+@media (max-width: 640px) { .header-support { display: none; } }
+
+/* ------------------ Support & partner pages ------------------ */
+.support-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 900px) { .support-grid { grid-template-columns: 1fr; } }
+.support-grid > * { min-width: 0; }
+.login-box, .support-contact {
+  display: flex; flex-direction: column; gap: 16px;
+  border: 1px solid var(--ink-4); border-radius: var(--r-md);
+  padding: 40px 36px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+}
+.login-box { border-color: rgba(46,185,234,0.4); }
+.login-box label { display: flex; flex-direction: column; gap: 6px; }
+.login-box input {
+  font: inherit; font-size: 15px; color: var(--fg-1);
+  background: var(--ink-1); border: 1px solid var(--ink-5); border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+.login-box input:focus-visible { outline: 1px solid var(--brand-blue); border-color: var(--brand-blue); }
+.login-box .btn { align-self: flex-start; }
+.login-note { min-height: 1.4em; margin: 0; color: var(--brand-blue); font-size: 14px; }
+.login-small { margin: 0; color: var(--fg-3); font-size: 13px; line-height: 1.5; }
+.support-contact .body-md { margin: 0; }
+
+.copy-email { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
+.copy-email-addr {
+  font-family: var(--font-display); font-size: clamp(20px, 2.2vw, 28px); font-weight: 300;
+  color: var(--fg-1); user-select: all; overflow-wrap: anywhere;
+}
+.copy-email-btn {
+  font-family: var(--font-caps); font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+  text-transform: uppercase; cursor: pointer;
+  color: var(--brand-blue); background: rgba(46,185,234,0.08);
+  border: 1px solid rgba(46,185,234,0.35); border-radius: var(--r-pill); padding: 7px 14px;
+}
+.copy-email-btn:hover { background: rgba(46,185,234,0.16); }
+.copy-email-open { color: var(--fg-3); }
+
+.steps-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink-4); }
+.step {
+  display: grid; grid-template-columns: 64px 1fr; gap: 24px;
+  padding: 28px 0; border-bottom: 1px solid var(--ink-4);
+}
+.step > div { min-width: 0; }
+.step-num { color: var(--brand-blue); font-size: 14px; padding-top: 4px; }
+.step-h { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin-bottom: 8px; }
+.step .body-md { margin: 0; max-width: 62ch; }
+.support-note {
+  margin-top: 40px; padding: 24px 28px;
+  border: 1px solid rgba(245,179,1,0.35); border-radius: var(--r-md);
+  background: rgba(245,179,1,0.05);
+}
+.support-note .body-md { margin: 0; }
+.support-note b { color: var(--warning); font-weight: 500; }
+
+.partner-types {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; background: var(--ink-4); border: 1px solid var(--ink-4);
+}
+@media (max-width: 900px) { .partner-types { grid-template-columns: 1fr; } }
+.partner-type { background: var(--ink-0); padding: 36px 32px; min-width: 0; }
+.partner-type .body-md { margin: 12px 0 0; }
+.partner-gets { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink-4); }
+.partner-gets li {
+  padding: 11px 0 11px 22px; position: relative; border-bottom: 1px solid var(--ink-4);
+  font-size: 15px; color: var(--fg-1);
+}
+.partner-gets li::before { content: ""; position: absolute; left: 2px; top: 20px; width: 8px; height: 1px; background: var(--brand-blue); }
+
+/* ------------------ Legal pages ------------------ */
+.footer-legal { display: inline-flex; gap: 20px; flex-wrap: wrap; }
+.footer-legal a { color: var(--fg-3); text-decoration: none; }
+.footer-legal a:hover { color: var(--fg-1); }
+.legal-wrap { max-width: 860px; }
+.legal-meta { color: var(--fg-3); margin-top: 16px; }
+.legal-toc {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 20px 24px; margin-bottom: 48px;
+  border: 1px solid var(--ink-4); border-radius: var(--r-md);
+}
+.legal-toc a { color: var(--fg-2); text-decoration: none; font-size: 15px; }
+.legal-toc a:hover { color: var(--brand-blue); }
+.legal-sec { padding: 28px 0; border-top: 1px solid var(--ink-4); scroll-margin-top: 96px; }
+.legal-sec h3 {
+  font-family: var(--font-display); font-weight: 400; font-size: 22px;
+  color: var(--fg-1); margin-bottom: 14px;
+}
+.legal-sec p, .legal-sec li { color: var(--fg-2); font-size: 16px; line-height: 1.65; max-width: 68ch; }
+.legal-sec p { margin: 0 0 12px; }
+.legal-sec ul { margin: 0 0 12px; padding-left: 20px; }
+.legal-sec li { margin-bottom: 6px; }
+.legal-sec b { color: var(--fg-1); font-weight: 500; }
+.legal-sec a { color: var(--brand-blue); }
+.legal-ph { background: rgba(245,179,1,0.18); color: var(--warning); padding: 0 4px; border-radius: 3px; }
+
+/* ------------------ News ------------------ */
+.news-empty {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 40px 36px; max-width: 640px;
+  border: 1px dashed var(--ink-5); border-radius: var(--r-md);
+}
+.news-empty .body-md { margin: 0; }
+.news-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink-4); }
+.news-item {
+  display: grid; grid-template-columns: 200px 1fr; gap: 32px;
+  padding: 32px 0; border-bottom: 1px solid var(--ink-4);
+}
+@media (max-width: 700px) { .news-item { grid-template-columns: 1fr; gap: 12px; } }
+.news-item > * { min-width: 0; }
+.news-meta { display: flex; flex-direction: column; gap: 8px; color: var(--fg-3); }
+.news-meta time { color: var(--brand-blue); font-size: 13px; }
+.news-body .body-md { margin: 12px 0 0; max-width: 62ch; }
+
+.news-link { display: inline-block; margin-top: 16px; color: var(--brand-blue); text-decoration: none; }
+.news-link:hover { text-decoration: underline; }
+
+/* ------------------ Press kit ------------------ */
+.press-h { display: block; color: var(--fg-3); margin: 56px 0 20px; }
+.press-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+@media (max-width: 800px) { .press-grid { grid-template-columns: 1fr; } }
+.press-card { min-width: 0; border: 1px solid var(--ink-4); border-radius: var(--r-md); overflow: hidden; }
+.press-preview { height: 180px; display: flex; align-items: center; justify-content: center; padding: 32px; }
+.press-preview img { max-width: 80%; max-height: 100%; object-fit: contain; }
+.press-light { background: #FFFFFF; }
+.press-dark { background: var(--ink-1); }
+.press-card-body { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 22px; border-top: 1px solid var(--ink-4); }
+.press-name { color: var(--fg-1); font-size: 15px; }
+.press-files { display: flex; gap: 8px; flex-wrap: wrap; }
+.press-file {
+  color: var(--brand-blue); text-decoration: none;
+  border: 1px solid rgba(46,185,234,0.35); border-radius: var(--r-pill); padding: 6px 12px;
+}
+.press-file:hover { background: rgba(46,185,234,0.1); }
+.press-slogan { font-family: var(--font-display); font-weight: 300; font-size: clamp(32px, 4.5vw, 64px); line-height: 1.1; letter-spacing: -0.015em; color: var(--fg-1); margin: 0; }
+.press-slogan em { font-style: normal; color: var(--brand-blue); }
+.press-colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media (max-width: 800px) { .press-colors { grid-template-columns: 1fr 1fr; } }
+.press-color { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.press-swatch { height: 72px; border-radius: var(--r-sm); border: 1px solid var(--ink-4); }
+.press-hex { color: var(--fg-2); font-size: 13px; }
+.press-fonts { display: flex; flex-direction: column; border-top: 1px solid var(--ink-4); }
+.press-font { display: grid; grid-template-columns: 200px 220px 1fr; gap: 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--ink-4); }
+@media (max-width: 800px) { .press-font { grid-template-columns: 1fr; gap: 4px; } }
+.press-font > * { min-width: 0; }
+.press-font .body-md { margin: 0; }
+.press-font a { color: var(--brand-blue); }
+.press-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px 28px; border: 1px solid var(--ink-4); border-radius: var(--r-md); max-width: 760px; }
+.press-copy .body-md { margin: 0; }
+.press-rules { margin: 0; padding-left: 20px; color: var(--fg-2); max-width: 70ch; }
+.press-rules li { margin-bottom: 8px; line-height: 1.6; }
+
+/* ---- International row + B2C note in drawer ---- */
+.drawer-country.is-intl { border-bottom: 1px dashed var(--ink-4); }
+.drawer-region-note { font-size: 13px; line-height: 1.5; color: var(--fg-3); margin: 0 0 12px; }
+.drawer-region-note b { color: var(--fg-1); font-weight: 600; }
+.drawer-cookie-link { background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font-caps); font-size: 11px; letter-spacing: .14em; color: var(--fg-3); text-decoration: underline; text-underline-offset: 3px; }
+.drawer-cookie-link:hover { color: var(--brand-blue); }
+.footer-cookie-btn { background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font-caps); font-size: 10px; letter-spacing: .2em; color: var(--fg-3); }
+.footer-cookie-btn:hover { color: var(--brand-blue); }
+.legal-table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 14px; }
+.legal-table th, .legal-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--ink-4); vertical-align: top; }
+.legal-table th { font-family: var(--font-caps); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--fg-3); font-weight: 500; }
+.legal-table code { font-family: var(--font-mono, monospace); color: var(--brand-blue); font-size: 13px; }
+@media (max-width: 640px) { .legal-table { display: block; overflow-x: auto; } }
+
+/* News: scheduled badge, multiple links, recall notice */
+.news-sched { color: #F5A623; border: 1px solid rgba(245,166,35,.5); border-radius: 999px; padding: 4px 10px; align-self: flex-start; font-size: 11px; }
+.news-links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.news-recall { border-left: 2px solid #F5A623; padding-left: 20px; }
+.news-recall .news-meta .label:not(.news-sched) { color: #F5A623; }
+
+/* ---- Website forms (shared B2B + B2C) ---- */
+.contact-form { max-width: 760px; margin: 64px auto 0; padding: 0 var(--gutter, 24px); text-align: left; }
+.webform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.webform-grid .wide { grid-column: 1 / -1; }
+@media (max-width: 600px) { .webform-grid { grid-template-columns: 1fr; } }
+.webform label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.webform input, .webform select, .webform textarea {
+  font: inherit; font-size: 15px; color: var(--fg-1); width: 100%;
+  background: var(--ink-1); border: 1px solid var(--ink-5); border-radius: var(--r-sm); padding: 12px 14px;
+}
+.webform textarea { resize: vertical; min-height: 110px; }
+.webform input:focus-visible, .webform select:focus-visible, .webform textarea:focus-visible { outline: 1px solid var(--brand-blue); border-color: var(--brand-blue); }
+.webform label.webform-consent, .webform label.b2c-check { flex-direction: row; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--fg-2); line-height: 1.45; }
+.webform-consent input { width: 18px; height: 18px; margin: 1px 0 0; padding: 0; accent-color: var(--brand-blue); flex: 0 0 auto; }
+.webform-consent a, .webform-fail a { color: var(--brand-blue); }
+.webform-hp { position: absolute !important; left: -9999px !important; width: 1px !important; height: 1px !important; opacity: 0; }
+.webform button[disabled] { opacity: .6; cursor: progress; }
+.webform-fail { margin: 0; color: #F5A623; font-size: 14px; line-height: 1.5; }
+.webform-ok { align-items: flex-start; }
+.webform-ok .b2c-thanks-check { width: 56px; height: 56px; }
+.webform-ok .b2c-thanks-check circle { fill: none; stroke: var(--brand-blue); stroke-width: 2; }
+.webform-ok .b2c-thanks-check path { fill: none; stroke: var(--brand-blue); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.b2b-sheets { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--ink-4); display: flex; flex-direction: column; gap: 12px; }
+.b2b-sheets .body-md { margin: 0; color: var(--fg-3); }
+.b2b-sheets-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.b2b-sheet { display: inline-flex; gap: 10px; align-items: center; padding: 10px 16px; border: 1px solid var(--ink-5); border-radius: 999px; color: var(--fg-1); text-decoration: none; font-size: 14px; }
+.b2b-sheet:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
+.b2b-sheet .mono { font-size: 11px; color: var(--brand-blue); }
+
+:root{color-scheme:dark}
+</style>
+<script>window.__B2B_LANG='en';window.BELINUS_LANG='en';window.BELINUS_PRIVACY_URL='#privacy';window.BELINUS_API='https://mc-6dau2ixzuj.bunny.run/api';document.documentElement.lang='en';</script>
+<script src="consent.js"></script>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>const FORMS_MAIL="service@belinus.com";function belinusSubmit(e,a){const s=(window.BELINUS_API||"").replace(/\/$/,"");return s?fetch(s+"/forms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:e,lang:window.BELINUS_LANG||"en",page:location.pathname+location.hash,fields:a})}).then(t=>t.json().catch(()=>({})).then(n=>({ok:t.ok&&n.ok,error:n.error||(t.ok?"":"http_"+t.status)}))).catch(()=>({ok:!1,error:"network"})):Promise.resolve({ok:!1,error:"no_api"})}function mailFallback(e,a){const s=Object.entries(a).filter(([t,n])=>!t.startsWith("_")&&n!==""&&n!=null).map(([t,n])=>`${t}: ${Array.isArray(n)?n.join(", "):n}`).join(`
+`);return`mailto:${FORMS_MAIL}?subject=${encodeURIComponent(e)}&body=${encodeURIComponent(s)}`}const WF={en:{name:"Name",company:"Company",email:"Email",phone:"Phone",country:"Country",message:"Message",website:"Website",address:"Installation address",product:"Product",serial:"Serial number",installed:"Installation date (approx.)",describe:"Describe the issue or question",topic:"Subject",send:"Send",sending:"Sending\u2026",required:"Please fill in the required fields (*).",consent:["I agree that Belinus processes my details to handle this request, as described in the ","privacy statement","."],okH:"Thank you. Your message has been sent.",okB:"Our team will get back to you on working days. You will receive our reply from service@belinus.com.",again:"Send another message",fail:"Your message could not be sent right now. Please send it by email instead:",failBtn:"Open a prepared email",topics:["Project or quotation","Partnership or distribution","Investor relations","Press","Other"],ptypes:["Installer","Distributor","Integrator","Other"],ptype:"Type of business",products:["Solar panels","Energywall home battery","Powerbox inverter","EV charger","Themis energy management","Other"],attach:"Photos, your invoice or proof of purchase can be sent afterwards by replying to our email.",titles:{contact:"Send us a message",partner:"Apply to become a partner",service:"Service or warranty request"},subjects:{contact:"Contact via belinus.com",partner:"Partner application via belinus.com",service:"Service request via belinus.com"}},nl:{name:"Naam",company:"Bedrijf",email:"E-mail",phone:"Telefoon",country:"Land",message:"Bericht",website:"Website",address:"Installatieadres",product:"Product",serial:"Serienummer",installed:"Installatiedatum (ongeveer)",describe:"Beschrijf het probleem of je vraag",topic:"Onderwerp",send:"Versturen",sending:"Bezig met versturen\u2026",required:"Vul de verplichte velden (*) in.",consent:["Ik ga ermee akkoord dat Belinus mijn gegevens verwerkt om deze aanvraag te behandelen, zoals beschreven in de ","privacyverklaring","."],okH:"Bedankt. Je bericht is verstuurd.",okB:"Ons team antwoordt op werkdagen. Je ontvangt ons antwoord van service@belinus.com.",again:"Nog een bericht sturen",fail:"Je bericht kon nu niet worden verstuurd. Stuur het via e-mail:",failBtn:"Open een voorbereide e-mail",topics:["Project of offerte","Partnerschap of distributie","Investeerders","Pers","Andere"],ptypes:["Installateur","Verdeler","Integrator","Andere"],ptype:"Type bedrijf",products:["Zonnepanelen","Energywall-thuisbatterij","Powerbox-omvormer","Laadpaal","Themis-energiebeheer","Andere"],attach:"Foto\u2019s en je factuur of aankoopbewijs kun je achteraf bezorgen door op onze e-mail te antwoorden.",titles:{contact:"Stuur ons een bericht",partner:"Word partner",service:"Service- of garantieaanvraag"},subjects:{contact:"Contact via belinus.com",partner:"Partneraanvraag via belinus.com",service:"Serviceaanvraag via belinus.com"}},fr:{name:"Nom",company:"Entreprise",email:"E-mail",phone:"T\xE9l\xE9phone",country:"Pays",message:"Message",website:"Site web",address:"Adresse d\u2019installation",product:"Produit",serial:"Num\xE9ro de s\xE9rie",installed:"Date d\u2019installation (approx.)",describe:"D\xE9crivez le probl\xE8me ou votre question",topic:"Sujet",send:"Envoyer",sending:"Envoi en cours\u2026",required:"Veuillez remplir les champs obligatoires (*).",consent:["J\u2019accepte que Belinus traite mes donn\xE9es pour r\xE9pondre \xE0 cette demande, comme d\xE9crit dans la ","d\xE9claration de confidentialit\xE9","."],okH:"Merci. Votre message a \xE9t\xE9 envoy\xE9.",okB:"Notre \xE9quipe vous r\xE9pond les jours ouvrables. Vous recevrez notre r\xE9ponse de service@belinus.com.",again:"Envoyer un autre message",fail:"Votre message n\u2019a pas pu \xEAtre envoy\xE9 pour le moment. Envoyez-le par e-mail :",failBtn:"Ouvrir un e-mail pr\xE9par\xE9",topics:["Projet ou devis","Partenariat ou distribution","Investisseurs","Presse","Autre"],ptypes:["Installateur","Distributeur","Int\xE9grateur","Autre"],ptype:"Type d\u2019entreprise",products:["Panneaux solaires","Batterie domestique Energywall","Onduleur Powerbox","Borne de recharge","Gestion d\u2019\xE9nergie Themis","Autre"],attach:"Vous pourrez envoyer ensuite des photos et votre facture ou preuve d\u2019achat en r\xE9pondant \xE0 notre e-mail.",titles:{contact:"Envoyez-nous un message",partner:"Devenir partenaire",service:"Demande de service ou de garantie"},subjects:{contact:"Contact via belinus.com",partner:"Demande de partenariat via belinus.com",service:"Demande de service via belinus.com"}}};WF.nlu=Object.assign({},WF.nl,{describe:"Beschrijf het probleem of uw vraag",consent:["Ik ga ermee akkoord dat Belinus mijn gegevens verwerkt om deze aanvraag te behandelen, zoals beschreven in de ","privacyverklaring","."],okH:"Dank u. Uw bericht is verstuurd.",okB:"Ons team antwoordt op werkdagen. U ontvangt ons antwoord van service@belinus.com.",fail:"Uw bericht kon nu niet worden verstuurd. Stuur het via e-mail:",attach:"Foto\u2019s en uw factuur of aankoopbewijs kunt u achteraf bezorgen door op onze e-mail te antwoorden."});const WF_FIELDS={contact:[["name",1],["company",0],["email",1,"email"],["phone",0,"tel"],["topic",0,"topics"],["message",1,"area"]],partner:[["company",1],["name",1],["email",1,"email"],["phone",0,"tel"],["country",1],["ptype",1,"ptypes"],["website",0],["message",0,"area"]],service:[["name",1],["email",1,"email"],["phone",1,"tel"],["address",1],["product",1,"products"],["serial",0],["installed",0],["describe",1,"area"]]};function WebForm({kind:e="contact",privacyHref:a,initial:s}){const t=(window.BELINUS_LANG||"en").toLowerCase(),n=(t==="nl"&&!window.__B2C_PAGE_LANG?WF.nlu:WF[t])||WF.en,i=WF_FIELDS[e],[r,c]=React.useState(()=>Object.assign({},s||{})),[p,g]=React.useState(!1),[o,y]=React.useState(""),[b,d]=React.useState("idle"),[C,N]=React.useState(""),[S,E]=React.useState(""),k="wf-"+e,f=l=>m=>c(Object.assign({},r,{[l]:m.target.value})),B=l=>n[l]||l,P=l=>{l.preventDefault();const m=i.some(([h,w])=>w&&!String(r[h]||"").trim()),u=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(r.email||"").trim());if(m||!u||!p){N(n.required);return}const v={_email:r.email.trim(),_name:(r.name||r.company||"").trim(),_consent:!0,_hp:o};i.forEach(([h])=>{v[B(h)]=(r[h]||"").trim()}),N(""),d("sending"),belinusSubmit(e,v).then(h=>{if(h.ok){d("ok");return}E(mailFallback(n.subjects[e],v)),d("fail")})};return b==="ok"?React.createElement("div",{className:"login-box webform webform-ok",role:"status","aria-live":"polite"},React.createElement("svg",{className:"b2c-thanks-check",viewBox:"0 0 52 52","aria-hidden":"true"},React.createElement("circle",{cx:"26",cy:"26",r:"24"}),React.createElement("path",{d:"M15 27 l7 7 l15 -16"})),React.createElement("h3",{className:"display-sm"},n.okH),React.createElement("p",{className:"body-md",style:{margin:0}},n.okB),React.createElement("button",{type:"button",className:"btn-ghost label",onClick:()=>{c({}),g(!1),d("idle")}},n.again," \u2192")):React.createElement("form",{className:"login-box webform",onSubmit:P,noValidate:!0,"aria-labelledby":k+"-t"},React.createElement("span",{id:k+"-t",className:"label",style:{color:"var(--brand-blue)"}},n.titles[e]),React.createElement("div",{className:"webform-grid"},i.map(([l,m,u])=>{const v=React.createElement("span",{className:"label"},B(l),m?" *":""),h=u==="area"||l==="address";return u==="area"?React.createElement("label",{key:l,className:"wide"},v,React.createElement("textarea",{rows:"4",value:r[l]||"",onChange:f(l),required:!!m})):n[u]&&Array.isArray(n[u])?React.createElement("label",{key:l},v,React.createElement("select",{value:r[l]||"",onChange:f(l),required:!!m},React.createElement("option",{value:""},"\u2014"),n[u].map(w=>React.createElement("option",{key:w,value:w},w)))):React.createElement("label",{key:l,className:h?"wide":""},v,React.createElement("input",{type:u||"text",value:r[l]||"",onChange:f(l),required:!!m,autoComplete:{name:"name",email:"email",phone:"tel",company:"organization",address:"street-address",country:"country-name"}[l]||"off"}))})),React.createElement("input",{className:"webform-hp",tabIndex:"-1",autoComplete:"off","aria-hidden":"true",value:o,onChange:l=>y(l.target.value),name:"website_url"}),e==="service"&&React.createElement("p",{className:"login-small"},n.attach),React.createElement("label",{className:"b2c-check webform-consent"},React.createElement("input",{type:"checkbox",checked:p,onChange:l=>g(l.target.checked),required:!0}),React.createElement("span",null,n.consent[0],React.createElement("a",{href:a||window.BELINUS_PRIVACY_URL||"#privacy"},n.consent[1]),n.consent[2]," *")),React.createElement("button",{type:"submit",className:"btn btn-arrow",disabled:b==="sending"},b==="sending"?n.sending:n.send),React.createElement("p",{className:"login-note",role:"status"},C),b==="fail"&&React.createElement("p",{className:"webform-fail"},n.fail," ",React.createElement("a",{href:S},n.failBtn," \u2192")))}Object.assign(window,{WebForm,belinusSubmit,mailFallback,FORMS_MAIL});const B2B_SHEETS=[["Gaia","belinus-gaia-en.pdf"],["Gaia Smart","belinus-gaia-smart-en.pdf"],["Powerbox S1-5","belinus-powerbox-s1-5-en.pdf"],["Powerbox S3-10","belinus-powerbox-s3-10-en.pdf"],["Energywall H1","belinus-energywall-h1-en.pdf"],["ETAPPro","belinus-etappro-en.pdf"],["Themis","belinus-themis-en.pdf"]],B2B_SHEETS_T={en:{h:"Product data sheets",b:"Residential range \xB7 PDF, in English. Data sheets for power storage and C&I systems are available on request."},nl:{h:"Productdatasheets",b:"Residentieel gamma \xB7 pdf, in het Engels. Datasheets voor vermogensopslag en C&I-systemen zijn op aanvraag beschikbaar."},fr:{h:"Fiches techniques",b:"Gamme r\xE9sidentielle \xB7 PDF, en anglais. Les fiches des syst\xE8mes de stockage de puissance et C&I sont disponibles sur demande."}};function B2BDatasheets(){const e=B2B_SHEETS_T[(window.BELINUS_LANG||"en").toLowerCase()]||B2B_SHEETS_T.en;return React.createElement("div",{className:"b2b-sheets"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},e.h),React.createElement("p",{className:"body-md"},e.b),React.createElement("div",{className:"b2b-sheets-list"},B2B_SHEETS.map(([a,s])=>React.createElement("a",{key:s,className:"b2b-sheet",href:"b2c/datasheets/en/"+s,target:"_blank",rel:"noopener",download:!0},a," ",React.createElement("span",{className:"mono"},"PDF \u2193")))))}Object.assign(window,{B2BDatasheets});const{useState,useEffect,useRef}=React,PAGE_LANG=window.__B2B_LANG||"en",LANG_FILES={EN:"index.html",NL:"nl.html",FR:"fr.html"},COUNTRIES=[{code:"INT",name:"International",native:"B2B International \xB7 default",langs:["EN"]},{code:"BE",name:"Belgium",native:"Belgi\xEB / Belgique",langs:["EN","NL","FR"]},{code:"NL",name:"Netherlands",native:"Nederland",langs:["EN","NL"]},{code:"FR",name:"France",native:"France",langs:["EN","FR"]},{code:"DE",name:"Germany",native:"Deutschland",langs:["EN"]},{code:"CH",name:"Switzerland",native:"Schweiz / Suisse",langs:["EN","FR"]},{code:"LU",name:"Luxembourg",native:"Luxembourg",langs:["EN","FR"]},{code:"UK",name:"United Kingdom",native:"United Kingdom",langs:["EN"]},{code:"IT",name:"Italy",native:"Italia",langs:["EN"]},{code:"ES",name:"Spain",native:"Espa\xF1a",langs:["EN"]}],B2C_COUNTRIES=[{code:"BE",name:"Belgium",native:"Belgi\xEB / Belgique",langs:["NL","FR","EN"]},{code:"NL",name:"Netherlands",native:"Nederland",langs:["NL","EN"]}],DEFAULT_REGION=PAGE_LANG==="en"?{code:"INT",lang:"EN",seg:"B2B"}:{code:"BE",lang:PAGE_LANG.toUpperCase(),seg:"B2B"},B2C_URL="b2c/index.html";function storedRegion(){try{const e=window.BelinusConsent&&window.BelinusConsent.getRegion(),a=e&&e.seg==="B2B"&&COUNTRIES.find(s=>s.code===e.code);if(a&&a.langs.includes(PAGE_LANG.toUpperCase()))return{...e,lang:PAGE_LANG.toUpperCase()}}catch{}return DEFAULT_REGION}function countryName(e){const a=COUNTRIES.find(s=>s.code===e);return a?a.name:e}function openB2C(e,a){const s={code:e,lang:a,seg:"B2C"};try{window.BelinusConsent&&window.BelinusConsent.setRegion(s)}catch{}window.location.href=`${B2C_URL}?c=${e}&l=${a.toLowerCase()}`}const NAV=[{href:"#applications",id:"applications",label:"Applications"},{href:"#technology",id:"technology",label:"Technology"},{href:"#products",id:"products",label:"Products"},{href:"#intelligence",id:"intelligence",label:"Intelligence"},{href:"#company",id:"company",label:"Company"},{href:"#news",id:"news",label:"News"},{href:"#partners",id:"partners",label:"Partners"},{href:"#contact",id:"contact",label:"Contact"}];function Header({page:e}){const[a,s]=useState(!1),[t,n]=useState(!1),[i,r]=useState(storedRegion),[c,p]=useState("B2B"),g=o=>{try{window.BelinusConsent&&window.BelinusConsent.setRegion(o)}catch{}if(o.lang.toLowerCase()!==PAGE_LANG){window.location.href=(LANG_FILES[o.lang]||"index.html")+(window.location.hash||"");return}r(o)};return useEffect(()=>{const o=()=>n(window.scrollY>8);return window.addEventListener("scroll",o),()=>window.removeEventListener("scroll",o)},[]),useEffect(()=>{const o=y=>{y.key==="Escape"&&s(!1)};return document.addEventListener("keydown",o),()=>document.removeEventListener("keydown",o)},[]),useEffect(()=>(a&&p("B2B"),document.body.style.overflow=a?"hidden":"",()=>{document.body.style.overflow=""}),[a]),React.createElement(React.Fragment,null,React.createElement("header",{className:`site-header ${t?"is-scrolled":""}`},React.createElement("div",{className:"site-header-inner wrap-wide"},React.createElement("button",{className:`hamburger ${a?"is-open":""}`,onClick:()=>s(!a),"aria-label":a?"Close menu":"Open menu","aria-expanded":a},React.createElement("span",null),React.createElement("span",null),React.createElement("span",null)),React.createElement("a",{href:"#home",className:"site-logo","aria-label":"belinus home"},React.createElement("img",{src:"assets/logo-belinus.png",alt:"belinus"})),React.createElement("nav",{className:"site-nav","aria-label":"Main"},NAV.filter(o=>!["contact","support","partners"].includes(o.id)).map(o=>React.createElement("a",{key:o.id,href:o.href,className:e===o.id?"is-active":"","aria-current":e===o.id?"page":void 0},o.label))),React.createElement("div",{className:"site-header-right"},React.createElement("button",{className:"region-badge",onClick:()=>s(!0),"aria-label":"Change region",title:`${countryName(i.code)} \xB7 ${i.lang} \xB7 ${i.seg}`},React.createElement("span",{className:"intl-dot"}),React.createElement("span",{className:"region-country"},countryName(i.code)),React.createElement("span",{className:"region-sep"},"\xB7"),React.createElement("span",{className:"region-lang"},i.lang),React.createElement("span",{className:"region-sep"},"\xB7"),React.createElement("span",{className:"region-seg"},i.seg)),React.createElement("a",{href:"#contact",className:"btn btn-arrow header-cta"},"Contact")))),React.createElement("div",{className:`drawer-backdrop ${a?"is-open":""}`,onClick:()=>s(!1),"aria-hidden":"true"}),React.createElement("aside",{className:`drawer ${a?"is-open":""}`,"aria-hidden":!a},React.createElement("div",{className:"drawer-head"},React.createElement("span",{className:"label"},"Menu"),React.createElement("button",{className:"drawer-close",onClick:()=>s(!1),"aria-label":"Close menu"},React.createElement("span",null),React.createElement("span",null))),React.createElement("div",{className:"drawer-body"},React.createElement("nav",{className:"drawer-nav","aria-label":"Primary"},NAV.map(o=>React.createElement("a",{key:o.href,href:o.href,className:e===o.id?"is-active":"",onClick:()=>s(!1)},React.createElement("span",{className:"drawer-nav-label"},o.label),React.createElement("span",{className:"drawer-nav-arrow"},"\u2192")))),React.createElement("section",{className:"drawer-section drawer-login"},React.createElement("div",{className:"drawer-section-head"},React.createElement("span",{className:"label"},"Account")),React.createElement("div",{className:"drawer-login-stack"},React.createElement("a",{href:"https://ems.belinus.com",target:"_blank",rel:"noopener noreferrer",className:"drawer-login-btn primary",onClick:()=>s(!1)},React.createElement("span",{className:"icon","aria-hidden":!0},"\u2197"),React.createElement("span",null,React.createElement("strong",null,"Energy portal \xB7 EMS login"),React.createElement("span",{className:"sub"},"Follow your installation online \xB7 ems.belinus.com"))),React.createElement("a",{href:"#support",className:"drawer-login-btn",onClick:()=>s(!1)},React.createElement("span",{className:"icon","aria-hidden":!0},"\u2192]"),React.createElement("span",null,React.createElement("strong",null,"Customer login & support"),React.createElement("span",{className:"sub"},"For existing Belinus customers"))),React.createElement("a",{href:"#partners",className:"drawer-login-btn",onClick:()=>s(!1)},React.createElement("span",{className:"icon","aria-hidden":!0},"\u25C6"),React.createElement("span",null,React.createElement("strong",null,"Partner login"),React.createElement("span",{className:"sub"},"Installers, distributors, integrators"))))),React.createElement("section",{className:"drawer-section"},React.createElement("div",{className:"drawer-section-head"},React.createElement("span",{className:"label"},"Region & Language"),React.createElement("div",{className:"drawer-seg"},["B2B","B2C"].map(o=>React.createElement("button",{key:o,className:`drawer-seg-btn ${c===o?"is-active":""}`,onClick:()=>p(o)},o)))),c==="B2C"&&React.createElement("p",{className:"drawer-region-note"},React.createElement("b",null,"Belinus for homes")," opens the private-customer site for Belgium and the Netherlands. Choose your country and language."),React.createElement("div",{className:"drawer-countries"},(c==="B2C"?B2C_COUNTRIES:COUNTRIES).map(o=>{const y=c==="B2B"&&i.code===o.code,b=d=>c==="B2C"?openB2C(o.code,d):g({code:o.code,lang:d,seg:"B2B"});return React.createElement("div",{key:o.code,className:`drawer-country ${y?"is-active":""} ${o.code==="INT"?"is-intl":""}`},React.createElement("button",{className:"drawer-country-pick",onClick:()=>b(o.langs[0])},React.createElement("span",{className:"drawer-country-code"},o.code),React.createElement("span",{className:"drawer-country-name"},React.createElement("span",{className:"n"},o.name),React.createElement("span",{className:"native"},o.native))),React.createElement("div",{className:"drawer-country-langs"},o.langs.map(d=>React.createElement("button",{key:d,className:`drawer-lang ${y&&i.lang===d?"is-active":""}`,onClick:()=>b(d)},d))))})))),React.createElement("div",{className:"drawer-foot"},React.createElement("button",{type:"button",className:"label muted drawer-cookie-link",onClick:()=>{s(!1),window.BelinusConsent&&window.BelinusConsent.openSettings()}},"Cookie settings"),React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},countryName(i.code)," \xB7 ",i.lang," \xB7 ",i.seg))))}Object.assign(window,{Header,B2C_URL});function Hero(){return React.createElement("section",{className:"hero-section",id:"top"},React.createElement("div",{className:"hero-bg"},React.createElement("img",{src:"assets/pumabelinus.jpg",alt:""}),React.createElement("div",{className:"hero-bg-mask"})),React.createElement("div",{className:"wrap-wide hero-inner"},React.createElement("div",{className:"hero-left"},React.createElement("div",{className:"eyebrow eyebrow-dot"},"Power & energy storage"),React.createElement("h1",{className:"display"},"Unlock the power",React.createElement("br",null),React.createElement("em",null,"of nature.")),React.createElement("p",{className:"body-lg hero-sub"},"Belinus stores power and energy for industry, mobility and homes, with supercapacitor, sodium-ion and hybrid ultracapacitor technology in hybrid systems."),React.createElement("div",{className:"hero-cta",style:{marginTop:40,display:"flex",gap:16,flexWrap:"wrap"}},React.createElement("a",{href:"#applications",className:"btn btn-arrow"},"See the applications"),React.createElement("a",{href:"#technology",className:"btn-ghost label",style:{alignSelf:"center",color:"var(--fg-2)"}},"Explore the technology")))),React.createElement("div",{className:"hero-scrollhint"},React.createElement("span",{className:"label"},"Scroll"),React.createElement("div",{className:"hero-scrolltick"})))}Object.assign(window,{Hero});const INTRO=[{id:"power",tag:"Power storage",q:"How fast?",h:"A lot of energy in seconds.",b:"Like a sprinter. Supercapacitors charge and discharge in seconds, again and again, for hundreds of thousands of cycles. Ideal for peaks, pulses and backup bridging.",tech:"Supercapacitor \xB7 SC-60138"},{id:"hybrid",tag:"Power + energy",q:"Both?",h:"Fast bursts with more energy on board.",b:"Like a middle-distance runner. Hybrid ultracapacitors combine capacitor-class power with more stored energy, which suits vehicles that brake and accelerate all day.",tech:"Hybrid ultracapacitor \xB7 HUC-60138"},{id:"energy",tag:"Energy storage",q:"How long?",h:"Steady energy for hours.",b:"Like a marathon runner. Sodium-ion cells store energy for use over hours, such as solar power used in the evening, and contain no lithium.",tech:"Sodium-ion \xB7 NIB-60138"}];function Intro(){return React.createElement("section",{className:"intro",id:"intro"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Power and energy, simply"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"Every storage job asks two questions: how fast, and how long?"),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"Power is how quickly energy can flow. Energy is how much you can store. Most systems need some of both, in different amounts. That is why Belinus works with three cell technologies, and designs its systems so they can work together.")),React.createElement("div",{className:"intro-scale","aria-hidden":"true"},React.createElement("span",null,"Seconds"),React.createElement("span",{className:"intro-scale-line"}),React.createElement("span",null,"Hours")),React.createElement("div",{className:"intro-grid"},INTRO.map(e=>React.createElement("article",{key:e.id,className:`intro-card intro-${e.id}`},React.createElement("div",{className:"intro-card-head"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},e.tag),React.createElement("span",{className:"label muted"},e.q)),React.createElement("h3",{className:"display-sm"},e.h),React.createElement("p",{className:"body-md"},e.b),React.createElement("span",{className:"intro-tech mono"},e.tech))))))}Object.assign(window,{Intro});const PILLARS=[{tag:"Power",h:"Supercapacitor power storage",b:"EDLC supercapacitor cells for high-power, high-cycle duty: pulse loads, peak-current shaving, grid support and backup bridging. Charge and discharge in seconds, lithium-free."},{tag:"Energy",h:"Lithium-free sodium-ion",b:"Sodium-ion cells with an NVPF cathode that contain no lithium, cobalt or nickel. Designed for long cycle life in stationary storage and backup power."},{tag:"Mobility",h:"Hybrid ultracapacitors for automotive",b:"Lithium-ion capacitor cells that combine capacitor-class power with higher energy density, for start-stop, regenerative braking and high-power buffering."},{tag:"Hybrid",h:"Hybrid architecture",b:"Power and energy storage in one system. Our own battery management and Themis energy management work as one, deciding moment by moment which technology takes the load: supercapacitors for peaks, energy cells for duration."}];function Pillars(){return React.createElement("section",{className:"pillars",id:"pillars"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Our focus"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"20ch"}},"Three technologies. One hybrid system."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"Belinus is a Belgian technology company developing power and energy storage solutions for industrial, mobility and residential markets. We combine three cell technologies in hybrid architectures, with our own battery management and energy management integrated by design, with the aim of offering best-in-class solutions where power, lifetime and safety matter most.")),React.createElement("div",{className:"pillars-grid"},PILLARS.map(e=>React.createElement("article",{key:e.tag,className:"pillar"},React.createElement("div",{className:"pillar-num"},e.tag),React.createElement("h3",{className:"display-sm",style:{marginBottom:16}},e.h),React.createElement("p",{className:"body-md"},e.b))))))}Object.assign(window,{Pillars});function PumaBreak(){return React.createElement("section",{className:"puma-break","aria-hidden":"false"},React.createElement("div",{className:"puma-media"},React.createElement("img",{src:"assets/pumabelinus.jpg",alt:""}),React.createElement("div",{className:"puma-mask"})),React.createElement("div",{className:"wrap puma-inner"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"The Belinus instinct"),React.createElement("h2",{className:"display",style:{fontSize:"clamp(40px, 5.6vw, 88px)",maxWidth:"18ch"}},"Quiet. Precise. ",React.createElement("em",null,"Lethal to inefficiency.")),React.createElement("p",{className:"body-lg",style:{maxWidth:"44ch",marginTop:24}},"Every component we ship is judged against one instinct \u2014 move only when it matters, and move with absolute authority. Nothing wasted. Nothing loud.")))}function F1BMS(){return React.createElement("section",{className:"f1-bms",id:"bms"},React.createElement("div",{className:"wrap f1-bms-inner"},React.createElement("div",{className:"f1-bms-copy"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Battery management \xB7 BMS-1"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"18ch",marginBottom:24}},"Built for high-power duty cycles."),React.createElement("p",{className:"body-lg",style:{maxWidth:"46ch",marginBottom:32}},"BMS-1 is the battery management standard Belinus is developing for its next generation of modules. One architecture is designed to manage supercapacitor, sodium-ion, hybrid ultracapacitor and LFP modules, with balancing, temperature monitoring and current limits set for each chemistry. Its development draws on our partners' experience in high-performance automotive applications."),React.createElement("div",{className:"f1-specs"},React.createElement("div",{className:"f1-spec"},React.createElement("div",{className:"label"},"Designed for"),React.createElement("div",{className:"f1-spec-v"},"SC \xB7 NIB \xB7 HUC \xB7 LFP")),React.createElement("div",{className:"f1-spec"},React.createElement("div",{className:"label"},"Functions"),React.createElement("div",{className:"f1-spec-v"},"Balancing \xB7 thermal \xB7 current limits")),React.createElement("div",{className:"f1-spec"},React.createElement("div",{className:"label"},"Status"),React.createElement("div",{className:"f1-spec-v"},"In development")),React.createElement("div",{className:"f1-spec"},React.createElement("div",{className:"label"},"IP"),React.createElement("div",{className:"f1-spec-v"},"Belinus Invest IP"))),React.createElement("div",{className:"f1-tags"},React.createElement("span",{className:"f1-tag"},"High current"),React.createElement("span",{className:"f1-tag"},"Wide temperature range"),React.createElement("span",{className:"f1-tag"},"Per-chemistry limits"))),React.createElement("div",{className:"f1-bms-media"},React.createElement("img",{src:"assets/race-car.svg",alt:"Open-wheel race car under neon-blue light"}),React.createElement("div",{className:"f1-bms-media-tag mono"},"belinus \xB7 BMS-1"))))}Object.assign(window,{PumaBreak,F1BMS});const CELLS=[{id:"sc",tag:"Supercapacitor \xB7 EDLC",code:"belinus SC-60138",claim:"Power in seconds, for hundreds of thousands of cycles.",body:"Electric double-layer capacitor. It stores energy electrostatically rather than chemically, so it charges and discharges in seconds and is rated for very high cycle counts. Lithium-free.",chips:["Lithium-free","Pulse power","Up to 500,000 cycles (projected)"],specs:[{k:"Rated capacitance",v:"3,800 F"},{k:"Rated voltage",v:"3.0 V"},{k:"Usable specific power",v:"17.6 kW/kg"},{k:"Stored energy",v:"4.75 Wh \xB7 9.5 Wh/kg"},{k:"Cycle life",v:"500,000 (projected)"},{k:"Operating range",v:"\u221240 \xB0C \u2192 +65 \xB0C"}]},{id:"nib",tag:"Sodium-ion \xB7 NVPF",code:"belinus NIB-60138",claim:"Lithium-free energy storage for daily cycling.",body:"Tabless cylindrical cell with a sodium vanadium fluorophosphate (NVPF) cathode. It contains no lithium, cobalt or nickel, can be discharged to 0 V for transport, and is designed for long cycle life in stationary storage.",chips:["Lithium-free","Cobalt- and nickel-free","> 10,000 cycles"],specs:[{k:"Capacity",v:"~20 Ah"},{k:"Nominal voltage",v:"~3.6 V"},{k:"Energy density",v:"110 Wh/kg \xB7 190 Wh/L"},{k:"Cycle life",v:"> 10,000 to 80% SOH (1C/1C, 25 \xB0C)"},{k:"Discharge",v:"5C continuous \xB7 20C peak"},{k:"Operating range",v:"\u221230 \xB0C \u2192 +55 \xB0C"}]},{id:"huc",tag:"Hybrid ultracapacitor \xB7 LIC",code:"belinus HUC-60138",claim:"Capacitor power with more energy, for automotive.",body:"Lithium-ion capacitor with an activated-carbon cathode and a pre-lithiated anode. It sits between a supercapacitor and a battery: more energy than an EDLC, far more power than a battery cell. Contains lithium.",chips:["Automotive focus","Fast charge acceptance","> 50,000 cycles"],specs:[{k:"Rated voltage",v:"3.8 V (2.2 \u2013 3.8 V)"},{k:"Energy density",v:"30 \u2013 35 Wh/kg"},{k:"Power density",v:"up to 7,000 W/kg"},{k:"Cycle life",v:"> 50,000 to 80% capacity"},{k:"Calendar life",v:"10 \u2013 15 years (typical)"},{k:"Operating range",v:"\u221230 \xB0C \u2192 +65 \xB0C"}]}];function Innovation(){const[e,a]=React.useState("sc"),s=CELLS.find(t=>t.id===e);return React.createElement("section",{className:"innovation",id:"innovation"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Technology \xB7 cells"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"20ch"}},"Three cell technologies. One technology partner."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"Supercapacitor, sodium-ion and hybrid ultracapacitor: Belinus brings all three together as one technology partner, covering a wide range of applications from industry and the grid to automotive and the home. Our aim is best-in-class solutions, built towards European supply and sovereignty.")),React.createElement("div",{className:"cell-switch",role:"tablist"},CELLS.map(t=>React.createElement("button",{key:t.id,role:"tab","aria-selected":t.id===e,className:`cell-switch-btn ${t.id===e?"is-active":""}`,onClick:()=>a(t.id)},React.createElement("span",{className:"label"},t.tag),React.createElement("span",{className:"cell-switch-code mono"},t.code)))),React.createElement("div",{className:"cell-detail"},React.createElement("div",{className:"cell-detail-body"},React.createElement("div",{className:"label",style:{color:"var(--brand-blue)"}},s.tag),React.createElement("h3",{className:"display-mid",style:{fontSize:"clamp(28px, 3.2vw, 48px)",margin:"16px 0 24px"}},s.claim),React.createElement("div",{className:"cell-chips"},s.chips.map(t=>React.createElement("span",{key:t,className:"cell-chip"},t))),React.createElement("p",{className:"body-md",style:{maxWidth:"50ch",marginTop:20}},s.body)),React.createElement("dl",{className:"spec-list"},s.specs.map(t=>React.createElement("div",{key:t.k,className:"spec-row"},React.createElement("dt",{className:"label"},t.k),React.createElement("dd",{className:"num"},t.v))))),React.createElement("p",{className:"fineprint"},"Typical values from preliminary cell data sheets (v01, 2026). Values depend on test conditions and are subject to change without notice; they are not a guarantee of performance. Final specifications and certification status are available on request.")))}Object.assign(window,{Innovation});function Architecture(){return React.createElement("section",{className:"architecture",id:"architecture"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Architecture"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"20ch"}},"One hybrid system, every layer integrated."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"This is the hybrid architecture Belinus is building towards: power and energy modules, battery management for each chemistry, and power electronics that connect them to a shared DC bus, all coordinated by Themis. Today's products already use the power conversion, solar, charging and energy management layers.")),React.createElement("div",{className:"stack-diagram"},React.createElement(StackLayer,{level:"EMS",label:"Themis EMS \xB7 Control & Cloud",detail:"Monitoring \xB7 dispatch optimisation \xB7 grid-service ready",kind:"shared"}),React.createElement(StackLayer,{level:"App",label:"ETAPPro EV charger",detail:"Belinus EV charging",kind:"product"}),React.createElement(StackLayer,{level:"PCS",label:"Powerbox S1-5 \xB7 S3-10 \xB7 640 \xB7 1250",detail:"Hybrid inverter / power conversion \xB7 backup-capable",kind:"product"}),React.createElement(StackLayer,{level:"PV",label:"Gaia Smart",detail:"Back-contact solar module \xB7 integrated optimiser",kind:"product"}),React.createElement(StackLayer,{level:"BMS",label:"Themis BMS-1",detail:"Battery management per chemistry \xB7 in development",kind:"own"}),React.createElement(StackLayer,{level:"Modules",label:"SC1 \xB7 N1 \xB7 HUC1 \xB7 E1",detail:"Supercapacitor \xB7 sodium-ion \xB7 hybrid ultracap \xB7 LFP",kind:"own"}),React.createElement(StackLayer,{level:"Cell",label:"SC-60138 \xB7 NIB-60138 \xB7 HUC-60138",detail:"Supercapacitor \xB7 sodium-ion \xB7 hybrid ultracapacitor",kind:"strategic"})),React.createElement("div",{className:"arch-specs"},React.createElement("div",{className:"arch-specs-row"},React.createElement("span",{className:"label"},"DC bus"),React.createElement("span",{className:"num"},"Shared low-voltage DC bus")),React.createElement("div",{className:"arch-specs-row"},React.createElement("span",{className:"label"},"Expansion"),React.createElement("span",{className:"num"},"Modular, by module count")),React.createElement("div",{className:"arch-specs-row"},React.createElement("span",{className:"label"},"Architecture"),React.createElement("span",{className:"num"},"Hybrid \xB7 power + energy")),React.createElement("div",{className:"arch-specs-row"},React.createElement("span",{className:"label"},"Module standard"),React.createElement("span",{className:"num"},"BMS-1 \xB7 in development")))))}function StackLayer({level:e,label:a,detail:s,kind:t,partnerName:n}){return React.createElement("div",{className:`stack-layer stack-layer-${t}`},React.createElement("span",{className:"stack-level label"},e),React.createElement("div",{className:"stack-main"},React.createElement("span",{className:"stack-label"},a),React.createElement("span",{className:"stack-detail"},s)),React.createElement("span",{className:`stack-tag ${t==="partner"?"partner":"own"}`},t==="own"||t==="product"?"Belinus Invest IP":t==="shared"?"Belinus Invest shared IP":t==="strategic"?"Belinus Invest strategic partnership":n))}Object.assign(window,{Architecture});function EMS(){return React.createElement("section",{className:"ems",id:"ems"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Intelligence \xB7 energy management"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"Themis. One mind for the whole system."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"Belinus systems run on Themis, in two layers: control firmware inside the system, and a cloud layer above it. Together they decide when each module charges and discharges, take tariffs into account, and can keep essential loads powered during a grid outage on supported systems.")),React.createElement("div",{className:"ems-grid"},React.createElement("div",{className:"ems-card"},React.createElement("div",{className:"ems-card-head"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},"Themis Control"),React.createElement("span",{className:"label muted"},"Embedded \xB7 real-time")),React.createElement("h3",{className:"display-sm",style:{marginBottom:20}},"Control at the module level."),React.createElement("ul",{className:"ems-list"},React.createElement("li",null,React.createElement("b",null,"Chemistry-aware")," \u2014 separate operating limits for each module type: supercapacitor for power, sodium-ion or LFP for energy."),React.createElement("li",null,React.createElement("b",null,"Backup mode")," \u2014 keeps essential loads running during a grid outage, with supercapacitor modules covering the transition."),React.createElement("li",null,React.createElement("b",null,"Grid-service ready")," \u2014 designed to support frequency response and peak shaving where local market rules allow."))),React.createElement("div",{className:"ems-card"},React.createElement("div",{className:"ems-card-head"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},"Themis Cloud"),React.createElement("span",{className:"label muted"},"Cloud \xB7 predictive")),React.createElement("h3",{className:"display-sm",style:{marginBottom:20}},"Forecasting, optimisation, and the Belinus app."),React.createElement("ul",{className:"ems-list"},React.createElement("li",null,React.createElement("b",null,"Forecasting")," \u2014 uses consumption, solar yield, tariff and weather data to plan charging and discharging."),React.createElement("li",null,React.createElement("b",null,"Optimisation")," \u2014 dispatches across power and energy modules towards the goal the user chooses: savings, self-consumption or backup reserve."),React.createElement("li",null,React.createElement("b",null,"Grid services")," \u2014 designed for aggregated participation, subject to market rules and prequalification."),React.createElement("li",null,React.createElement("b",null,"Belinus app")," \u2014 consumption, solar yield and savings in one place.")))),React.createElement("div",{className:"ems-schematic"},React.createElement("div",{className:"ems-sig"},React.createElement("span",{className:"ems-sig-dot"}),React.createElement("span",{className:"mono"},"Consumption")),React.createElement("div",{className:"ems-sig"},React.createElement("span",{className:"ems-sig-dot"}),React.createElement("span",{className:"mono"},"Solar yield")),React.createElement("div",{className:"ems-sig"},React.createElement("span",{className:"ems-sig-dot"}),React.createElement("span",{className:"mono"},"Tariff")),React.createElement("div",{className:"ems-sig"},React.createElement("span",{className:"ems-sig-dot"}),React.createElement("span",{className:"mono"},"Grid frequency")),React.createElement("div",{className:"ems-sig"},React.createElement("span",{className:"ems-sig-dot"}),React.createElement("span",{className:"mono"},"Weather")),React.createElement("div",{className:"ems-arrow"},"\u2192"),React.createElement("div",{className:"ems-core"},React.createElement("div",{className:"ems-core-name"},"Themis"),React.createElement("div",{className:"ems-core-sub mono"},"Control & Cloud")),React.createElement("div",{className:"ems-arrow"},"\u2192"),React.createElement("div",{className:"ems-out"},React.createElement("span",{className:"mono"},"Power modules"),React.createElement("span",{className:"mono"},"Energy modules"),React.createElement("span",{className:"mono"},"EV charging"),React.createElement("span",{className:"mono"},"Grid services"))),React.createElement("p",{className:"fineprint"},"Themis features are introduced in stages. Availability depends on the product, the country and local grid rules.")))}Object.assign(window,{EMS});const PRODUCT_CARDS=[{seg:"Power storage",sub:"Supercapacitor systems",lead:!0,h:"High power, on demand, for industry and the grid.",b:"Lithium-free supercapacitor modules and racks built on the SC-60138 cell. Supplied per project and sized to the load profile.",items:[["A","Pulse power and peak-current shaving"],["B","UPS bridging and ride-through"],["C","Grid support and frequency response"],["D","Data centre and critical-load backup"],["E","Braking-energy recovery"]]},{seg:"Commercial & Industrial",sub:"EnergyCabinet G1 \xB7 Powerbox 640 / 1250",h:"Configured for your duty cycle.",b:"EnergyCabinet G1 brings Belinus storage to commercial and industrial sites, paired with the Powerbox 640 or 1250 power conversion system and sized per use case.",items:[["A","Peak shaving and demand response"],["B","Backup for critical loads"],["C","Self-consumption of solar power"],["D","EV fleet charging support"],["E","Microgrids"]]},{seg:"Residential",sub:"Monthly-fee option",h:"One system for the whole home.",b:"Gaia Smart solar modules, the Powerbox hybrid inverter, Energywall storage, the ETAPPro EV charger and Themis energy management, available as one package.",items:[["01","Gaia Smart solar module \xB7 integrated optimiser"],["02","Powerbox S1-5 / S3-10 hybrid inverter \xB7 5 kW / 10 kW"],["03","Energywall H1 home storage"],["04","ETAPPro EV home charger"],["05","Themis energy management \xB7 Belinus app"],["06","Financing and energy contract options"]]}];function Products(){return React.createElement("section",{className:"products",id:"products"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Products"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"From industrial power storage to the home.")),React.createElement("div",{className:"products-grid"},PRODUCT_CARDS.map(e=>React.createElement("article",{key:e.seg,className:`product-card ${e.lead?"is-lead":""}`},React.createElement("div",{className:"product-card-head"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},e.seg),React.createElement("span",{className:"label muted"},e.sub)),React.createElement("h3",{className:"display-sm",style:{marginBottom:20}},e.h),React.createElement("p",{className:"body-md",style:{marginBottom:28}},e.b),React.createElement("ul",{className:"product-bom"},e.items.map(([a,s])=>React.createElement("li",{key:s},React.createElement("span",{className:"label"},a)," ",s)))))),React.createElement(B2BDatasheets,null),React.createElement("p",{className:"fineprint"},"Availability, specifications and warranty terms differ per product and country. The product data sheet and contract terms apply.")))}Object.assign(window,{Products});const APPLICATIONS=[{id:"sc",lead:!0,tech:"Supercapacitor",code:"SC-60138",role:"Power storage",h:"Delivering high power, many times a day.",b:"When a load needs a lot of power for seconds rather than hours, and needs it over and over, a supercapacitor is usually the better tool than a battery.",markets:["Industry","Grid","Data centres","Transport"],uses:["Pulse loads and peak-current shaving in industrial plants","Grid support and fast frequency response","UPS bridging and ride-through for critical loads","DC-bus stabilisation for solar and wind installations","Braking-energy recovery for rail, cranes and lifts"]},{id:"nib",tech:"Sodium-ion",code:"NIB-60138",role:"Lithium-free energy",h:"Storing energy for hours, without lithium.",b:"For storage that cycles daily and must last many years, sodium-ion offers long cycle life and a supply chain free of lithium, cobalt and nickel.",markets:["Residential","Commercial","Telecom"],uses:["Home storage alongside solar panels","Commercial and industrial energy storage","UPS and backup power systems","Telecom site backup","Light and low-speed electric vehicles"]},{id:"huc",tech:"Hybrid ultracapacitor",code:"HUC-60138",role:"Automotive power",h:"Capacitor power with more energy on board.",b:"Vehicles need short bursts of high power and fast recharging during braking. Hybrid ultracapacitors are built for exactly that duty.",markets:["Automotive","Industry","Grid"],uses:["Start-stop systems","Regenerative braking energy capture","High-power buffering in electric and performance vehicles","Industrial pulse-power systems","Grid support and backup power"]}];function Applications(){return React.createElement("section",{className:"applications",id:"applications"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Applications"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"The right technology for each job."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"Our priority markets are power storage for industry and the grid, lithium-free energy storage for homes and businesses, and high-power storage for automotive applications. Each cell technology has its own strengths.")),React.createElement("div",{className:"app-grid"},APPLICATIONS.map(e=>React.createElement("article",{key:e.id,className:`app-card ${e.lead?"is-lead":""}`},React.createElement("div",{className:"app-card-head"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},e.role),React.createElement("span",{className:"label muted mono"},e.code)),React.createElement("div",{className:"app-tech"},e.tech),React.createElement("h3",{className:"display-sm"},e.h),React.createElement("p",{className:"body-md"},e.b),React.createElement("div",{className:"cell-chips"},e.markets.map(a=>React.createElement("span",{key:a,className:"cell-chip"},a))),React.createElement("ul",{className:"app-uses"},e.uses.map(a=>React.createElement("li",{key:a},a)))))),React.createElement("div",{className:"app-compare"},React.createElement("div",{className:"app-compare-row app-compare-head"},React.createElement("span",{className:"label"},"Need"),React.createElement("span",{className:"label"},"Supercapacitor"),React.createElement("span",{className:"label"},"Sodium-ion"),React.createElement("span",{className:"label"},"Hybrid ultracap")),[["Power for seconds","Best fit","Possible","Good fit"],["Energy for hours","\u2014","Best fit","Limited"],["Very high cycle counts","Best fit","Good fit","Good fit"],["Lithium-free","Yes","Yes","No"]].map(e=>React.createElement("div",{key:e[0],className:"app-compare-row"},React.createElement("span",{className:"app-compare-need"},e[0]),e.slice(1).map((a,s)=>React.createElement("span",{key:s,className:`app-fit fit-${a.toLowerCase().replace(/[^a-z]/g,"")}`},a))))),React.createElement("p",{className:"fineprint"},"General guidance only. The right technology depends on the application; our engineers advise per project.")))}Object.assign(window,{Applications});const RESEARCH=[{name:"imec",style:{font:"sans",weight:200,letter:"-0.03em",color:"#2EB9EA"},desc:"Testing partner for solar panels."},{name:"VITO",style:{font:"sans",weight:700,letter:"-0.01em"},desc:"Testing partner for energy storage."},{name:"KU\xA0Leuven",style:{font:"display",weight:300,letter:"0.02em"},desc:"Testing partner for cells."}],SUPPLIERS=[{name:"LONGi",img:"assets/logo-longi.png",style:{font:"sans",weight:300,letter:"0.18em",upper:!0},desc:"Strategic supplier for solar modules."},{name:"Sinexcel",img:"assets/logo-sinexcel-dark.png",style:{font:"display",weight:500,letter:"-0.02em"},desc:"Strategic supplier for inverters and power conversion."},{name:"Morand Cars",img:"assets/logo-morand-dark.png",style:{font:"display",weight:400,letter:"0.04em"},desc:"Strategic supplier \xB7 automotive, Switzerland."}],REFERENCES=[{name:"Minerva Luxury Motors",segment:"Automotive \xB7 BE",img:"assets/logo-minerva.png"},{name:"Morand Group",segment:"Automotive \xB7 CH",img:"assets/logo-morand-dark.png"},{name:"National railway operator \xB7 EU",segment:"Confidential"},{name:"Grid operators",segment:"Energy networks"},{name:"Electricity distributors",segment:"Energy supply"},{name:"Integrators",segment:"Installation and system integration"},{name:"Investors",segment:"Solar and storage project investors (IPPs)"},{name:"Distributors",segment:"Sales channels"}];function PartnerLogo({name:e,style:a,img:s}){if(s)return React.createElement("div",{className:"partner-logo partner-logo-tile"},React.createElement("img",{src:s,alt:e}));const t=a.font==="display"?"var(--font-display)":a.font==="caps"?"var(--font-caps)":"var(--font-sans)";return React.createElement("div",{className:"partner-logo",style:{fontFamily:t,fontWeight:a.weight,letterSpacing:a.letter,color:a.color||"var(--fg-1)",textTransform:a.upper?"uppercase":"none"},dangerouslySetInnerHTML:{__html:e}})}function Partners(){return React.createElement("section",{className:"partners",id:"partners"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Partners & suppliers"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"Tested with leading Belgian research institutes.")),React.createElement("div",{className:"partner-block"},React.createElement("div",{className:"partner-block-head"},React.createElement("span",{className:"label"},"Research & testing"),React.createElement("div",{className:"rule",style:{flex:1,marginLeft:24}})),React.createElement("div",{className:"partner-grid"},RESEARCH.map(e=>React.createElement("div",{key:e.name,className:"partner-row"},React.createElement(PartnerLogo,{name:e.name,style:e.style}),React.createElement("div",{className:"partner-desc"},e.desc))))),React.createElement("div",{className:"partner-block",style:{marginTop:64}},React.createElement("div",{className:"partner-block-head"},React.createElement("span",{className:"label"},"Strategic suppliers"),React.createElement("div",{className:"rule",style:{flex:1,marginLeft:24}})),React.createElement("div",{className:"partner-grid"},SUPPLIERS.map(e=>React.createElement("div",{key:e.name,className:"partner-row"},React.createElement(PartnerLogo,{name:e.name,style:e.style,img:e.img}),React.createElement("div",{className:"partner-desc"},e.desc)))))))}function References(){return React.createElement("section",{className:"references",id:"references"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Selected references"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"20ch"}},"Who we work with.")),React.createElement("div",{className:"ref-wall"},REFERENCES.map(e=>React.createElement("div",{key:e.name+e.segment,className:`ref-cell ${e.img?"has-logo":""}`},e.img&&React.createElement("img",{className:"ref-logo",src:e.img,alt:""}),React.createElement("div",{className:"ref-name"},e.name),React.createElement("div",{className:"ref-segment label"},e.segment))))))}const ROADMAP=[{d:"2025",e:"Cell technologies selected: supercapacitor, sodium-ion, hybrid ultracapacitor",s:"done"},{d:"2026",e:"Product data sheets and validated R&D roadmaps",s:"now"},{d:"2027",e:"Planned: Themis energy management roll-out",s:"next"},{d:"2027",e:"Planned: pilot projects and pre-series production",s:"next"},{d:"2027",e:"Planned: launch of a B2B lease model for charging infrastructure",s:"next"},{d:"2028",e:"Planned: next-generation cell formats",s:"future"},{d:"2030",e:"Target: production in Europe",s:"future"}];function Roadmap(){return React.createElement("section",{className:"roadmap",id:"roadmap"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Roadmap"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"Where we are heading.")),React.createElement("ol",{className:"roadmap-list"},ROADMAP.map((e,a)=>React.createElement("li",{key:a,className:`roadmap-row is-${e.s}`},React.createElement("span",{className:"roadmap-date mono"},e.d),React.createElement("span",{className:"roadmap-dot","aria-hidden":!0}),React.createElement("span",{className:"roadmap-event"},e.e)))),React.createElement("p",{className:"fineprint"},"Future milestones are targets, not commitments, and may change.")))}function Contact(){return React.createElement("section",{className:"contact",id:"contact"},React.createElement("div",{className:"wrap-narrow",style:{textAlign:"center"}},React.createElement("span",{className:"eyebrow eyebrow-dot",style:{justifyContent:"center"}},"Contact"),React.createElement("h2",{className:"display",style:{fontSize:"clamp(40px, 5.4vw, 84px)",margin:"24px 0 32px"}},"Let's talk ",React.createElement("em",null,"power.")),React.createElement("p",{className:"body-lg",style:{margin:"0 auto",maxWidth:"54ch"}},"For projects, partnerships, distribution and investor enquiries, contact Belinus Energy BV directly."),React.createElement("div",{style:{marginTop:48,display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}},React.createElement("a",{href:"mailto:service@belinus.com",className:"btn btn-arrow"},"service@belinus.com"),React.createElement("a",{href:"#",className:"btn-ghost label",style:{alignSelf:"center"}},"Frankrijklei 5 \xB7 Antwerp \xB7 Belgium"))),React.createElement("div",{className:"contact-form"},React.createElement(WebForm,{kind:"contact"})))}function Footer(){return React.createElement("footer",{className:"site-footer"},React.createElement("div",{className:"wrap-wide"},React.createElement("div",{className:"site-footer-top"},React.createElement("div",{className:"site-footer-brand"},React.createElement("img",{src:"assets/logo-belinus.png",alt:"belinus"}),React.createElement("p",{className:"body-md",style:{maxWidth:"42ch",marginTop:20}},"Belinus Energy BV \u2014 Frankrijklei 5, 2000 Antwerp, Belgium.")),React.createElement("div",{className:"site-footer-cols"},React.createElement("div",null,React.createElement("div",{className:"label"},"Company"),React.createElement("a",{href:"#company"},"References"),React.createElement("a",{href:"#company"},"Roadmap"),React.createElement("a",{href:"#news"},"News"),React.createElement("a",{href:"#press"},"Press"),React.createElement("a",{href:"#partners"},"Become a partner"),React.createElement("a",{href:"#contact"},"Contact")),React.createElement("div",null,React.createElement("div",{className:"label"},"Products"),React.createElement("a",{href:"#products"},"Power storage"),React.createElement("a",{href:"#products"},"Energywall"),React.createElement("a",{href:"#products"},"EnergyCabinet"),React.createElement("a",{href:"#products"},"Powerbox"),React.createElement("a",{href:"#products"},"Gaia"),React.createElement("a",{href:"#products"},"ETAPPro")),React.createElement("div",null,React.createElement("div",{className:"label"},"Intelligence"),React.createElement("a",{href:"#intelligence"},"Themis EMS"),React.createElement("a",{href:"#intelligence"},"Themis Cloud"),React.createElement("a",{href:"#intelligence"},"Grid services")),React.createElement("div",null,React.createElement("div",{className:"label"},"Support"),React.createElement("a",{href:"#support"},"Customer support"),React.createElement("a",{href:"#support"},"Warranty and service"),React.createElement("a",{href:"#support"},"Customer login"),React.createElement("a",{href:"#partners"},"Partner login")))),React.createElement("div",{className:"rule",style:{margin:"48px 0 24px"}}),React.createElement("div",{className:"site-footer-bottom"},React.createElement("span",{className:"label"},"\xA9 2026 Belinus Energy BV"),React.createElement("span",{className:"footer-legal"},React.createElement("a",{href:"#privacy",className:"label"},"Privacy policy"),React.createElement("a",{href:"#terms",className:"label"},"Terms of use"),React.createElement("button",{type:"button",className:"label footer-cookie-btn",onClick:()=>window.BelinusConsent&&window.BelinusConsent.openSettings()},"Cookie settings")),React.createElement("span",{className:"label"},"www.belinus.com"))))}Object.assign(window,{Partners,References,Roadmap,Contact,Footer});function CopyEmail({email:e}){const[a,s]=React.useState(!1),t=React.useRef(null),n=()=>{const r=()=>{s(!0),setTimeout(()=>s(!1),1800)};try{navigator.clipboard.writeText(e).then(r,()=>i())}catch{i()}},i=()=>{const r=document.createRange();r.selectNodeContents(t.current);const c=window.getSelection();c.removeAllRanges(),c.addRange(r)};return React.createElement("div",{className:"copy-email"},React.createElement("span",{ref:t,className:"copy-email-addr"},e),React.createElement("button",{type:"button",className:"copy-email-btn",onClick:n},a?"Copied":"Copy"),React.createElement("a",{className:"copy-email-open label",href:`mailto:${e}`},"Open in email app"))}function LoginBox({id:e,title:a,sub:s,note:t,contact:n}){const[i,r]=React.useState("");return React.createElement("form",{className:"login-box",onSubmit:c=>{c.preventDefault(),r(t)},"aria-labelledby":`${e}-title`},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},s),React.createElement("h3",{id:`${e}-title`,className:"display-sm"},a),React.createElement("label",{htmlFor:`${e}-email`},React.createElement("span",{className:"label"},"Email"),React.createElement("input",{id:`${e}-email`,type:"email",autoComplete:"username",placeholder:"name@company.com",required:!0})),React.createElement("label",{htmlFor:`${e}-password`},React.createElement("span",{className:"label"},"Password"),React.createElement("input",{id:`${e}-password`,type:"password",autoComplete:"current-password",required:!0})),React.createElement("button",{type:"submit",className:"btn btn-arrow"},"Log in"),React.createElement("p",{className:"login-note",role:"status"},i),React.createElement("p",{className:"login-small"},"No account? Accounts are not created online. ",n))}const SERVICE_STEPS=[{h:"Collect your details",b:"Your name, installation address and phone number, the product type and serial number, the installation date, and your installer if you know it."},{h:"Describe the issue",b:"What happens, since when, and any error messages or codes. Photos of the product label and of the issue help us a lot."},{h:"Send it to our service team",b:"Email everything to service@belinus.com. Please attach your invoice or proof of purchase."},{h:"We review and get back to you",b:"We confirm we received your request, check it against the warranty terms that came with your product, and agree the next steps with you and, where relevant, your installer."}];function SupportPage(){return React.createElement(React.Fragment,null,React.createElement("section",{className:"support-intro"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Support \xB7 existing customers"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"Help for Belinus customers."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"This page is for customers who already have a Belinus product: solar panels, Energywall storage, Powerbox inverters or EV chargers. Here you find how to request service and how warranty requests are handled.")),React.createElement("div",{className:"support-grid"},React.createElement(WebForm,{kind:"service"}),React.createElement("div",{className:"support-contact"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},"Service requests"),React.createElement("h3",{className:"display-sm"},"Send your request to our service team."),React.createElement("p",{className:"body-md"},"For service questions and warranty requests about an existing Belinus installation, email us. We reply on working days."),React.createElement(CopyEmail,{email:"service@belinus.com"}))))),React.createElement("section",{className:"support-steps",id:"warranty"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Warranty and service"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"24ch"}},"How to request warranty or service."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"If you bought a Belinus product in the past, your warranty continues to be handled under the warranty terms that came with your product. Follow these steps so we can help you quickly.")),React.createElement("ol",{className:"steps-list"},SERVICE_STEPS.map((e,a)=>React.createElement("li",{key:e.h,className:"step"},React.createElement("span",{className:"step-num mono"},String(a+1).padStart(2,"0")),React.createElement("div",null,React.createElement("h3",{className:"step-h"},e.h),React.createElement("p",{className:"body-md"},e.b))))),React.createElement("div",{className:"support-note"},React.createElement("p",{className:"body-md"},React.createElement("b",null,"Safety first.")," If a product shows smoke, an unusual smell, swelling or heat, switch the system off if you can do so safely, keep a distance and contact your installer or the emergency services. Then let us know at service@belinus.com.")))))}const PARTNER_TYPES=[{h:"Installers",b:"Install and maintain Belinus systems for homes and businesses."},{h:"Distributors",b:"Bring Belinus products to installers and projects in your region."},{h:"Integrators",b:"Build Belinus power and energy storage into larger systems and projects."}],PARTNER_GETS=["Product data sheets, manuals and certificates","Product training for your team","Technical support for design and commissioning","Marketing material for your customers","Project support for larger installations"];function PartnerPage(){return React.createElement(React.Fragment,null,React.createElement("section",{className:"partner-intro"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Partners"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"22ch"}},"Work with Belinus."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"We work with installers, distributors and integrators who want to offer advanced power and energy storage to their customers.")),React.createElement("div",{className:"partner-types"},PARTNER_TYPES.map(e=>React.createElement("article",{key:e.h,className:"partner-type"},React.createElement("h3",{className:"display-sm"},e.h),React.createElement("p",{className:"body-md"},e.b)))))),React.createElement("section",{className:"partner-portal"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"support-grid"},React.createElement("div",{className:"support-contact"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},"What partners get"),React.createElement("h3",{className:"display-sm"},"Everything you need to sell and install."),React.createElement("ul",{className:"partner-gets"},PARTNER_GETS.map(e=>React.createElement("li",{key:e},e))),React.createElement("p",{className:"body-md",style:{marginTop:8}},"Interested in becoming a partner? Write to us with your company name, country and type of business."),React.createElement(CopyEmail,{email:"service@belinus.com"})),React.createElement(WebForm,{kind:"partner"})))))}Object.assign(window,{SupportPage,PartnerPage,LoginBox,CopyEmail});const COMPANY={name:"Belinus Energy BV",address:"Frankrijklei 5, 2000 Antwerp, Belgium",kbo:"1020.081.989",rpr:"RPR Antwerp, division Antwerp",vat:"BE 1020.081.989",email:"service@belinus.com",updated:"1 November 2026"};function Ph({children:e}){return React.createElement("mark",{className:"legal-ph"},e)}function LegalDoc({eyebrow:e,title:a,intro:s,sections:t}){return React.createElement("section",{className:"legal"},React.createElement("div",{className:"wrap legal-wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},e),React.createElement("h2",{className:"display-mid"},a),React.createElement("p",{className:"legal-meta label"},"Last updated ",COMPANY.updated),s&&React.createElement("p",{className:"body-lg",style:{marginTop:24}},s)),React.createElement("nav",{className:"legal-toc","aria-label":"Contents"},t.map((n,i)=>React.createElement("a",{key:n.h,href:`#${e==="Privacy"?"privacy":"terms"}`,onClick:r=>{var c;r.preventDefault(),(c=document.getElementById(`legal-${i}`))==null||c.scrollIntoView({behavior:"smooth"})}},i+1,". ",n.h))),React.createElement("div",{className:"legal-body"},t.map((n,i)=>React.createElement("div",{key:n.h,id:`legal-${i}`,className:"legal-sec"},React.createElement("h3",null,i+1,". ",n.h),n.body)))))}function CompanyBlock(){return React.createElement("p",null,COMPANY.name,React.createElement("br",null),COMPANY.address,React.createElement("br",null),"Enterprise number ",COMPANY.kbo," \xB7 ",COMPANY.rpr,React.createElement("br",null),"VAT ",COMPANY.vat,React.createElement("br",null),"Email: ",COMPANY.email)}const PRIVACY_SECTIONS=[{h:"Who is responsible for your data",body:React.createElement(React.Fragment,null,React.createElement("p",null,"The controller of your personal data under the General Data Protection Regulation (GDPR) is:"),React.createElement(CompanyBlock,null),React.createElement("p",null,"For any question about this policy or your data, write to ",COMPANY.email,"."))},{h:"What data we collect",body:React.createElement(React.Fragment,null,React.createElement("p",null,"We only collect data that you give us or that is needed to run the website:"),React.createElement("ul",null,React.createElement("li",null,React.createElement("b",null,"Contact and enquiry data"),": name, company, email address, phone number and the content of your message when you email us."),React.createElement("li",null,React.createElement("b",null,"Service and warranty requests"),": your contact details, installation address, product type and serial number, installation date, installer, invoice or proof of purchase, photos and a description of the issue."),React.createElement("li",null,React.createElement("b",null,"Partner applications"),": company name, country, type of business and contact person."),React.createElement("li",null,React.createElement("b",null,"Account data"),": if online customer or partner accounts are introduced, the login details needed to use them. Accounts are not yet available."),React.createElement("li",null,React.createElement("b",null,"Technical data"),": IP address, browser type and access times, recorded by our hosting provider for security and to keep the website working.")),React.createElement("p",null,"We do not ask for sensitive data, and we ask you not to send it."))},{h:"Why we use it and on what legal basis",body:React.createElement(React.Fragment,null,React.createElement("ul",null,React.createElement("li",null,React.createElement("b",null,"Answering your questions and requests"),": our legitimate interest in responding to people who contact us, or steps you ask us to take before a contract."),React.createElement("li",null,React.createElement("b",null,"Handling service and warranty requests"),": performance of the contract with you, and our legal obligations on product warranty and product safety."),React.createElement("li",null,React.createElement("b",null,"Managing partner relationships"),": steps before a contract and performance of the partnership agreement."),React.createElement("li",null,React.createElement("b",null,"Security and operation of the website"),": our legitimate interest in a safe and working website."),React.createElement("li",null,React.createElement("b",null,"Legal obligations"),": for example accounting, tax and product-safety rules.")),React.createElement("p",null,"We do not use your data for automated decision-making or profiling, and we do not sell it."))},{h:"Who receives your data",body:React.createElement(React.Fragment,null,React.createElement("p",null,"Your data is only shared where needed for the purposes above:"),React.createElement("ul",null,React.createElement("li",null,"companies within the Belinus group that handle your request;"),React.createElement("li",null,"your installer, and where relevant the manufacturer of your product, when this is needed to handle a service or warranty request;"),React.createElement("li",null,"our IT service providers, such as website hosting, email and customer-management software, who process data on our instructions;"),React.createElement("li",null,"authorities, where the law requires it.")))},{h:"Transfers outside the EEA",body:React.createElement(React.Fragment,null,React.createElement("p",null,"Some of our IT service providers may process data outside the European Economic Area. In that case we make sure appropriate safeguards are in place, such as an adequacy decision of the European Commission or the European Commission's standard contractual clauses."))},{h:"How long we keep your data",body:React.createElement(React.Fragment,null,React.createElement("ul",null,React.createElement("li",null,"General enquiries: up to 2 years after our last contact."),React.createElement("li",null,"Service and warranty files: for the duration of the warranty and for the period during which claims are possible under applicable law."),React.createElement("li",null,"Accounting records: for the period required by Belgian law."),React.createElement("li",null,"Technical logs: no longer than 2 years.")))},{h:"Cookies",body:React.createElement(React.Fragment,null,React.createElement("p",null,"This website uses a small number of first-party cookies, mirrored in your browser's local storage where cookies are blocked. We do not use advertising or tracking cookies, and we do not share cookie data with third parties."),React.createElement("table",{className:"legal-table"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Name"),React.createElement("th",null,"Category"),React.createElement("th",null,"Purpose"),React.createElement("th",null,"Kept for"))),React.createElement("tbody",null,React.createElement("tr",null,React.createElement("td",null,React.createElement("code",null,"belinus_consent")),React.createElement("td",null,"Necessary"),React.createElement("td",null,"Stores your cookie choice so we do not ask again on every page."),React.createElement("td",null,"6 months")),React.createElement("tr",null,React.createElement("td",null,React.createElement("code",null,"belinus_region")),React.createElement("td",null,"Preferences"),React.createElement("td",null,"Remembers your region, language and whether you use the business (B2B) or private (B2C) site, so the right version opens on your next visit. Only set with your consent."),React.createElement("td",null,"12 months")))),React.createElement("p",null,React.createElement("b",null,"Statistics.")," We do not use visitor statistics at the moment. If we add them, they will only run with your consent and this policy will list them."),React.createElement("p",null,React.createElement("b",null,"Your choice.")," Necessary cookies cannot be switched off, because the website needs them. All other categories are off until you accept them. You can change or withdraw your consent at any time through ",React.createElement("i",null,"Cookie settings")," in the footer or the menu; withdrawing deletes the preference cookie. You can also delete cookies in your browser settings."),React.createElement("p",null,"We ask for your consent again after 6 months, or sooner if we change how we use cookies."))},{h:"Your rights",body:React.createElement(React.Fragment,null,React.createElement("p",null,"You have the right to access your data, to have it corrected or deleted, to restrict or object to its processing, and to data portability. Where we rely on your consent, you can withdraw it at any time."),React.createElement("p",null,"To use your rights, email ",COMPANY.email,". We may ask you to confirm your identity. We answer within one month."),React.createElement("p",null,"You can also file a complaint with the Belgian Data Protection Authority (Gegevensbeschermingsautoriteit / Autorit\xE9 de protection des donn\xE9es), Drukpersstraat 35, 1000 Brussels, www.dataprotectionauthority.be."))},{h:"Security",body:React.createElement(React.Fragment,null,React.createElement("p",null,"We take appropriate technical and organisational measures to protect your data against loss and unauthorised access. No system is completely secure; if a data breach affects you, we will inform you where the law requires it."))},{h:"Changes to this policy",body:React.createElement(React.Fragment,null,React.createElement("p",null,"We may update this policy. The date at the top shows the latest version."))}];function PrivacyPage(){return React.createElement(LegalDoc,{eyebrow:"Privacy",title:"Privacy policy",intro:"How Belinus handles personal data collected through this website and when you contact us.",sections:PRIVACY_SECTIONS})}const TERMS_SECTIONS=[{h:"About this website",body:React.createElement(React.Fragment,null,React.createElement("p",null,"This website is operated by:"),React.createElement(CompanyBlock,null),React.createElement("p",null,"By using this website you accept these terms of use. If you do not agree, please do not use the website."))},{h:"Information on this website",body:React.createElement(React.Fragment,null,React.createElement("p",null,"The information on this website is general information about Belinus and its products and technologies. It is not an offer, and it does not replace professional advice for your situation."),React.createElement("p",null,"Product specifications, technical values and availability are indicative. They may change without notice and can differ per product, version and country. Binding specifications are those in the final product data sheet and the contract documents for your order."),React.createElement("p",null,"Statements about future plans, roadmaps and targets reflect our current intentions. They are not commitments and may change."))},{h:"Orders and sales",body:React.createElement(React.Fragment,null,React.createElement("p",null,"No sales contract is concluded through this website. Offers, orders, deliveries and warranties are governed by the individual offer or contract and by our general terms and conditions of sale, which are provided with each offer."))},{h:"Intellectual property",body:React.createElement(React.Fragment,null,React.createElement("p",null,"The content of this website, including texts, images, designs, logos and the Belinus name, is protected by intellectual property rights belonging to Belinus or to third parties who have given permission for its use."),React.createElement("p",null,"Logos and names of partners, suppliers and other companies remain the property of their respective owners and are shown for information only."),React.createElement("p",null,"You may view and print content for personal or internal business use. Any other use, copying or distribution requires our prior written consent."))},{h:"Accounts and logins",body:React.createElement(React.Fragment,null,React.createElement("p",null,"Customer and partner logins are only for existing customers and partners to whom Belinus has given access. Online sign-up is not possible. Keep your login details confidential; you are responsible for activity under your account."))},{h:"Liability",body:React.createElement(React.Fragment,null,React.createElement("p",null,"We take care to keep this website accurate and available, but we cannot guarantee that it is always complete, current or free of errors or interruptions."),React.createElement("p",null,"To the extent permitted by law, Belinus is not liable for damage resulting from the use of this website or from reliance on its information. This does not limit liability for intent or gross negligence, or any liability that cannot be excluded under Belgian law, including consumer protection law."))},{h:"Links to other websites",body:React.createElement(React.Fragment,null,React.createElement("p",null,"This website may link to other websites. We do not control them and are not responsible for their content or their privacy practices."))},{h:"Personal data",body:React.createElement(React.Fragment,null,React.createElement("p",null,"How we handle personal data is explained in our ",React.createElement("a",{href:"#privacy"},"privacy policy"),"."))},{h:"Applicable law and courts",body:React.createElement(React.Fragment,null,React.createElement("p",null,"These terms are governed by Belgian law. Disputes fall under the jurisdiction of the courts of Antwerp, division Antwerp, unless mandatory law, such as consumer protection law, gives jurisdiction to another court."))},{h:"Changes",body:React.createElement(React.Fragment,null,React.createElement("p",null,"We may change these terms at any time. The version published on this website applies."))}];function TermsPage(){return React.createElement(LegalDoc,{eyebrow:"Terms",title:"Terms of use",intro:"The general terms and conditions for using belinus.com.",sections:TERMS_SECTIONS})}Object.assign(window,{PrivacyPage,TermsPage});const NEWS=[{date:"2026-11-02",publishAt:"2026-11-02T12:00:00+01:00",scheduledLabel:"Scheduled \xB7 2 November 2026, 12:00",tag:"Product safety",recall:!0,title:"Recall of 8 Energywall home batteries and end of life for the remaining stock",body:["Belinus Energy BV is recalling 8 Energywall home batteries (Energywall LV and HV). Customers who have these batteries installed are being contacted personally.","The cause lies in storage: while in storage, these batteries were deeply discharged. A deep discharge can permanently affect the battery cells. As a result, the manufacturer\u2019s warranty on these batteries no longer applies and we can no longer guarantee their correct long-term operation.","For the same reason, we are declaring the remaining Energywall LV and HV stock end of life. These batteries will no longer be sold, delivered or installed.","Have you been contacted about this recall? Please contact our customer service at service@belinus.com with your name and installation address, and we will schedule the replacement with you. Do you have an Energywall LV or HV but have not been contacted? Please email us too, and we will confirm whether your installation is affected.","The recalled batteries will be replaced with new products. Affected customers can also choose to pre-order the new Energywall H1: our lithium-free, sodium-ion home battery. The Energywall H1 is available for pre-order, with delivery in the third quarter of 2027."],links:[{href:"mailto:service@belinus.com?subject=Energywall%20recall",label:"service@belinus.com"},{href:"b2c/en.html#thuisbatterij",label:"Pre-order the Energywall H1"}]},{date:"2026-10-15",tag:"Partnership",title:"Belinus and Clavoris sign a strategic partnership for service contracts and financing models",body:["Belinus has signed a strategic partnership with Clavoris, a financial enablement platform. Together we are preparing a secure, institutionally compliant framework for Belinus customer service contracts, including financing models such as leasing, rental and power purchase agreements (PPAs).","Clavoris is developing a compliant security token on an institutional-grade blockchain network built for regulated financial markets. Three features matter most for our customers and investors. Transaction details are visible only to the parties involved, so contract and payment data stay private. Payment and delivery are settled in a single step, or not at all, which removes the gap in which one side has paid and the other has not delivered. And the network is already used by established financial institutions, so contracts can connect to existing capital-market infrastructure.","Belinus can rely on the standards the Clavoris platform has adopted: qualified electronic signatures under the EU eIDAS regulation, identity and company checks (KYC and KYB) in line with anti-money-laundering rules, GDPR-compliant data protection with hosting in the EU, and a security framework being aligned with the EU Digital Operational Resilience Act (DORA) and ISO/IEC 27001.","For Belinus this means that energy-as-a-service contracts, from a home system on a monthly fee to a supercapacitor installation under a PPA, can be documented, signed and administered on one platform, with a clear route to financing them with institutional investors. Tokenisation on the network is planned for 2027.","This announcement is for information only and is not an offer of financial instruments."],link:{href:"https://www.clavoris.com",label:"Visit www.clavoris.com"}},{date:"2026-10-01",tag:"Technology",title:"Belinus presents three cell technologies for power and energy storage",body:"Belinus now offers three cell technologies through a Belinus Invest strategic partnership: the SC-60138 supercapacitor for high-power, high-cycle applications, the lithium-free NIB-60138 sodium-ion cell for stationary energy storage, and the HUC-60138 hybrid ultracapacitor for automotive and other high-power uses. Together they let us build hybrid systems that combine power and energy storage, coordinated by our own battery management and Themis energy management. Preliminary data sheets are available on request.",link:{href:"#technology",label:"Explore the technology"}},{date:"2026-06",tag:"Technology",title:"Belinus develops supercapacitor-based systems for the European market",body:"Belinus is developing power storage systems built on supercapacitors for European industry, grid and mobility customers. Supercapacitors charge and discharge in seconds and are rated for very high cycle counts, which makes them well suited to the fast, repeated power peaks that batteries handle less well: industrial pulse loads, grid support, backup bridging and braking-energy recovery. As electrification and renewable generation grow, so does the need for this kind of fast power storage, and market studies expect continued strong growth. Our cells are produced in India by our technology partner. The EU and India concluded a free trade agreement in principle in January 2026, with signature planned for the end of 2026 and entry into force expected in 2027. We expect this to support a stable supply chain for the European market, alongside our longer-term target of production in Europe.",link:{href:"#applications",label:"See the applications"}},{date:"2026-04",tag:"Company",title:"EV ChargeKing to join the Belinus group",body:"Belinus Invest BV and SOME BV, the company behind EV ChargeKing, have reached an agreement in principle for EV ChargeKing to join the Belinus group. EV ChargeKing brings its residential EV charging portfolio, which will be offered under the Belinus brand alongside our solar, inverter and storage products. Completion of the transaction is subject to final agreements and customary conditions.",link:{href:"#products",label:"See the products"}},{date:"2026-02",tag:"Solar",title:"Belinus bets on back-contact: a new solar portfolio built only on BC technology",body:["Belinus is preparing the launch of a new solar panel portfolio based solely on back-contact (BC) cell technology. The range is built around Gaia and Gaia Smart, the latter with an integrated optimiser assembled in Belgium.","In a conventional solar cell, metal contacts run across the front and cast small shadows on the surface. A back-contact cell moves all contacts to the rear. The front is fully open to the light, so more of the cell area produces power, and the panel has a clean, uniform look without visible busbars.","Solar cell technology has moved in steps: from PERC, which dominated the market for years, to TOPCon, and now to back-contact designs, which a growing number of leading manufacturers see as the next step in efficiency. BC also lends itself to better behaviour in partial shade and to premium all-black designs for homes.","Energy storage is at the heart of every Belinus system. Our supercapacitor and sodium-ion storage, managed by Themis, decides when energy is stored, used or delivered. Back-contact solar extends that system: fewer, better panels on every roof, each one feeding into Belinus storage."],link:{href:"#products",label:"See the products"}}],NEWS_PREVIEW=/[?&]preview=news\b/.test(location.search);function newsLive(e){return!e.publishAt||NEWS_PREVIEW||Date.now()>=Date.parse(e.publishAt)}function newsPending(e){return e.publishAt&&Date.now()<Date.parse(e.publishAt)}function formatDate(e){if(/^\d{4}-\d{2}$/.test(e)){const[a,s]=e.split("-");return new Date(+a,+s-1,1).toLocaleDateString("en-GB",{month:"long",year:"numeric"})}try{return new Date(e+"T00:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}catch{return e}}function NewsPage(){return React.createElement("section",{className:"news",id:"news"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"News"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"20ch"}},"Latest from Belinus."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"Company updates, product news and project milestones.")),NEWS.filter(newsLive).length===0?React.createElement("div",{className:"news-empty"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},"Coming soon"),React.createElement("p",{className:"body-md"},"Our first updates will be published here shortly. For press enquiries, contact us at service@belinus.com.")):React.createElement("ol",{className:"news-list"},NEWS.filter(newsLive).map(e=>React.createElement("li",{key:e.date+e.title,className:"news-item"+(e.recall?" news-recall":"")},React.createElement("div",{className:"news-meta"},React.createElement("time",{className:"mono",dateTime:e.date},formatDate(e.date)),React.createElement("span",{className:"label"},e.tag),newsPending(e)&&React.createElement("span",{className:"news-sched label"},e.scheduledLabel)),React.createElement("div",{className:"news-body"},React.createElement("h3",{className:"display-sm"},e.title),(Array.isArray(e.body)?e.body:[e.body]).map((a,s)=>React.createElement("p",{key:s,className:"body-md"},a)),e.links&&React.createElement("div",{className:"news-links"},e.links.map(a=>React.createElement("a",{key:a.href,className:"news-link label",href:a.href},a.label," \u2192"))),e.link&&React.createElement("a",{className:"news-link label",href:e.link.href,.../^https?:/.test(e.link.href)?{target:"_blank",rel:"noopener"}:{}},e.link.label," \u2192")))))))}Object.assign(window,{NewsPage,NEWS});const PRESS_LOGOS=[{name:"Logo \xB7 blue",bg:"light",preview:"assets/press/belinus-logo-blue.svg",files:[["SVG","assets/press/belinus-logo-blue.svg"],["PNG","assets/press/belinus-logo-blue.png"],["PDF (vector)","assets/press/belinus-logo-vector.pdf"]]},{name:"Logo \xB7 white",bg:"dark",preview:"assets/press/belinus-logo-white.svg",files:[["SVG","assets/press/belinus-logo-white.svg"],["PNG","assets/press/belinus-logo-white.png"]]},{name:"Slogan \xB7 for dark backgrounds",bg:"dark",preview:"assets/press/belinus-slogan-white.png",files:[["PNG","assets/press/belinus-slogan-white.png"]]},{name:"Slogan \xB7 for light backgrounds",bg:"light",preview:"assets/press/belinus-slogan-dark.png",files:[["PNG","assets/press/belinus-slogan-dark.png"]]}],PRESS_COLORS=[{name:"Belinus blue",hex:"#2EB9EA",use:"Logo and accents"},{name:"Ultra black",hex:"#0A0C0F",use:"Backgrounds"},{name:"Graphite",hex:"#222830",use:"Text on light"},{name:"White",hex:"#FFFFFF",use:"Text on dark"}],PRESS_FONTS=[{name:"Arial Nova",use:"Headlines and body text",note:"Commercial typeface, licensed from Monotype. Not included in this kit."},{name:"Space Grotesk",use:"Labels and small capitals",note:"Open-source font.",link:"https://fonts.google.com/specimen/Space+Grotesk"},{name:"JetBrains Mono",use:"Technical values and codes",note:"Open-source font.",link:"https://fonts.google.com/specimen/JetBrains+Mono"}],BOILERPLATE="Belinus is a Belgian technology company based in Antwerp that develops power and energy storage solutions for industry, mobility and homes. Belinus works with three cell technologies, supercapacitor, sodium-ion and hybrid ultracapacitor, and combines them in hybrid systems with its own battery management and Themis energy management.";function CopyText({text:e,label:a}){const[s,t]=React.useState(!1),n=React.useRef(null);return React.createElement("div",{className:"press-copy"},React.createElement("p",{ref:n,className:"body-md"},e),React.createElement("button",{type:"button",className:"copy-email-btn",onClick:()=>{const r=()=>{t(!0),setTimeout(()=>t(!1),1800)},c=()=>{const p=document.createRange();p.selectNodeContents(n.current);const g=window.getSelection();g.removeAllRanges(),g.addRange(p)};try{navigator.clipboard.writeText(e).then(r,c)}catch{c()}}},s?"Copied":a))}function PressPage(){return React.createElement(React.Fragment,null,React.createElement("section",{className:"press"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Press"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"20ch"}},"Press kit."),React.createElement("p",{className:"body-lg",style:{marginTop:28}},"Logos, slogan, colours, typefaces and a short company description for articles about Belinus. For interviews, images or other questions, contact us at service@belinus.com.")),React.createElement("h3",{className:"press-h label"},"Logos and slogan"),React.createElement("div",{className:"press-grid"},PRESS_LOGOS.map(e=>React.createElement("article",{key:e.name,className:"press-card"},React.createElement("div",{className:`press-preview press-${e.bg}`},React.createElement("img",{src:e.preview,alt:e.name})),React.createElement("div",{className:"press-card-body"},React.createElement("span",{className:"press-name"},e.name),React.createElement("div",{className:"press-files"},e.files.map(([a,s])=>React.createElement("a",{key:a,href:s,download:!0,target:"_blank",rel:"noopener",className:"press-file label"},a," \u2193"))))))),React.createElement("h3",{className:"press-h label"},"Slogan"),React.createElement("p",{className:"press-slogan"},"Unlock the power ",React.createElement("em",null,"of nature.")),React.createElement("h3",{className:"press-h label"},"Colours"),React.createElement("div",{className:"press-colors"},PRESS_COLORS.map(e=>React.createElement("div",{key:e.hex,className:"press-color"},React.createElement("span",{className:"press-swatch",style:{background:e.hex}}),React.createElement("span",{className:"press-name"},e.name),React.createElement("span",{className:"mono press-hex"},e.hex),React.createElement("span",{className:"label muted"},e.use)))),React.createElement("h3",{className:"press-h label"},"Typefaces"),React.createElement("div",{className:"press-fonts"},PRESS_FONTS.map(e=>React.createElement("div",{key:e.name,className:"press-font"},React.createElement("span",{className:"press-name"},e.name),React.createElement("span",{className:"label muted"},e.use),React.createElement("span",{className:"body-md"},e.note," ",e.link&&React.createElement("a",{href:e.link,target:"_blank",rel:"noopener"},"Get it on Google Fonts \u2192"))))),React.createElement("h3",{className:"press-h label"},"About Belinus \xB7 company description"),React.createElement(CopyText,{text:BOILERPLATE,label:"Copy text"}),React.createElement("h3",{className:"press-h label"},"Using our brand"),React.createElement("ul",{className:"press-rules"},React.createElement("li",null,"Use the logo as supplied. Do not change its colours, proportions or spacing."),React.createElement("li",null,"Use the blue logo on light backgrounds and the white logo on dark backgrounds."),React.createElement("li",null,"Keep clear space around the logo of at least the height of the letter \u201Cb\u201D."),React.createElement("li",null,"Write the company name as Belinus in running text."),React.createElement("li",null,"Partner and supplier logos shown on this website belong to their owners and are not part of this kit.")))))}Object.assign(window,{PressPage});const PAGES=[{id:"home",label:"Home"},{id:"applications",label:"Applications"},{id:"technology",label:"Technology"},{id:"products",label:"Products"},{id:"intelligence",label:"Intelligence"},{id:"company",label:"Company"},{id:"news",label:"News"},{id:"partners",label:"Partners"},{id:"support",label:"Support"},{id:"contact",label:"Contact"},{id:"press",label:"Press"},{id:"privacy",label:"Privacy policy"},{id:"terms",label:"Terms of use"}],PAGE_IDS=PAGES.map(e=>e.id);function currentPage(){const e=(window.location.hash||"").replace("#","");return PAGE_IDS.includes(e)?e:"home"}function usePage(){const[e,a]=React.useState(currentPage);return React.useEffect(()=>{const s=()=>{a(currentPage()),window.scrollTo(0,0)};return window.addEventListener("hashchange",s),()=>window.removeEventListener("hashchange",s)},[]),e}const ENTRIES=[{id:"applications",eyebrow:"Applications",h:"Where each technology fits.",b:"Power storage for industry and the grid, lithium-free storage, and automotive power."},{id:"technology",eyebrow:"Technology",h:"Three cell technologies, one technology partner.",b:"A wide range of applications, with best-in-class solutions built towards European sovereignty as our aim."},{id:"products",eyebrow:"Products",h:"From industrial power storage to the home.",b:"Supercapacitor systems, EnergyCabinet, and complete home systems."},{id:"intelligence",eyebrow:"Intelligence",h:"Themis runs the whole system.",b:"Control firmware and cloud forecasting that run every Belinus system."}];function Entries(){return React.createElement("section",{className:"entries"},React.createElement("div",{className:"wrap"},React.createElement("div",{className:"section-head"},React.createElement("span",{className:"eyebrow eyebrow-dot"},"Explore Belinus"),React.createElement("h2",{className:"display-mid",style:{maxWidth:"20ch"}},"Find what you came for.")),React.createElement("div",{className:"entry-grid"},ENTRIES.map(e=>React.createElement("a",{key:e.id,href:`#${e.id}`,className:"entry-card"},React.createElement("span",{className:"label",style:{color:"var(--brand-blue)"}},e.eyebrow),React.createElement("h3",null,e.h),React.createElement("p",null,e.b),React.createElement("span",{className:"entry-go"},"Open ",e.eyebrow," \u2192"))))))}function NextPage({to:e}){const a=PAGES.find(s=>s.id===e);return React.createElement("section",{className:"next-page"},React.createElement("div",{className:"wrap next-page-inner"},React.createElement("span",{className:"label muted"},"Next"),React.createElement("a",{href:`#${e}`,className:"next-page-link"},a.label," \u2192")))}function Page({page:e}){switch(e){case"applications":return React.createElement(React.Fragment,null,React.createElement(Applications,null),React.createElement(NextPage,{to:"technology"}));case"technology":return React.createElement(React.Fragment,null,React.createElement(Innovation,null),React.createElement(Architecture,null),React.createElement(F1BMS,null),React.createElement(NextPage,{to:"products"}));case"products":return React.createElement(React.Fragment,null,React.createElement(Products,null),React.createElement(NextPage,{to:"intelligence"}));case"intelligence":return React.createElement(React.Fragment,null,React.createElement(EMS,null),React.createElement(NextPage,{to:"company"}));case"company":return React.createElement(React.Fragment,null,React.createElement(Partners,null),React.createElement(References,null),React.createElement(Roadmap,null),React.createElement(NextPage,{to:"contact"}));case"news":return React.createElement(NewsPage,null);case"partners":return React.createElement(PartnerPage,null);case"support":return React.createElement(SupportPage,null);case"contact":return React.createElement(Contact,null);case"press":return React.createElement(PressPage,null);case"privacy":return React.createElement(PrivacyPage,null);case"terms":return React.createElement(TermsPage,null);default:return React.createElement(React.Fragment,null,React.createElement(Hero,null),React.createElement(Intro,null),React.createElement(Pillars,null),React.createElement(Entries,null),React.createElement(References,null),React.createElement(Contact,null))}}Object.assign(window,{PAGES,usePage,Page,Entries,NextPage}),function(){try{const e=window.BelinusConsent&&window.BelinusConsent.getRegion();e&&e.seg==="B2C"&&!window.location.hash?window.location.replace(B2C_URL):e&&e.seg==="B2B"&&e.lang&&e.lang.toLowerCase()!==PAGE_LANG&&LANG_FILES[e.lang]&&window.location.replace(LANG_FILES[e.lang]+window.location.hash)}catch{}}();function App(){const e=usePage();return React.createElement(React.Fragment,null,React.createElement(Header,{page:e}),React.createElement("main",{className:`page page-${e}`},React.createElement(Page,{page:e})),React.createElement(Footer,null))}ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
+</script>

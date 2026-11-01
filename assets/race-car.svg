@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" role="img" aria-label="Open-wheel race car under neon-blue light">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%">
+      <stop offset="0" stop-color="#0c1a24"/>
+      <stop offset="0.55" stop-color="#05080b"/>
+      <stop offset="1" stop-color="#000"/>
+    </radialGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1820"/>
+      <stop offset="1" stop-color="#020304"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3644"/>
+      <stop offset="0.45" stop-color="#121820"/>
+      <stop offset="1" stop-color="#06080b"/>
+    </linearGradient>
+    <linearGradient id="tyre" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#050607"/>
+      <stop offset="0.5" stop-color="#15191e"/>
+      <stop offset="1" stop-color="#050607"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+
+    <!-- left half of the car; the right half mirrors it -->
+    <g id="half">
+      <!-- rear tyre -->
+      <rect x="262" y="548" width="92" height="206" rx="22" fill="url(#tyre)"/>
+      <path d="M268 566 Q308 552 348 566" stroke="#2EB9EA" stroke-width="2" fill="none" opacity="0.55" filter="url(#glow)"/>
+      <!-- rear wing endplate -->
+      <path d="M318 448 L336 448 L340 600 L322 600 Z" fill="#0b1015"/>
+      <!-- sidepod -->
+      <path d="M500 548 L392 560 Q362 600 368 664 L500 664 Z" fill="url(#body)"/>
+      <path d="M392 560 Q362 600 368 664" stroke="#2EB9EA" stroke-width="2.2" fill="none" filter="url(#glow)"/>
+      <!-- engine cover / halo -->
+      <path d="M500 452 Q470 452 462 478 L448 560 L500 560 Z" fill="url(#body)"/>
+      <path d="M500 520 Q446 520 438 560" stroke="#3FCBFF" stroke-width="5" fill="none" filter="url(#glow)"/>
+      <!-- monocoque & nose -->
+      <path d="M500 560 L436 560 L452 646 L474 742 L500 742 Z" fill="url(#body)"/>
+      <path d="M436 560 L452 646 L474 742" stroke="#2EB9EA" stroke-width="2" fill="none" opacity="0.85" filter="url(#glow)"/>
+      <!-- front suspension -->
+      <path d="M452 612 L292 650 M452 640 L292 690 M462 600 L292 676" stroke="#1d2731" stroke-width="5" stroke-linecap="round"/>
+      <!-- front tyre -->
+      <rect x="196" y="596" width="100" height="168" rx="22" fill="url(#tyre)"/>
+      <path d="M204 612 Q246 598 288 612" stroke="#2EB9EA" stroke-width="2.4" fill="none" filter="url(#glow)"/>
+      <path d="M200 640 L200 740" stroke="#2EB9EA" stroke-width="1.5" opacity="0.5" filter="url(#glow)"/>
+      <!-- front wing -->
+      <path d="M500 742 L170 736 L162 772 L500 770 Z" fill="#0c1117"/>
+      <path d="M500 742 L170 736" stroke="#3FCBFF" stroke-width="2.5" fill="none" filter="url(#glow)"/>
+      <path d="M162 708 L176 708 L178 776 L160 776 Z" fill="#0b1015"/>
+      <path d="M168 708 L168 774" stroke="#2EB9EA" stroke-width="1.5" opacity="0.8" filter="url(#glow)"/>
+    </g>
+  </defs>
+
+  <rect width="1000" height="1000" fill="url(#bg)"/>
+  <rect y="720" width="1000" height="280" fill="url(#floor)"/>
+  <path d="M0 720 L1000 720" stroke="#2EB9EA" stroke-width="1" opacity="0.25"/>
+
+  <!-- light bars -->
+  <g stroke="#bff1ff" stroke-width="7" stroke-linecap="round" filter="url(#glow)" opacity="0.9">
+    <path d="M220 120 L220 330"/>
+    <path d="M330 90 L330 300"/>
+    <path d="M440 120 L440 260"/>
+    <path d="M560 120 L560 260"/>
+    <path d="M670 90 L670 300"/>
+    <path d="M780 120 L780 330"/>
+  </g>
+  <ellipse cx="500" cy="230" rx="360" ry="120" fill="#2EB9EA" opacity="0.10" filter="url(#soft)"/>
+
+  <!-- floor glow and reflection under the car -->
+  <ellipse cx="500" cy="790" rx="380" ry="40" fill="#2EB9EA" opacity="0.22" filter="url(#soft)"/>
+
+  <!-- rear wing main plane (behind the body) -->
+  <path d="M322 448 L678 448 L678 480 L322 480 Z" fill="#0d131a"/>
+  <path d="M322 448 L678 448" stroke="#3FCBFF" stroke-width="3" filter="url(#glow)"/>
+
+  <use href="#half"/>
+  <use href="#half" transform="translate(1000 0) scale(-1 1)"/>
+
+  <!-- airbox and roll hoop -->
+  <path d="M470 470 Q470 418 500 412 Q530 418 530 470 Z" fill="url(#body)"/>
+  <path d="M472 466 Q472 420 500 414 Q528 420 528 466" stroke="#3FCBFF" stroke-width="2.5" fill="none" filter="url(#glow)"/>
+  <!-- halo centre pillar -->
+  <path d="M500 520 L500 580" stroke="#2EB9EA" stroke-width="6" filter="url(#glow)"/>
+  <!-- nose tip light -->
+  <path d="M484 742 L516 742" stroke="#bff1ff" stroke-width="3" filter="url(#glow)"/>
+</svg>
