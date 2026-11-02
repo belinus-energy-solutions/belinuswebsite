@@ -24,6 +24,7 @@ jobs:
           SK=$(curl -fsS -H "AccessKey: $BUNNY_API_KEY" "https://api.bunny.net/storagezone/$STORAGE_ZONE_ID" | python3 -c 'import sys,json;print(json.load(sys.stdin)["Password"])')
           find . -type f \
             ! -path './.git/*' \
+            ! -path './_src/*' \
             ! -path './.github/*' \
             ! -name 'README.md' \
             | while IFS= read -r f; do
