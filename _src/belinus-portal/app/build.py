@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Build the Belinus customer portal into a self-contained folder (index.html + vendor + fonts + assets).
+
+Output: /home/claude/belinuswebsite/portal/ (served at belinus.com/portal/ and, once the hostname is set up,
+at portal.belinus.com). All paths are relative, so the folder works under either address.
+"""
+import pathlib, shutil, subprocess, sys
+
+ROOT = pathlib.Path(__file__).parent
+SRC = ROOT / "src"
+OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path("/home/claude/belinuswebsite/portal")
+SITE = pathlib.Path("/home/claude/belinuswebsite")
+CFG = {"url": "https://cbykdhbqfgjzodldavvy.supabase.co", "key": "sb_publishable_IBxDom__KOP-VQatBR6PsQ_cy8s-CXd"}
+
+OUT.mkdir(parents=True, exist_ok=True)
+(OUT / "vendor").mkdir(exist_ok=True)
+(OUT / "fonts").mkdir(exist_ok=True)
+(OUT / "assets").mkdir(exist_ok=True)
+for f in (ROOT / "vendor").iterdir():   # React 18.3.1, react-dom 18.3.1, supabase-js 2.78.0 (UMD builds from npm)
+    shutil.copy(f, OUT / "vendor" / f.name)
+for f in ["ArialNova-Light.woff2", "ArialNova.woff2", "ArialNova-Bold.woff2"]:
+    shutil.copy(SITE / "fonts" / f, OUT / "fonts" / f)
+for f in ["logo-belinus.png", "logo-belinus-white.png"]:
+    src = SITE / "assets" / f
+    if not src.exists():
+        src = pathlib.Path("/home/claude/belinus-site/dist/assets") / f
+    shutil.copy(src, OUT / "assets" / f)
+
+tmp = ROOT / "_portal.jsx"
+tmp.write_text((SRC / "i18n.js").read_text() + "\n" + (SRC / "Portal.jsx").read_text())
+js = subprocess.run(["npx", "-y", "esbuild@0.24.0", str(tmp), "--loader:.jsx=jsx", "--jsx=transform", "--minify", "--target=es2019"],
+                    check=True, capture_output=True, text=True).stdout
+tmp.unlink()
+css = (SRC / "portal.css").read_text()
+import json
+html = f"""<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Belinus klantenportaal</title>
+<meta name="description" content="Belinus klantenportaal: uw producten, terugroepingen, bestellingen, facturen en support.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0A0C0F">
+<link rel="icon" href="assets/logo-belinus.png">
+<style>{css}</style>
+</head>
+<body>
+<div id="root"></div>
+<noscript>Schakel JavaScript in om het Belinus-klantenportaal te gebruiken.</noscript>
+<script>window.BELINUS_PORTAL = {json.dumps(CFG)};</script>
+<script src="vendor/react-18.3.1.min.js"></script>
+<script src="vendor/react-dom-18.3.1.min.js"></script>
+<script src="vendor/supabase-2.78.0.js"></script>
+<script>{js}</script>
+</body>
+</html>
+"""
+(OUT / "index.html").write_text(html)
+print("built", OUT / "index.html", len(html))
