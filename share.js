@@ -56,9 +56,15 @@
     return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
       .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   }
+  /* products with their own preview card get a /share/<lang>/<key>/ page (static og tags for LinkedIn / WhatsApp) */
+  var CARD = { "kratos": "kratos", "supercapacitor-modules-and-racks": "kratos", "energywall-h1": "energywall",
+    "gaia": "gaia", "gaia-smart": "gaia", "powerbox": "powerbox", "powerbox-s1-5": "powerbox", "powerbox-s3-10": "powerbox",
+    "etappro": "etappro", "laadpaal-etappro": "etappro", "borne-de-recharge-etappro": "etappro", "ev-charger-etappro": "etappro" };
   function shareUrl(sl) {
-    var base = "https://www.belinus.com" + location.pathname;
-    return base + (sl ? "?p=" + encodeURIComponent(sl) : "") + (location.hash || "");
+    var path = location.pathname + (sl ? "?p=" + encodeURIComponent(sl) : "") + (location.hash || "");
+    var key = sl && CARD[sl];
+    if (key) return "https://www.belinus.com/share/" + lang() + "/" + key + "/?to=" + encodeURIComponent(path);
+    return "https://www.belinus.com" + path;
   }
 
   var ICON_LI = c("svg", { viewBox: "0 0 24 24", width: 16, height: 16, "aria-hidden": "true" },
