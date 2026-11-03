@@ -50,7 +50,7 @@ function Note({ kind = 'info', children }) { return children ? <div className={'
 function Badge({ tone = 'grey', children }) { return <span className={'badge badge-' + tone}>{children}</span>; }
 function Empty({ children }) { return <div className="empty">{children}</div>; }
 function PageHead({ title, lead, action }) { return <div className="page-head"><div><h1>{title}</h1>{lead && <p className="lead">{lead}</p>}</div>{action}</div>; }
-const TONE = { active: 'green', delivered: 'green', installed: 'green', paid: 'green', signed: 'green', replaced: 'green', answered: 'blue', open: 'amber', opened: 'amber', sent: 'red', recalled: 'red', overdue: 'red', service: 'amber', closed: 'grey', cancelled: 'grey' };
+const TONE = { pending: 'amber', active: 'green', delivered: 'green', installed: 'green', paid: 'green', signed: 'green', replaced: 'green', answered: 'blue', open: 'amber', opened: 'amber', sent: 'red', recalled: 'red', overdue: 'red', service: 'amber', closed: 'grey', cancelled: 'grey' };
 
 // ---------- auth screens ----------
 function AuthFrame({ children }) {
@@ -240,9 +240,9 @@ function SecondFactor({ status, onDone }) {
 }
 
 // ---------- signed-in shell ----------
-const MENU = ['products', 'recall', 'orders', 'invoices', 'support', 'assistant'];
+const MENU = ['products', 'library', 'recall', 'orders', 'invoices', 'support', 'assistant'];
 const ICON = {
-  products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
+  products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', library: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
   invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
 const Icon = ({ n }) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICON[n]} /></svg>;
@@ -276,7 +276,11 @@ function Shell({ me, route, children, counts }) {
 }
 
 // ---------- My products ----------
-function Products({ me }) {
+function Products({ me, route }) {
+  if (route && route.parts[1] === 'register') return <RegisterSystem key={location.hash} route={route} />;
+  return <ProductsList me={me} />;
+}
+function ProductsList({ me }) {
   const { t, lang } = useT();
   const [data, setData] = useState(null);
   useEffect(() => { (async () => {
@@ -290,8 +294,8 @@ function Products({ me }) {
   if (!data) return <p className="muted">{t.loading}</p>;
   return (
     <>
-      <PageHead title={t.menu.products} lead={t.productsLead} />
-      {!data.systems.length && <Empty>{t.productsEmpty} <a href="#/support/new?cat=account">{t.newRequest} →</a></Empty>}
+      <PageHead title={t.menu.products} lead={t.productsLead} action={<a className="btn btn-ghost sm" href="#/products/register">{t.registerBtn}</a>} />
+      {!data.systems.length && <Empty>{t.productsEmpty} <a href="#/products/register">{t.registerBtn} →</a> · <a href="#/library">{t.menu.library} →</a></Empty>}
       {data.sites.map((s) => {
         const sys = data.systems.filter((y) => y.site_id === s.id);
         if (!sys.length) return null;
@@ -324,6 +328,139 @@ function Products({ me }) {
     </>
   );
 }
+
+// ---------- Product library (current + discontinued) ----------
+const SITE_URL = 'https://www.belinus.com/';
+function discList(lang) { return CATALOG.discontinued[lang] || CATALOG.discontinued.nl; }
+function Library() {
+  const { t, lang } = useT();
+  const kinds = ['solar', 'inverter', 'battery', 'ev_charger', 'ems'];
+  return (
+    <>
+      <PageHead title={t.menu.library} lead={t.libraryLead} action={<a className="btn btn-ghost sm" href="#/products/register">{t.registerBtn}</a>} />
+      <section className="block">
+        <h2>{t.libCurrent}</h2>
+        <div className="card">
+          {kinds.map((k) => {
+            const items = CATALOG.current.filter((x) => x.kind === k);
+            if (!items.length) return null;
+            return (
+              <div key={k} className="lib-group">
+                <p className="eyebrow">{t.kind[k]}</p>
+                <ul className="lib-list">
+                  {items.map((x) => (
+                    <li key={x.id}>
+                      <span className="lib-name">{x.name}</span>
+                      {x.sheet ? <a href={SITE_URL + x.sheet} target="_blank" rel="noopener">{t.libSheet} ↓</a> : <span className="muted">{t.libOnRequest}</span>}
+                      <a href={'#/products/register?p=' + x.id}>{t.registerThis} →</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+      <section className="block">
+        <h2>{t.libDiscontinued}</h2>
+        <div className="cards">
+          {discList(lang).map((x) => (
+            <article key={x.id} className="card lib-card">
+              <div className="card-top"><span className="kind">{t.kind[x.cat]}</span><span className="muted small">{t.libSold} {x.years}</span></div>
+              <h3>{x.name}</h3>
+              <p className="muted small">{x.desc}</p>
+              <dl className="kv">{x.specs.slice(1, 6).map((s) => <React.Fragment key={s[0]}><dt>{s[0]}</dt><dd>{s[1]}</dd></React.Fragment>)}</dl>
+              <div className="lib-actions">
+                <a href={SITE_URL + x.sheet} target="_blank" rel="noopener">{t.libSheet} ↓</a>
+                <a href={'#/products/register?p=' + x.id}>{t.registerThis} →</a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+// ---------- Register an existing system ----------
+function RegisterSystem({ route }) {
+  const { t, lang } = useT();
+  const disc = discList(lang).map((x) => ({ id: x.id, kind: x.cat, name: x.name }));
+  const all = [...CATALOG.current, ...disc, ...CATALOG.other];
+  const blank = (id) => ({ pid: id && all.some((p) => p.id === id) ? id : '', other: '', model: '', serial: '', quantity: 1, installed_at: '' });
+  const [sites, setSites] = useState([]);
+  const [siteId, setSiteId] = useState('new');
+  const [site, setSite] = useState({ street: '', postal_code: '', city: '', country: 'BE' });
+  const [items, setItems] = useState([blank(route.q.get('p'))]);
+  const [installer, setInstaller] = useState(''), [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false), [err, setErr] = useState(''), [done, setDone] = useState(false);
+  useEffect(() => { sb.from('bel_sites').select('*').order('created_at').then(({ data }) => { setSites(data || []); if ((data || []).length) setSiteId(data[0].id); }); }, []);
+  const upd = (i, k, v) => setItems(items.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+  async function submit(e) {
+    e.preventDefault(); setBusy(true); setErr('');
+    try {
+      const payload = items.filter((x) => x.pid).map((x) => {
+        if (x.pid === '__other') return { kind: 'other', product: x.other, model: x.model, serial: x.serial, quantity: x.quantity, installed_at: x.installed_at };
+        const p = all.find((y) => y.id === x.pid);
+        return { kind: p.kind, product: p.name, model: x.model, serial: x.serial, quantity: x.quantity, installed_at: x.installed_at };
+      });
+      await fn('bel-portal', { action: 'register_system', site_id: siteId !== 'new' ? siteId : null, site: siteId === 'new' ? site : null, items: payload, installer, note });
+      setDone(true); window.scrollTo(0, 0);
+    } catch (x) { setErr(errText(t, x)); }
+    setBusy(false);
+  }
+  if (done) return (<><PageHead title={t.registerTitle} /><div className="card stack"><p>{t.regDone}</p><a className="btn btn-primary" href="#/products">{t.menu.products} →</a></div></>);
+  const groups = [['cur', t.libCurrent, CATALOG.current], ['disc', t.libDiscontinued, disc], ['oth', t.regEarlier, CATALOG.other]];
+  return (
+    <>
+      <a href="#/products" className="back">‹ {t.back}</a>
+      <PageHead title={t.registerTitle} lead={t.registerLead} />
+      <form className="card stack" onSubmit={submit}>
+        <h3>{t.site}</h3>
+        {sites.length ? <Field label={t.site}><select value={siteId} onChange={(e) => setSiteId(e.target.value)}>{sites.map((s) => <option key={s.id} value={s.id}>{[s.street, [s.postal_code, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || s.label}</option>)}<option value="new">{t.regNewSite}</option></select></Field> : null}
+        {siteId === 'new' && (
+          <>
+            <Field label={t.street}><input required maxLength="160" value={site.street} onChange={(e) => setSite({ ...site, street: e.target.value })} /></Field>
+            <div className="row2">
+              <Field label={t.postal}><input required maxLength="20" value={site.postal_code} onChange={(e) => setSite({ ...site, postal_code: e.target.value })} /></Field>
+              <Field label={t.city}><input required maxLength="100" value={site.city} onChange={(e) => setSite({ ...site, city: e.target.value })} /></Field>
+            </div>
+            <Field label={t.country}><select value={site.country} onChange={(e) => setSite({ ...site, country: e.target.value })}>{['BE', 'NL', 'FR', 'LU', 'DE'].map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+          </>
+        )}
+        <h3>{t.regItems}</h3>
+        {items.map((x, i) => (
+          <div key={i} className="reg-item">
+            <Field label={t.regProduct}>
+              <select required value={x.pid} onChange={(e) => upd(i, 'pid', e.target.value)}>
+                <option value="">{t.regChoose}</option>
+                {groups.map(([g, label, list]) => <optgroup key={g} label={label}>{list.map((p) => <option key={p.id} value={p.id}>{t.kind[p.kind]} · {p.name}</option>)}</optgroup>)}
+                <option value="__other">{t.regOther}</option>
+              </select>
+            </Field>
+            {x.pid === '__other' && <Field label={t.regOtherName}><input required maxLength="120" value={x.other} onChange={(e) => upd(i, 'other', e.target.value)} /></Field>}
+            <div className="row2">
+              <Field label={t.regModel}><input maxLength="120" value={x.model} onChange={(e) => upd(i, 'model', e.target.value)} /></Field>
+              <Field label={t.serial}><input maxLength="120" value={x.serial} onChange={(e) => upd(i, 'serial', e.target.value)} /></Field>
+            </div>
+            <div className="row2">
+              <Field label={t.regQty}><input type="number" min="1" max="500" value={x.quantity} onChange={(e) => upd(i, 'quantity', e.target.value)} /></Field>
+              <Field label={t.regInstalledOn}><input type="date" value={x.installed_at} onChange={(e) => upd(i, 'installed_at', e.target.value)} /></Field>
+            </div>
+            {items.length > 1 && <button type="button" className="link" onClick={() => setItems(items.filter((_, j) => j !== i))}>{t.regRemove}</button>}
+          </div>
+        ))}
+        {items.length < 12 && <button type="button" className="btn btn-ghost sm" onClick={() => setItems([...items, blank()])}>+ {t.regAddItem}</button>}
+        <Field label={t.regInstaller}><input maxLength="160" value={installer} onChange={(e) => setInstaller(e.target.value)} /></Field>
+        <Field label={t.regNote}><textarea rows="3" maxLength="1000" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+        <p className="muted small">{t.regPendingInfo}</p>
+        <Note kind="error">{err}</Note>
+        <Btn kind="primary" busy={busy} type="submit">{t.regSubmit}</Btn>
+      </form>
+    </>
+  );
+}
+
 function DocList({ docs, wide }) {
   const { t, lang } = useT();
   if (!docs.length) return null;
@@ -780,7 +917,7 @@ function App() {
   else {
     const me = state.me;
     if (['login', 'signup', 'forgot', ''].includes(page)) { go(counts.recall ? 'recall' : 'products'); }
-    const P = { products: Products, recall: Recall, orders: Orders, invoices: Invoices, support: Support, assistant: Assistant, account: Account }[page] || Products;
+    const P = { products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, assistant: Assistant, account: Account }[page] || Products;
     body = <Shell me={me} route={route} counts={counts}><P me={me} route={route} refresh={loadCounts} reloadMe={loadMe} /></Shell>;
   }
   return <LangCtx.Provider value={{ t, lang, setLang }}>{body}{remind && state.phase === 'in' && <Remind onClose={() => setRemind(false)} />}</LangCtx.Provider>;

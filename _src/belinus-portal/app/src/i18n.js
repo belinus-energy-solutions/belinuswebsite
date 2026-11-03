@@ -139,3 +139,47 @@ const T = {
     errors: { 'invalid-credentials': 'E-mail address or password is wrong.', 'weak-password': 'The password does not meet the rules.', 'leaked-password': 'This password appears in leaked data. Choose another one.', 'wrong-code': 'The code is wrong.', expired: 'The code has expired. Ask for a new one.', 'too-many': 'Too many attempts. Try again later.', 'too-many-attempts': 'Too many attempts. Try again later.', wait: 'Please wait a moment before asking for a new code.', 'mail-failed': 'The e-mail could not be sent. Try again later.', 'mail-not-configured': 'E-mail sending is still being set up. Try again later.', 'terms-required': 'Accept the terms.', 'name-required': 'Fill in your name.', 'bad-email': 'Fill in a valid e-mail address.', 'assistant-not-configured': 'The assistant is still being set up.', 'daily-limit': 'You reached the maximum number of questions for today.', mismatch: 'The passwords are not the same.', 'wrong-password': 'The current password is wrong.', 'code-required': 'Ask for a code first.', generic: 'Something went wrong. Please try again.' },
   },
 };
+
+// ---- product library + register an existing system (added 2026-11) ----
+Object.assign(T.nl.menu, { library: 'Productbibliotheek' });
+Object.assign(T.fr.menu, { library: 'Bibliothèque produits' });
+Object.assign(T.en.menu, { library: 'Product library' });
+Object.assign(T.nl.sysStatus, { pending: 'Wacht op bevestiging' });
+Object.assign(T.fr.sysStatus, { pending: 'En attente de confirmation' });
+Object.assign(T.en.sysStatus, { pending: 'Awaiting confirmation' });
+Object.assign(T.nl.errors, { 'items-required': 'Kies minstens één product.', 'address-required': 'Vul het installatieadres volledig in.', 'save-failed': 'Opslaan is niet gelukt. Probeer het opnieuw.' });
+Object.assign(T.fr.errors, { 'items-required': 'Choisissez au moins un produit.', 'address-required': 'Complétez l’adresse d’installation.', 'save-failed': 'L’enregistrement a échoué. Réessayez.' });
+Object.assign(T.en.errors, { 'items-required': 'Choose at least one product.', 'address-required': 'Fill in the full installation address.', 'save-failed': 'Saving failed. Please try again.' });
+Object.assign(T.nl, {
+  libraryLead: 'Alle Belinus-producten, ook de producten die niet meer verkocht worden, met hun datasheet. Herkent u uw product? Registreer het om service, garantie en uitbreidingen vlot te laten verlopen.',
+  libCurrent: 'Huidige producten', libDiscontinued: 'Niet meer leverbaar', libSold: 'Verkocht', libSheet: 'Datasheet', libOnRequest: 'Datasheet op aanvraag', registerThis: 'Registreren',
+  registerBtn: 'Bestaand systeem registreren', registerTitle: 'Uw bestaande systeem registreren',
+  registerLead: 'Kocht u eerder bij Belinus of via een Belinus-partner? Registreer uw installatie. Belinus controleert de gegevens en koppelt het systeem aan uw account; daarna vindt u hier garantie, documenten en service.',
+  regNewSite: 'Nieuw adres', regItems: 'Producten', regProduct: 'Product', regChoose: 'Kies een product…', regEarlier: 'Eerdere batterijen', regOther: 'Ander product / staat niet in de lijst', regOtherName: 'Naam van het product',
+  regModel: 'Model of vermogen (optioneel)', regQty: 'Aantal', regInstalledOn: 'Installatiedatum', regAddItem: 'Product toevoegen', regRemove: 'Verwijderen',
+  regInstaller: 'Installateur (optioneel)', regNote: 'Opmerking (optioneel)', regSubmit: 'Registratie versturen',
+  regPendingInfo: 'Na verzending staat uw systeem op "Wacht op bevestiging" tot Belinus het gecontroleerd heeft. Houd uw factuur of installatieattest bij de hand.',
+  regDone: 'Bedankt. Uw registratie is ontvangen. Belinus controleert de gegevens en bevestigt uw systeem; u krijgt bericht zodra het gekoppeld is.',
+});
+Object.assign(T.fr, {
+  libraryLead: 'Tous les produits Belinus, y compris ceux qui ne sont plus vendus, avec leur fiche technique. Vous reconnaissez votre produit ? Enregistrez-le pour faciliter le service, la garantie et les extensions.',
+  libCurrent: 'Produits actuels', libDiscontinued: 'Produits arrêtés', libSold: 'Vendu', libSheet: 'Fiche technique', libOnRequest: 'Fiche sur demande', registerThis: 'Enregistrer',
+  registerBtn: 'Enregistrer un système existant', registerTitle: 'Enregistrer votre système existant',
+  registerLead: 'Vous avez acheté chez Belinus ou chez un partenaire Belinus ? Enregistrez votre installation. Belinus vérifie les données et lie le système à votre compte ; vous y trouverez ensuite garantie, documents et service.',
+  regNewSite: 'Nouvelle adresse', regItems: 'Produits', regProduct: 'Produit', regChoose: 'Choisissez un produit…', regEarlier: 'Anciennes batteries', regOther: 'Autre produit / absent de la liste', regOtherName: 'Nom du produit',
+  regModel: 'Modèle ou puissance (facultatif)', regQty: 'Quantité', regInstalledOn: 'Date d’installation', regAddItem: 'Ajouter un produit', regRemove: 'Supprimer',
+  regInstaller: 'Installateur (facultatif)', regNote: 'Remarque (facultatif)', regSubmit: 'Envoyer l’enregistrement',
+  regPendingInfo: 'Après l’envoi, votre système reste « En attente de confirmation » jusqu’à la vérification par Belinus. Gardez votre facture ou attestation d’installation à portée de main.',
+  regDone: 'Merci. Votre enregistrement est bien reçu. Belinus vérifie les données et confirme votre système ; vous serez informé dès qu’il est lié.',
+});
+Object.assign(T.en, {
+  libraryLead: 'All Belinus products, including those no longer sold, with their datasheets. Recognise your product? Register it so service, warranty and extensions run smoothly.',
+  libCurrent: 'Current products', libDiscontinued: 'Discontinued', libSold: 'Sold', libSheet: 'Datasheet', libOnRequest: 'Datasheet on request', registerThis: 'Register',
+  registerBtn: 'Register an existing system', registerTitle: 'Register your existing system',
+  registerLead: 'Bought from Belinus or a Belinus partner earlier? Register your installation. Belinus checks the details and links the system to your account; you then find warranty, documents and service here.',
+  regNewSite: 'New address', regItems: 'Products', regProduct: 'Product', regChoose: 'Choose a product…', regEarlier: 'Earlier batteries', regOther: 'Other product / not in the list', regOtherName: 'Product name',
+  regModel: 'Model or power (optional)', regQty: 'Quantity', regInstalledOn: 'Installation date', regAddItem: 'Add a product', regRemove: 'Remove',
+  regInstaller: 'Installer (optional)', regNote: 'Note (optional)', regSubmit: 'Send registration',
+  regPendingInfo: 'After sending, your system shows "Awaiting confirmation" until Belinus has checked it. Keep your invoice or installation certificate at hand.',
+  regDone: 'Thank you. Your registration has been received. Belinus checks the details and confirms your system; you will be told once it is linked.',
+});

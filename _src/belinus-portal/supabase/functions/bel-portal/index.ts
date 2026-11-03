@@ -7,6 +7,8 @@
 //        Typed-name acceptance (like the Clavoris NDA step): the typed name must match the account name; the SHA-256 of
 //        the exact notice PDF, the time, IP and browser are recorded. A qualified signature (itsme via Clavoris) can
 //        replace this once the Clavoris signing API is live (sign_method "qes").
+//   { action: "register_system", site_id? | site{street,postal_code,city,country}, items[{kind,product,model,serial,quantity,installed_at}], installer?, note? }
+//        Customer registers an existing installation; saved as status "pending" and sent to the service desk.
 // Deploy: --no-verify-jwt.
 import { adminClient, APP_URL, audit, clientIp, cors, displayName, greeting, json, notifyDesk, pickLang, requireUser, sameName, sendMail, sha256, type Lang, type Profile } from "../_shared/bel.ts";
 
@@ -98,6 +100,44 @@ Deno.serve(async (req) => {
     await sendMail(me.email, SIGNED[L].s.replace("{code}", r.code), SIGNED[L].t.replace(/\{(\w+)\}/g, (_, k) => (v as any)[k] ?? ""), L, undefined, "recall").catch(() => false);
     await notifyDesk(`Terugroeping ${r.code}: bevestigd door ${displayName(me, "nl")}`, `${displayName(me, "nl")} (${me.email}${phone || me.mobile ? ", " + (phone || me.mobile) : ""}) bevestigde de terugroeping ${r.code}.\n\nKeuze: ${CHOICE.nl[choice]}\nVoorkeursdata: ${dates.join(", ") || "—"}\n\nPlan de afspraak in.`);
     return json({ ok: true, signed_at: now });
+  }
+
+  if (action === "register_system") {
+    // A customer registers an existing installation (bought earlier, or through a partner). Saved as status
+    // "pending" until Belinus verifies it; the service desk is notified.
+    const KINDS = ["battery", "inverter", "solar", "ev_charger", "ems", "other"];
+    const items = (Array.isArray(body.items) ? body.items : []).slice(0, 12).map((x: any) => ({
+      kind: KINDS.includes(x?.kind) ? x.kind : "other",
+      product: str(x?.product, 120),
+      model: str(x?.model, 120) || null,
+      serial: str(x?.serial, 120) || null,
+      quantity: Math.max(1, Math.min(500, parseInt(String(x?.quantity ?? "1"), 10) || 1)),
+      installed_at: /^\d{4}-\d{2}-\d{2}$/.test(String(x?.installed_at || "")) ? String(x.installed_at) : null,
+    })).filter((x: any) => x.product);
+    if (!items.length) return json({ error: "items-required" }, 400);
+    let siteId: string | null = null;
+    if (isUuid(body.site_id)) {
+      const { data: s } = await admin.from("bel_sites").select("id, owner_id").eq("id", body.site_id).maybeSingle();
+      if (!s || s.owner_id !== me.id) return json({ error: "not-found" }, 404);
+      siteId = s.id;
+    } else {
+      const s = body.site || {};
+      const street = str(s.street, 160), postal = str(s.postal_code, 20), city = str(s.city, 100);
+      if (!street || !postal || !city) return json({ error: "address-required" }, 400);
+      const country = ["BE", "NL", "FR", "LU", "DE"].includes(String(s.country)) ? String(s.country) : "BE";
+      const { data: ns, error } = await admin.from("bel_sites").insert({ owner_id: me.id, street, postal_code: postal, city, country }).select("id").single();
+      if (error || !ns) { console.error("site insert", error?.message); return json({ error: "save-failed" }, 500); }
+      siteId = ns.id;
+    }
+    const installer = str(body.installer, 160), note = str(body.note, 1000);
+    const notes = ["Geregistreerd door de klant via het portaal" + (installer ? ` · installateur: ${installer}` : ""), note].filter(Boolean).join("\n");
+    const { error: e2 } = await admin.from("bel_systems").insert(items.map((x: any) => ({ ...x, site_id: siteId, status: "pending", notes })));
+    if (e2) { console.error("systems insert", e2.message); return json({ error: "save-failed" }, 500); }
+    await audit(admin, me, "system-registered", String(siteId), { items: items.length });
+    const list = items.map((x: any) => `- ${x.quantity} × ${x.product}${x.model ? " " + x.model : ""}${x.serial ? " · SN " + x.serial : ""}${x.installed_at ? " · geïnstalleerd " + x.installed_at : ""}`).join("\n");
+    await notifyDesk(`Portaal: systeemregistratie door ${displayName(me, "nl")}`,
+      `${displayName(me, "nl")} (${me.email}${me.mobile ? ", " + me.mobile : ""}) registreerde een bestaand systeem.\n\n${list}\n\n${notes}\n\nControleer de registratie en zet de status van 'pending' op 'active'.`);
+    return json({ ok: true, site_id: siteId, count: items.length });
   }
 
   return json({ error: "bad-action" }, 400);

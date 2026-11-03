@@ -222,3 +222,16 @@ textarea { resize: vertical; }
   .tbl .num { text-align: left; }
   .kpi { width: 100%; text-align: left; }
 }
+
+/* product library + registration */
+.lib-group { padding: 6px 0 14px; border-bottom: 1px solid var(--line, #e7eaee); margin-bottom: 12px; }
+.lib-group:last-child { border-bottom: 0; margin-bottom: 0; }
+.lib-list { list-style: none; margin: 0; padding: 0; }
+.lib-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 18px; align-items: center; padding: 8px 0; font-size: 15px; }
+.lib-name { font-weight: 400; }
+.lib-list a, .lib-actions a { color: var(--blue, #1B8FBE); text-decoration: none; font-size: 14px; white-space: nowrap; }
+.lib-actions { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: auto; padding-top: 8px; }
+.lib-card h3 { margin: 0; }
+.small { font-size: 13px; }
+.reg-item { border: 1px solid var(--line, #e7eaee); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 640px) { .lib-list li { grid-template-columns: 1fr; gap: 4px; } }
