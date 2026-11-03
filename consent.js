@@ -238,7 +238,156 @@
     document.body.appendChild(root);
   }
 
-  function init() { if (!getConsent()) render(false); }
+
+  /* ---------- first-visit locale suggestion ---------- */
+  var LC = {
+    countries: [
+      { code: 'INT', name: 'International', b2b: ['en','nl'] },
+      { code: 'BE', name: 'België / Belgique', b2b: ['nl','fr','en'], b2c: ['nl','fr','en'] },
+      { code: 'NL', name: 'Nederland', b2b: ['nl','en'], b2c: ['nl','en'] },
+      { code: 'FR', name: 'France', b2b: ['fr','en'] },
+      { code: 'DE', name: 'Deutschland', b2b: ['de','en'] },
+      { code: 'CH', name: 'Schweiz / Suisse / Svizzera', b2b: ['de','fr','it','en'] },
+      { code: 'LU', name: 'Luxembourg', b2b: ['fr','de','en'] },
+      { code: 'UK', name: 'United Kingdom', b2b: ['en'] },
+      { code: 'IT', name: 'Italia', b2b: ['it','en'] },
+      { code: 'ES', name: 'España', b2b: ['es','en'] }
+    ],
+    langName: { nl: 'Nederlands', fr: 'Français', en: 'English', de: 'Deutsch', es: 'Español', it: 'Italiano' },
+    tz: { 'Europe/Brussels': 'BE', 'Europe/Amsterdam': 'NL', 'Europe/Paris': 'FR', 'Europe/Berlin': 'DE', 'Europe/Zurich': 'CH',
+          'Europe/Luxembourg': 'LU', 'Europe/London': 'UK', 'Europe/Rome': 'IT', 'Europe/Madrid': 'ES' },
+    b2bFile: { en: 'index.html', nl: 'nl.html', fr: 'fr.html', de: 'de.html', it: 'it.html', es: 'es.html' },
+    b2cFile: { nl: 'index.html', fr: 'fr.html', en: 'en.html' }
+  };
+  var LT = {
+    nl: { title: 'Welkom bij belinus', lead: 'We stellen je regio en taal voor op basis van je browser. Klopt dit?', home: 'Voor thuis', homeSub: 'Particulieren · België en Nederland', biz: 'Voor bedrijven', bizSub: 'Industrie, partners en projecten', country: 'Land', language: 'Taal', remember: 'Onthoud mijn keuze voor volgende bezoeken', rememberSub: 'We bewaren hiervoor 12 maanden een voorkeurscookie.', policy: 'Privacy- en cookiebeleid', confirm: 'Bevestigen', decline: 'Nee, dank je' },
+    fr: { title: 'Bienvenue chez belinus', lead: 'Nous vous proposons une région et une langue d’après votre navigateur. Est-ce correct ?', home: 'Pour la maison', homeSub: 'Particuliers · Belgique et Pays-Bas', biz: 'Pour les entreprises', bizSub: 'Industrie, partenaires et projets', country: 'Pays', language: 'Langue', remember: 'Mémoriser mon choix pour mes prochaines visites', rememberSub: 'Nous conservons pour cela un cookie de préférences pendant 12 mois.', policy: 'Politique de confidentialité et cookies', confirm: 'Confirmer', decline: 'Non merci' },
+    en: { title: 'Welcome to belinus', lead: 'We suggest a region and language based on your browser. Is this right?', home: 'For your home', homeSub: 'Private customers · Belgium and the Netherlands', biz: 'For business', bizSub: 'Industry, partners and projects', country: 'Country', language: 'Language', remember: 'Remember my choice for future visits', rememberSub: 'For this we keep a preference cookie for 12 months.', policy: 'Privacy & cookie policy', confirm: 'Confirm', decline: 'No, thanks' },
+    de: { title: 'Willkommen bei belinus', lead: 'Wir schlagen Ihnen Region und Sprache anhand Ihres Browsers vor. Stimmt das?', home: 'Für Ihr Zuhause', homeSub: 'Privatkunden · Belgien und Niederlande', biz: 'Für Unternehmen', bizSub: 'Industrie, Partner und Projekte', country: 'Land', language: 'Sprache', remember: 'Meine Auswahl für künftige Besuche speichern', rememberSub: 'Dafür speichern wir 12 Monate lang ein Präferenz-Cookie.', policy: 'Datenschutz- und Cookie-Richtlinie', confirm: 'Bestätigen', decline: 'Nein, danke' },
+    es: { title: 'Bienvenido a belinus', lead: 'Le proponemos una región y un idioma según su navegador. ¿Es correcto?', home: 'Para su hogar', homeSub: 'Particulares · Bélgica y Países Bajos', biz: 'Para empresas', bizSub: 'Industria, socios y proyectos', country: 'País', language: 'Idioma', remember: 'Recordar mi elección para próximas visitas', rememberSub: 'Para ello guardamos una cookie de preferencias durante 12 meses.', policy: 'Política de privacidad y cookies', confirm: 'Confirmar', decline: 'No, gracias' },
+    it: { title: 'Benvenuto in belinus', lead: 'Le proponiamo una regione e una lingua in base al suo browser. È corretto?', home: 'Per la casa', homeSub: 'Privati · Belgio e Paesi Bassi', biz: 'Per le aziende', bizSub: 'Industria, partner e progetti', country: 'Paese', language: 'Lingua', remember: 'Ricorda la mia scelta per le prossime visite', rememberSub: 'A tal fine conserviamo un cookie di preferenza per 12 mesi.', policy: 'Informativa su privacy e cookie', confirm: 'Conferma', decline: 'No, grazie' }
+  };
+  function lcCountry(code) { for (var i = 0; i < LC.countries.length; i++) if (LC.countries[i].code === code) return LC.countries[i]; return null; }
+  function lcLangs(code, seg) { var c = lcCountry(code); return c ? (seg === 'B2C' ? c.b2c : c.b2b) || null : null; }
+  function isB2CPage() { return /\/b2c\//.test(location.pathname); }
+  function detect() {
+    var list = [];
+    try { list = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en']).slice(); } catch (e) { list = ['en']; }
+    var lang = 'en', regionFromLang = null;
+    for (var i = 0; i < list.length; i++) {
+      var tag = String(list[i] || '').toLowerCase(), base = tag.slice(0, 2);
+      if (!regionFromLang && tag.length >= 5) regionFromLang = tag.slice(3, 5).toUpperCase();
+      if (LC.langName[base]) { lang = base; if (tag.length >= 5) regionFromLang = tag.slice(3, 5).toUpperCase(); break; }
+    }
+    if (regionFromLang === 'GB') regionFromLang = 'UK';
+    var tzc = null;
+    try { tzc = LC.tz[Intl.DateTimeFormat().resolvedOptions().timeZone] || null; } catch (e) {}
+    var country = tzc || (lcCountry(regionFromLang) ? regionFromLang : null) || 'INT';
+    var seg = isB2CPage() ? 'B2C' : 'B2B';
+    if (seg === 'B2C' && !lcLangs(country, 'B2C')) seg = 'B2B';
+    return { country: country, lang: lang, seg: seg };
+  }
+  function fit(st) {
+    if (st.seg === 'B2C' && !lcLangs(st.country, 'B2C')) st.country = 'BE';
+    var ls = lcLangs(st.country, st.seg) || ['en'];
+    if (ls.indexOf(st.lang) < 0) st.lang = ls.indexOf('en') >= 0 ? 'en' : ls[0];
+    return st;
+  }
+  function targetUrl(st) {
+    if (st.seg === 'B2C') return '/b2c/' + LC.b2cFile[st.lang] + '?c=' + st.country + '&l=' + st.lang;
+    return '/' + LC.b2bFile[st.lang] + '?c=' + st.country;
+  }
+  var LCSS =
+    '.bl-wrap{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);font-family:"Arial Nova",Arial,Helvetica,sans-serif}' +
+    '.bl-card{width:100%;max-width:520px;max-height:calc(100vh - 32px);overflow:auto;background:#111419;color:#E8ECF1;border:1px solid #2A313B;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.55);padding:26px 24px;animation:bcIn .35s cubic-bezier(.2,.7,.2,1)}' +
+    '.bl-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 8px}' +
+    '.bl-title{font-size:20px;font-weight:400;margin:0;color:#fff}' +
+    '.bl-ui{font:inherit;font-size:12px;letter-spacing:.06em;background:none;border:1px solid #3A4350;border-radius:999px;color:#B8C0CA;padding:5px 12px;cursor:pointer;white-space:nowrap}' +
+    '.bl-ui:hover{border-color:#2EB9EA;color:#fff}' +
+    '.bl-lead{font-size:14px;line-height:1.55;margin:0 0 18px;color:#B8C0CA}' +
+    '.bl-seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}' +
+    '.bl-opt{font:inherit;text-align:left;cursor:pointer;background:transparent;color:#E8ECF1;border:1px solid #3A4350;border-radius:12px;padding:12px 14px;display:grid;gap:3px}' +
+    '.bl-opt b{font-size:15px;font-weight:600}.bl-opt span{font-size:12px;color:#8E98A5;line-height:1.4}' +
+    '.bl-opt[aria-pressed="true"]{border-color:#2EB9EA;background:rgba(46,185,234,.08)}' +
+    '.bl-opt:disabled{opacity:.4;cursor:default}' +
+    '.bl-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}' +
+    '.bl-row label{display:grid;gap:6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8E98A5}' +
+    '.bl-row select{font:inherit;font-size:14px;letter-spacing:0;text-transform:none;color:#E8ECF1;background:#0A0C0F;border:1px solid #3A4350;border-radius:10px;padding:10px 12px;width:100%}' +
+    '.bl-rem{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:#E8ECF1;cursor:pointer;margin-bottom:6px}' +
+    '.bl-rem input{margin-top:3px;width:16px;height:16px;accent-color:#2EB9EA;flex:0 0 auto}' +
+    '.bl-rem small{display:block;font-size:12px;color:#8E98A5}' +
+    '.bl-rem a{color:#2EB9EA}' +
+    '.bl-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}' +
+    '.bl-actions .bc-btn{min-width:130px}' +
+    '@media (max-width:480px){.bl-card{padding:20px 18px}.bl-seg,.bl-row{grid-template-columns:1fr}.bl-actions .bc-btn{flex:1 1 auto}}' +
+    '@media (prefers-reduced-motion:reduce){.bl-card{animation:none}}';
+  function renderLocale() {
+    injectCSS();
+    if (!document.getElementById('bl-style')) { var st0 = document.createElement('style'); st0.id = 'bl-style'; st0.textContent = LCSS; document.head.appendChild(st0); }
+    var det = detect(), st = fit({ country: det.country, lang: det.lang, seg: det.seg });
+    var native = LT[det.lang] ? det.lang : 'en', ui = native;
+    var wrap = document.createElement('div');
+    wrap.className = 'bl-wrap';
+    function opts(list, cur, label) {
+      return list.map(function (v) { return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + label(v) + '</option>'; }).join('');
+    }
+    function draw() {
+      var t = LT[ui] || LT.en;
+      var cs = LC.countries.filter(function (c) { return st.seg === 'B2C' ? c.b2c : c.b2b; }).map(function (c) { return c.code; });
+      var policy = window.BELINUS_PRIVACY_URL || (isB2CPage() ? '../index.html#privacy' : '#privacy');
+      var rem = wrap.querySelector('#bl-rem'); var remOn = rem ? rem.checked : false;
+      wrap.innerHTML =
+        '<div class="bl-card" role="dialog" aria-modal="true" aria-labelledby="bl-t">' +
+          '<div class="bl-head"><p class="bl-title" id="bl-t">' + t.title + '</p>' + (native !== 'en' ? '<button type="button" class="bl-ui" data-ui="' + (ui === 'en' ? native : 'en') + '" lang="' + (ui === 'en' ? native : 'en') + '">' + (ui === 'en' ? LC.langName[native] : 'English') + '</button>' : '') + '</div>' +
+          '<p class="bl-lead">' + t.lead + '</p>' +
+          '<div class="bl-seg">' +
+            '<button type="button" class="bl-opt" data-seg="B2C" aria-pressed="' + (st.seg === 'B2C') + '"><b>' + t.home + '</b><span>' + t.homeSub + '</span></button>' +
+            '<button type="button" class="bl-opt" data-seg="B2B" aria-pressed="' + (st.seg === 'B2B') + '"><b>' + t.biz + '</b><span>' + t.bizSub + '</span></button>' +
+          '</div>' +
+          '<div class="bl-row">' +
+            '<label>' + t.country + '<select id="bl-c">' + opts(cs, st.country, function (c) { return lcCountry(c).name; }) + '</select></label>' +
+            '<label>' + t.language + '<select id="bl-l">' + opts(lcLangs(st.country, st.seg), st.lang, function (l) { return LC.langName[l]; }) + '</select></label>' +
+          '</div>' +
+          '<label class="bl-rem"><input type="checkbox" id="bl-rem"' + (remOn ? ' checked' : '') + '><span>' + t.remember + '<small>' + t.rememberSub + ' <a href="' + policy + '">' + t.policy + '</a></small></span></label>' +
+          '<div class="bl-actions">' +
+            '<button type="button" class="bc-btn" data-a="no">' + t.decline + '</button>' +
+            '<button type="button" class="bc-btn bc-primary" data-a="ok">' + t.confirm + '</button>' +
+          '</div>' +
+        '</div>';
+      wrap.querySelector('#bl-c').onchange = function (e) { st.country = e.target.value; fit(st); draw(); };
+      wrap.querySelector('#bl-l').onchange = function (e) { st.lang = e.target.value; draw(); };
+    }
+    wrap.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-seg],[data-a],[data-ui]') : null;
+      if (!b) return;
+      var seg = b.getAttribute('data-seg'), a = b.getAttribute('data-a'), u = b.getAttribute('data-ui');
+      if (u) { ui = u; draw(); try { wrap.querySelector('.bl-ui').focus(); } catch (e2) {} return; }
+      if (seg) { st.seg = seg; fit(st); draw(); return; }
+      var remember = wrap.querySelector('#bl-rem').checked;
+      if (a === 'no') { setConsent({ preferences: false, statistics: false }); wrap.remove(); return; }
+      if (a === 'ok') {
+        if (remember) setRegion({ code: st.country, lang: st.lang.toUpperCase(), seg: st.seg });
+        setConsent({ preferences: remember, statistics: false });
+        var url = targetUrl(st), here = location.pathname.replace(/\/$/, '/index.html') + location.search;
+        var sameSeg = (st.seg === 'B2C') === isB2CPage();
+        wrap.remove();
+        if (url !== here) location.href = url + (sameSeg ? location.hash : '');
+      }
+    });
+    draw();
+    document.body.appendChild(wrap);
+    try { wrap.querySelector('[data-a="ok"]').focus(); } catch (e) {}
+  }
+  function wantsLocale() {
+    if (getConsent()) return false;
+    var q = '';
+    try { q = location.search; } catch (e) {}
+    if (/[?&]c=/.test(q)) return false;                       // short links / QR codes already choose a locale
+    if (/^#(privacy|terms)$/.test(location.hash)) return false; // let people read the policy first
+    if (/bot|crawl|spider|slurp|lighthouse/i.test(navigator.userAgent || '')) return false;
+    return true;
+  }
+  function init() { if (wantsLocale()) renderLocale(); else if (!getConsent()) render(false); }
 
   window.BelinusConsent = {
     getConsent: getConsent,
