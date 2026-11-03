@@ -2021,13 +2021,13 @@ section.next-page { padding: 48px 0 64px; border-top: 1px solid var(--ink-4); }
 .kband-text { min-width: 0; }
 .kband-text .display-mid { font-size: clamp(32px, 3.6vw, 52px); overflow-wrap: break-word; hyphens: auto; }
 .kband-note { margin: 0; font-size: 12px; color: var(--fg-3); }
-.kband-media { display: block; border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--ink-4); transition: border-color 300ms; }
-.kband-media:hover { border-color: rgba(46,185,234,.5); }
+.kband-media { display: block; }
+.kband-media img, .kratos figure img { --fx: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent); --fy: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); -webkit-mask-image: var(--fx), var(--fy); -webkit-mask-composite: source-in; mask-image: var(--fx), var(--fy); mask-composite: intersect; }
 .kband-media img { display: block; width: 100%; height: auto; }
 @media (max-width: 900px) { .kband { padding: 64px 0; } .kband-in { grid-template-columns: 1fr; gap: 32px; } .kband-media { order: -1; } }
 /* Kratos supercapacitor showcase (power storage page) */
 .kratos { margin: 8px 0 72px; scroll-margin-top: 140px; }
-.kratos figure { margin: 0; position: relative; border: 1px solid var(--ink-4); border-radius: var(--r-md); overflow: hidden; background: #000; }
+.kratos figure { margin: 0; position: relative; }
 .kratos figure img { display: block; width: 100%; height: auto; }
 .kratos figcaption { position: absolute; left: 20px; bottom: 16px; color: var(--fg-3); }
 .kratos-body { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; margin-top: 24px; align-items: start; }
