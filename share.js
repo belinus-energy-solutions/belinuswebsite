@@ -106,7 +106,7 @@
           if (el) setTimeout(function () {
             var y = el.getBoundingClientRect().top + scrollY - 150;
             scrollTo({ top: y, behavior: "smooth" });
-            el.classList.add("is-shared");
+            el.setAttribute("data-shared", "1");
           }, 250);
         }
       }, 120);
@@ -140,7 +140,6 @@
     ".share-btn:hover{color:var(--brand-blue,#2EB9EA);border-color:rgba(46,185,234,.6)}",
     ".share-done{color:var(--brand-blue,#2EB9EA)}",
     ".share-row.is-page{justify-content:flex-start;padding:20px 0 0}",
-    ".is-shared{box-shadow:0 0 0 1px rgba(46,185,234,.7)}",
     "body.drawer-region-mode .drawer-nav, body.drawer-region-mode .drawer-login, body.drawer-region-mode .drawer-head .label{display:none}",
     "body.drawer-region-mode .drawer-body{padding-top:4px}",
     "body.drawer-region-mode .drawer-section{margin-top:0}",
