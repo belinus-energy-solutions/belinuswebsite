@@ -2157,6 +2157,17 @@ section.next-page { padding: 48px 0 64px; border-top: 1px solid var(--ink-4); }
   .warranty-v small { font-size: 13px; }
   .warranty-k { font-size: 10.5px; }
 }
+
+/* Kratos images v3: captions below, centred; smaller images */
+.kratos figure { display: flex; flex-direction: column; align-items: center; }
+.kratos figcaption { position: static; margin-top: 12px; text-align: center; font-size: 10px; letter-spacing: .14em; color: var(--fg-3); }
+.kratos .kratos-hero { max-width: 280px; }
+.kratos .kratos-cab { max-width: 170px; }
+@media (max-width: 900px) {
+  .kratos .kratos-hero { max-width: 240px; }
+  .kratos .kratos-cab { max-width: 140px; }
+  .kratos figcaption { font-size: 9px; }
+}
 </style>
 <script>window.__B2B_LANG='fr';window.BELINUS_LANG='fr';window.BELINUS_PRIVACY_URL='#privacy';window.BELINUS_API='https://mc-vze57riyau.bunny.run/webforms/belinus';document.documentElement.lang='fr';</script>
 <script src="consent.js"></script>
