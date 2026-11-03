@@ -115,7 +115,7 @@
 
 
   /* Region badge opens the drawer straight on the locale selector (no menu items in the way) */
-  document.addEventListener("click", function (e) {
+  function regionTap(e) {
     var t = e.target;
     if (!t || !t.closest) return;
     var b = document.body;
@@ -125,7 +125,9 @@
     } else if (t.closest(".drawer-close, .drawer-backdrop") || (t.closest("button") && !t.closest(".drawer") && b.classList.contains("drawer-region-mode"))) {
       setTimeout(function () { b.classList.remove("drawer-region-mode"); }, 450);
     }
-  }, true);
+  }
+  document.addEventListener("pointerdown", regionTap, true);
+  document.addEventListener("click", regionTap, true);
 
   var css = document.createElement("style");
   css.textContent = [
