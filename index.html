@@ -2118,6 +2118,18 @@ section.next-page { padding: 48px 0 64px; border-top: 1px solid var(--ink-4); }
   .kratos .kratos-text { order: 1; }
   .kratos figcaption { font-size: 9px; left: 12px; bottom: 8px; }
 }
+
+/* Kratos page layout v2: images left (shelf above cabinet), text right; mobile: shelf, text, cabinet */
+.kratos { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); grid-template-areas: "hero text" "cab text"; column-gap: 64px; row-gap: 32px; align-items: start; }
+.kratos .kratos-body { display: contents; }
+.kratos .kratos-hero { grid-area: hero; max-width: 460px; width: 100%; margin: 0; justify-self: center; }
+.kratos .kratos-cab { grid-area: cab; max-width: 300px; width: 100%; margin: 0; justify-self: center; order: 0; }
+.kratos .kratos-text { grid-area: text; order: 0; }
+@media (max-width: 900px) {
+  .kratos { grid-template-columns: 1fr; grid-template-areas: "hero" "text" "cab"; row-gap: 28px; }
+  .kratos .kratos-hero { max-width: 320px; }
+  .kratos .kratos-cab { max-width: 220px; }
+}
 </style>
 <script>window.__B2B_LANG='en';window.BELINUS_LANG='en';window.BELINUS_PRIVACY_URL='#privacy';window.BELINUS_API='https://mc-vze57riyau.bunny.run/webforms/belinus';document.documentElement.lang='en';</script>
 <script src="consent.js"></script>
