@@ -115,7 +115,7 @@
 
   var css = document.createElement("style");
   css.textContent = [
-    ".hashtags{margin:0;font-size:14px;line-height:1.5;letter-spacing:0;font-weight:300;color:var(--fg-1,#fff)}",
+    ".hashtags{margin:0;font-size:17px;line-height:1.5;letter-spacing:0;font-weight:300;color:var(--fg-1,#fff)}",
     ".hashtags span{white-space:nowrap;font-weight:300}",
     ".hashtags .ht-b{color:var(--brand-blue,#2EB9EA)}",
     ".share-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
