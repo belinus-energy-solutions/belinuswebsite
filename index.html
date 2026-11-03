@@ -2012,6 +2012,18 @@ section.next-page { padding: 48px 0 64px; border-top: 1px solid var(--ink-4); }
 .pl-card .warranty-wrap { min-height: 128px; display: flex; flex-direction: column; justify-content: flex-start; }
 .pl-card .warranty-strip.is-project { min-height: 92px; display: flex; align-items: center; }
 
+/* align card rows horizontally (title, text, specs, warranty, datasheet) */
+@supports (grid-template-rows: subgrid) {
+  .pl-grid { row-gap: 20px; }
+  .pl-card { display: grid; grid-row: span 6; grid-template-rows: subgrid; row-gap: 0; align-content: start; }
+  .pl-card > h3 { grid-row: 1; }
+  .pl-card > .body-md { grid-row: 2; margin-top: 16px; }
+  .pl-card > .pl-specs { grid-row: 3; margin-top: 16px; align-self: start; }
+  .pl-card > .pl-project { grid-row: 4; margin-top: 16px; }
+  .pl-card > .warranty-wrap { grid-row: 5; margin-top: 16px; }
+  .pl-card > .pl-actions { grid-row: 6; margin-top: 16px; align-self: end; }
+}
+
 /* ---- Home energy infographic ---- */
 .home-energy { margin: 8px 0 48px; border: 1px solid var(--ink-4); border-radius: var(--r-md); overflow: hidden; background: #05080b; }
 .home-energy svg { display: block; width: 100%; height: auto; }
