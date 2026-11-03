@@ -2441,6 +2441,22 @@ html.has-qa main.page { padding-top: var(--qa-h); }
 .b2c-break-logo { right: max(48px, calc((100vw - 1080px) / 2 + 48px)); }
 .b2c-break-foot .b2c-terms { font-size: 9px; letter-spacing: .12em; color: var(--fg-3); text-underline-offset: 2px; }
 @media (max-width: 900px) { .b2c-break .b2c-break-foot { left: 24px; bottom: 24px; } .b2c-break-logo { right: 24px; } }
+
+/* stronger motion: hero entrance, living hero photo, larger reveal */
+@media (prefers-reduced-motion: no-preference) {
+  .b2c-hero .hero-bg img { animation: heroDrift 22s ease-in-out infinite alternate; transform-origin: 60% 40%; }
+  .b2c-hero .hero-left > * { opacity: 0; animation: heroIn 1s cubic-bezier(.2,.7,.2,1) forwards; }
+  .b2c-hero .hero-left > *:nth-child(1) { animation-delay: .15s; }
+  .b2c-hero .hero-left > *:nth-child(2) { animation-delay: .35s; }
+  .b2c-hero .hero-left > *:nth-child(3) { animation-delay: .55s; }
+  .b2c-hero .hero-left > *:nth-child(4) { animation-delay: .75s; }
+  .rv-on .rv { transform: translateY(34px); transition-duration: .9s; }
+  .rv-on .rv.rv-in { transform: none; }
+  .eyebrow-dot::before { animation: dotPulse 2.4s ease-in-out infinite; }
+}
+@keyframes heroDrift { from { transform: scale(1.12) translate3d(0,0,0); } to { transform: scale(1.02) translate3d(-1.5%,-1%,0); } }
+@keyframes heroIn { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes dotPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(46,185,234,.55); } 50% { box-shadow: 0 0 0 6px rgba(46,185,234,0); } }
 </style>
 </head>
 <body>
@@ -2525,7 +2541,7 @@ html.has-qa main.page { padding-top: var(--qa-h); }
       var box = imgs[i].parentElement.getBoundingClientRect();
       if (box.bottom < 0 || box.top > innerHeight) continue;
       var p = (box.top + box.height / 2 - innerHeight / 2) / innerHeight;
-      imgs[i].style.transform = 'translateY(' + (p * -28).toFixed(1) + 'px) scale(1.08)';
+      imgs[i].style.transform = 'translateY(' + (p * -60).toFixed(1) + 'px) scale(1.14)';
     }
   }
   addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(par); } }, { passive: true });
