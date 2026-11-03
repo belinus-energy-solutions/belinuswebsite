@@ -113,6 +113,20 @@
     }
   } catch (e) {}
 
+
+  /* Region badge opens the drawer straight on the locale selector (no menu items in the way) */
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var b = document.body;
+    if (t.closest(".region-badge")) {
+      b.classList.add("drawer-region-mode");
+      setTimeout(function () { var db = document.querySelector(".drawer-body"); if (db) db.scrollTop = 0; }, 30);
+    } else if (t.closest(".drawer-close, .drawer-backdrop") || (t.closest("button") && !t.closest(".drawer") && b.classList.contains("drawer-region-mode"))) {
+      setTimeout(function () { b.classList.remove("drawer-region-mode"); }, 450);
+    }
+  }, true);
+
   var css = document.createElement("style");
   css.textContent = [
     ".hashtags{margin:0;font-size:17px;line-height:1.5;letter-spacing:0;font-weight:300;color:var(--fg-1,#fff)}",
@@ -124,7 +138,11 @@
     ".share-btn:hover{color:var(--brand-blue,#2EB9EA);border-color:rgba(46,185,234,.6)}",
     ".share-done{color:var(--brand-blue,#2EB9EA)}",
     ".share-row.is-page{justify-content:flex-start;padding:20px 0 0}",
-    ".is-shared{box-shadow:0 0 0 1px rgba(46,185,234,.7)}"
+    ".is-shared{box-shadow:0 0 0 1px rgba(46,185,234,.7)}",
+    "body.drawer-region-mode .drawer-nav, body.drawer-region-mode .drawer-login, body.drawer-region-mode .drawer-head .label{display:none}",
+    "body.drawer-region-mode .drawer-body{padding-top:4px}",
+    "body.drawer-region-mode .drawer-section{margin-top:0}",
+    "body.drawer-region-mode .drawer-section-head .label{font-size:13px;color:var(--fg-1,#fff)}"
   ].join("\n");
   document.head.appendChild(css);
 
