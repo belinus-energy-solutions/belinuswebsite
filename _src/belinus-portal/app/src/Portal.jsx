@@ -668,7 +668,7 @@ function RecallCases() {
     </div>
   );
 }
-function ImportedCustomers() {
+function ImportedCustomers({ tab }) {
   const { t, lang } = useT();
   const A = t.adm, R = rcT(lang);
   const [d, setD] = useState(null), [find, setFind] = useState(''), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [note, setNote] = useState('');
@@ -677,12 +677,12 @@ function ImportedCustomers() {
   async function invite(c) { if (!confirm(fmt(R.ask, { e: c.email }))) return; setBusy('i' + c.odoo_partner_id); setErr(''); setNote(''); try { await fn('bel-customers', { action: 'invite', partner_id: c.odoo_partner_id }); await load(false); setNote(R.sent); } catch (x) { setErr(errText(t, x)); } setBusy(''); }
   if (!d) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
   const n = find.trim().toLowerCase();
-  const rows = d.customers.filter((c) => !n || `${c.name} ${c.email || ''} ${c.city || ''}`.toLowerCase().includes(n));
+  const rows = d.customers.filter((c) => (tab !== 'recall' || d.cases.some((x) => x.odoo_partner_id === c.odoo_partner_id)) && (!n || `${c.name} ${c.email || ''} ${c.city || ''}`.toLowerCase().includes(n)));
   return (
     <>
       <PageHead title={t.menu.customers} lead={fmt(R.lead, { n: d.customers.length })} action={<Btn kind="ghost" busy={busy === 's'} disabled={!!busy} onClick={async () => { setBusy('s'); setErr(''); await load(true); setBusy(''); }}>{R.sync}</Btn>} />
       <Note kind="error">{err}</Note><Note kind="ok">{note}</Note>
-      <div className="seg desk-seg" role="tablist">{CUST_F.map((k) => <a key={k} role="tab" aria-selected={k === 'imported'} className={'seg-b' + (k === 'imported' ? ' on' : '')} href={'#/customers?f=' + k}>{A.filter[k]}</a>)}</div>
+      <div className="seg desk-seg" role="tablist">{CUST_F.map((k) => <a key={k} role="tab" aria-selected={k === tab} className={'seg-b' + (k === tab ? ' on' : '')} href={'#/customers?f=' + k}>{A.filter[k]}</a>)}</div>
       <div className="desk-find"><input type="search" aria-label={A.search} placeholder={A.search} value={find} onChange={(e) => setFind(e.target.value)} /></div>
       <div className="table-wrap"><table className="tbl"><thead><tr><th>{A.name}</th><th>{A.city}</th><th className="num">{R.orders}</th><th className="num">{R.invoiced}</th><th>{t.menu.recall}</th><th>{R.portal}</th><th></th></tr></thead><tbody>
         {rows.map((c) => { const k = d.cases.find((x) => x.odoo_partner_id === c.odoo_partner_id), [tone, label] = portalState(c, R); return (
@@ -911,7 +911,7 @@ function Dashboard({ me }) {
 const CUST_F = ['imported', 'all', 'recall', 'unread'];
 function Customers({ route, me }) {
   if (me.role !== 'super') return <SuperOnly me={me} />;
-  if (!route.parts[1] && (route.q.get('f') === 'imported' || !route.q.get('f'))) return <ImportedCustomers />;
+  if (!route.parts[1] && ['imported', 'recall', null].includes(route.q.get('f'))) return <ImportedCustomers tab={route.q.get('f') || 'imported'} />;
   return route.parts[1] ? <CustomerDetail key={route.parts[1]} id={route.parts[1]} /> : <CustomerList route={route} />;
 }
 function CustomerList({ route }) {
