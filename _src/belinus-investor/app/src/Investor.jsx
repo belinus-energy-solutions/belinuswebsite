@@ -39,7 +39,7 @@ function Field({ label, hint, children }) { return <label className="field"><spa
 function Evc({ light }) { const [bad, setBad] = useState(false); return bad ? <span className="evc-txt" style={{ color: light ? '#fff' : 'inherit' }}>EVChargeking</span> : <img src={light ? 'assets/logo-evchargeking-white.png' : 'assets/logo-evchargeking.png'} alt="EVChargeking" onError={() => setBad(true)} />; }
 function Logos({ light }) { return <div className="logos"><Evc light={light} /><img src={light ? 'assets/logo-belinus-white.png' : 'assets/logo-belinus.png'} alt="belinus" /></div>; }
 function AuthFrame({ children }) {
-  return <div className="auth"><div className="auth-panel"><div><Logos light /></div><div><h1>Investeerdersportaal EVChargeking</h1><p>EVChargeking – nu deel van de Belinus-groep</p></div><div /></div><div className="auth-form"><div>{children}</div></div></div>;
+  return <div className="auth"><div className="auth-panel"><div><img className="auth-belinus" src="assets/logo-belinus-blue.png" alt="belinus" /></div><div><h1>Investeerdersportaal<img className="auth-evc" src="assets/logo-evchargeking-white.png" alt="EVChargeking" /></h1><p>EVChargeking – nu deel van de Belinus-groep</p></div><div /></div><div className="auth-form"><div>{children}</div></div></div>;
 }
 function Login({ onIn }) {
   const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');

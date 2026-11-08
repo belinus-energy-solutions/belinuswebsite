@@ -10,6 +10,7 @@ for d in ["vendor", "fonts", "assets"]: (OUT / d).mkdir(parents=True, exist_ok=T
 for f in (PORTAL / "vendor").iterdir(): shutil.copy(f, OUT / "vendor" / f.name)
 for f in ["ArialNova-Light.woff2", "ArialNova.woff2", "ArialNova-Bold.woff2"]: shutil.copy(SITE / "fonts" / f, OUT / "fonts" / f)
 for f in ["logo-belinus.png", "logo-belinus-white.png", "favicon-32.png", "favicon-180.png"]: shutil.copy(SITE / "portal" / "assets" / f, OUT / "assets" / f)
+shutil.copy(SITE / "assets" / "press" / "belinus-logo-blue.png", OUT / "assets" / "logo-belinus-blue.png")
 for f in (ROOT / "assets").glob("*") if (ROOT / "assets").exists() else []: shutil.copy(f, OUT / "assets" / f.name)
 src = (ROOT / "src" / "Investor.jsx").read_text() + "\n" + (ROOT / "src" / "Admin.jsx").read_text() + "\n" + (ROOT / "src" / "App.jsx").read_text()
 tmp = ROOT / "_inv.jsx"; tmp.write_text(src)
