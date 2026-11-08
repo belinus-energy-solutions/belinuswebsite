@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
       uid = data.user.id;
     }
     await a.from("inv_investors").update({ user_id: uid, status: "active", activated_at: new Date().toISOString() }).eq("id", inv.id);
+    { const { data: st } = await a.from("inv_settings").select("value").eq("key", "admin_emails").maybeSingle(); const role = st?.value?.[inv.email]; if (role) await a.from("inv_admins").upsert({ user_id: uid, role }); }
     await audit(a, { id: uid!, email: inv.email }, "password-set", inv.email, { ip });
     return json({ ok: true, email: inv.email });
   }
