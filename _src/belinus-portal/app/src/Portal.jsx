@@ -243,7 +243,7 @@ function SecondFactor({ status, onDone }) {
 const MENU = ['products', 'library', 'recall', 'orders', 'invoices', 'support', 'assistant'];
 const ICON = {
   products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', library: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
-  invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
 const Icon = ({ n }) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICON[n]} /></svg>;
 
@@ -260,7 +260,7 @@ function Shell({ me, route, children, counts }) {
         <div className="top-right"><LangSwitch dark /><a href="#/account" className={'avatar' + (cur === 'account' ? ' on' : '')} title={t.menu.account}>{initials}</a></div>
       </header>
       <nav className={'side' + (open ? ' open' : '')} onClick={() => setOpen(false)}>
-        {MENU.map((m) => (
+        {(isStaffUser(me) ? ['desk', ...MENU] : MENU).map((m) => (
           <a key={m} href={'#/' + m} className={'nav' + (cur === m ? ' on' : '') + (m === 'recall' && counts.recall ? ' alert' : '')}>
             <Icon n={m} /><span>{t.menu[m]}</span>{counts[m] ? <b className="count">{counts[m]}</b> : null}
           </a>
@@ -709,6 +709,142 @@ function Ticket({ id }) {
   );
 }
 
+// ---------- Support desk (Belinus staff) ----------
+const isStaffUser = (me) => !!me && (me.role === 'staff' || me.role === 'super');
+const QUEUES = ['open', 'safety', 'unassigned', 'mine', 'answered', 'closed', 'all'];
+const PRIO_TONE = { low: 'grey', normal: 'grey', high: 'amber', urgent: 'red' };
+const DESK_STATUS = ['open', 'on_hold', 'answered', 'closed'];
+const DESK_PRIO = ['low', 'normal', 'high', 'urgent'];
+const STATUS_TONE = { open: 'amber', on_hold: 'grey', answered: 'blue', closed: 'green' };
+const isLate = (due) => !!due && new Date(due).getTime() < Date.now();
+
+function Desk({ route, me }) {
+  const { t } = useT();
+  if (!isStaffUser(me)) return <Note kind="error">{t.errors.forbidden || t.errors.generic}</Note>;
+  return route.parts[1] ? <DeskTicket key={route.parts[1]} id={route.parts[1]} route={route} /> : <DeskList route={route} />;
+}
+function DeskList({ route }) {
+  const { t, lang } = useT();
+  const d = t.desk;
+  const queue = QUEUES.includes(route.q.get('q')) ? route.q.get('q') : 'open';
+  const [list, setList] = useState(null), [err, setErr] = useState(''), [find, setFind] = useState('');
+  const load = useCallback(() => fn('bel-support', { action: 'admin_list', queue }).then((r) => { setList(r.tickets); setErr(''); }).catch((e) => { setErr(errText(t, e)); setList((l) => l || []); }), [queue]);
+  useEffect(() => { setList(null); load(); const iv = setInterval(load, 60000); return () => clearInterval(iv); }, [load]);
+  const needle = find.trim().toLowerCase();
+  const rows = (list || []).filter((x) => !needle || (`#${x.number} ${x.subject} ${x.customer} ${x.assignee}`).toLowerCase().includes(needle))
+    .sort((a, b) => Number(b.safety && b.status !== 'closed') - Number(a.safety && a.status !== 'closed'));
+  return (
+    <>
+      <PageHead title={d.title} lead={d.lead} />
+      <div className="desk-tabs" role="tablist">{QUEUES.map((q) => <a key={q} role="tab" aria-selected={q === queue} className={'desk-tab' + (q === queue ? ' on' : '')} href={'#/desk?q=' + q}>{d.queue[q]}</a>)}</div>
+      <div className="desk-find"><input type="search" aria-label={d.search} placeholder={d.search} value={find} onChange={(e) => setFind(e.target.value)} /></div>
+      <Note kind="error">{err}</Note>
+      {!list ? <p className="muted">{t.loading}</p> : !rows.length ? <Empty>{d.empty}</Empty> : (
+        <div className="list">{rows.map((x) => {
+          const late = x.status !== 'closed' && (isLate(x.response_due) || !!x.response_breached_at);
+          return (
+            <a key={x.id} href={'#/desk/' + x.id} className={'row-link desk-row' + (x.safety && x.status !== 'closed' ? ' urgent' : '')}>
+              <span className="mono">#{x.number}</span>
+              <span className="grow">{x.subject}<small>{x.customer || '—'} · {t.cat[x.category]} · {when(x.last_message_at, lang)}{x.assignee ? ' · ' + x.assignee : ' · ' + d.nobody}</small></span>
+              <span className="desk-badges">
+                {x.safety && <Badge tone="red">{d.safety}</Badge>}
+                {late && <Badge tone="red">{d.late}</Badge>}
+                {x.priority !== 'normal' && <Badge tone={PRIO_TONE[x.priority]}>{d.prio[x.priority]}</Badge>}
+                <Badge tone={STATUS_TONE[x.status]}>{d.status[x.status]}</Badge>
+              </span>
+              <span className="chev">›</span>
+            </a>
+          );
+        })}</div>
+      )}
+    </>
+  );
+}
+function DeskTicket({ id }) {
+  const { t, lang } = useT();
+  const d = t.desk;
+  const [x, setX] = useState(null), [msg, setMsg] = useState(''), [files, setFiles] = useState(null), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [info, setInfo] = useState('');
+  const fileRef = useRef();
+  const load = useCallback(() => fn('bel-support', { action: 'get', id }).then((r) => { setX(r); setErr(''); }).catch((e) => setErr(errText(t, e))), [id]);
+  useEffect(() => { load(); }, [load]);
+  async function act(body) { setErr(''); setInfo(''); try { await fn('bel-support', { id, ...body }); await load(); setInfo(d.saved); } catch (e) { setErr(errText(t, e)); } }
+  async function send(mode) {
+    if (!msg.trim()) { setErr(d.writeFirst); return; }
+    setBusy(mode); setErr(''); setInfo('');
+    try {
+      const attachments = await uploadFiles(files);
+      await fn('bel-support', { action: 'reply', id, body: msg, attachments, internal: mode === 'note', close: mode === 'close' });
+      setMsg(''); setFiles(null); if (fileRef.current) fileRef.current.value = '';
+      await load();
+      setInfo(mode === 'note' ? d.noteSaved : d.sent);
+    } catch (e) { setErr(errText(t, e)); }
+    setBusy('');
+  }
+  if (!x) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  const k = x.ticket, c = x.customer || {}, sla = k.sla || {};
+  const sel = (name, value, opts, label) => <Field label={label}><select value={value} onChange={(e) => act({ action: 'set', [name]: name === 'level' ? Number(e.target.value) : e.target.value })}>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>;
+  return (
+    <>
+      <a href="#/desk" className="back">‹ {t.back}</a>
+      <PageHead title={k.subject} lead={<><span className="mono">#{k.number}</span> · {t.cat[k.category]} · <Badge tone={STATUS_TONE[k.status]}>{d.status[k.status]}</Badge>{k.safety ? <> <Badge tone="red">{d.safety}</Badge></> : null}</>} />
+      {k.safety && k.status !== 'closed' && <div className="alertbox">{d.safetyNote}</div>}
+      <div className="desk-grid">
+        <div>
+          <div className="thread">{x.messages.map((m) => (
+            <div key={m.id} className={'msg' + (m.internal ? ' internal' : m.staff ? ' staff' : ' customer')}>
+              <div className="msg-h"><b>{m.author || '—'}{m.internal ? ' · ' + d.internal : ''}</b><span>{when(m.created_at, lang)}</span></div>
+              <p className="pre">{m.body}</p>
+              {(m.attachments || []).length ? <ul className="atts">{m.attachments.map((a, i) => <li key={i}><a href={a.url} target="_blank" rel="noopener">📎 {a.name}</a></li>)}</ul> : null}
+            </div>
+          ))}</div>
+          <div className="card stack">
+            <Field label={d.answer} hint={c.lang ? fmt(d.writeIn, { lang: String(c.lang).toUpperCase() }) : null}><textarea rows="6" value={msg} onChange={(e) => setMsg(e.target.value)} /></Field>
+            <input ref={fileRef} type="file" multiple aria-label={t.attach} accept="image/png,image/jpeg,application/pdf,text/plain,video/mp4" onChange={(e) => setFiles(e.target.files)} />
+            <Note kind="error">{err}</Note><Note kind="ok">{info}</Note>
+            <div className="acts">
+              <Btn busy={busy === 'send'} disabled={!!busy} onClick={() => send('send')}>{d.send}</Btn>
+              <Btn kind="ghost" busy={busy === 'close'} disabled={!!busy} onClick={() => send('close')}>{d.sendClose}</Btn>
+              <Btn kind="ghost" busy={busy === 'note'} disabled={!!busy} onClick={() => send('note')}>{d.saveNote}</Btn>
+            </div>
+          </div>
+        </div>
+        <aside className="desk-side">
+          <div className="card stack">
+            <h3>{d.customer}</h3>
+            <dl className="kv">
+              <dt>{d.name}</dt><dd>{c.full_name || '—'}</dd>
+              <dt>{t.email}</dt><dd>{c.email ? <a href={'mailto:' + c.email}>{c.email}</a> : '—'}</dd>
+              <dt>{d.phone}</dt><dd>{c.mobile ? <a href={'tel:' + c.mobile}>{c.mobile}</a> : '—'}</dd>
+              <dt>{d.city}</dt><dd>{c.city || '—'}</dd>
+              <dt>{d.language}</dt><dd>{c.lang ? String(c.lang).toUpperCase() : '—'}</dd>
+              {k.system ? <><dt>{d.system}</dt><dd>{k.system.product}{k.system.serial ? ' · ' + k.system.serial : ''}</dd></> : null}
+            </dl>
+          </div>
+          <div className="card stack">
+            <h3>{d.handling}</h3>
+            <div className="desk-assign"><span>{k.assignee || d.nobody}</span><span className="acts">
+              <button className="link" onClick={() => act({ action: 'assign', to: 'me' })}>{d.takeIt}</button>
+              {k.assigned_to ? <button className="link" onClick={() => act({ action: 'assign', to: null })}>{d.release}</button> : null}
+            </span></div>
+            {sel('status', k.status, DESK_STATUS.map((v) => [v, d.status[v]]), d.statusL)}
+            {sel('priority', k.priority, DESK_PRIO.map((v) => [v, d.prio[v]]), d.priorityL)}
+            {sel('category', k.category, Object.keys(t.cat).map((v) => [v, t.cat[v]]), t.category)}
+            {sel('level', k.level, [1, 2, 3].map((v) => [v, d.level + ' ' + v]), d.levelL)}
+            <dl className="kv">
+              <dt>{d.respDue}</dt><dd className={!sla.first_response_at && isLate(sla.response_due) ? 'late' : ''}>{sla.first_response_at ? d.answered : when(sla.response_due, lang)}</dd>
+              <dt>{d.resoDue}</dt><dd className={k.status !== 'closed' && isLate(sla.resolution_due) ? 'late' : ''}>{when(sla.resolution_due, lang)}</dd>
+            </dl>
+          </div>
+          <div className="card stack">
+            <h3>{d.history}</h3>
+            <ul className="desk-hist">{(x.history || []).map((h, i) => <li key={i}><span>{d.ev[h.kind] || h.kind}</span><small>{when(h.created_at, lang)}</small></li>)}</ul>
+          </div>
+        </aside>
+      </div>
+    </>
+  );
+}
+
 // ---------- Assistant ----------
 function Assistant() {
   const { t, lang } = useT();
@@ -893,8 +1029,10 @@ function App() {
       sb.from('bel_recall_notices').select('id', { count: 'exact', head: true }).is('signed_at', null),
       sb.from('bel_invoices').select('id', { count: 'exact', head: true }).in('status', ['open', 'overdue', 'partly_paid']),
     ]);
-    setCounts({ recall: rc || 0, invoices: ic || 0 });
-  }, []);
+    let desk = 0;
+    if (isStaffUser(state.me)) { try { desk = (await fn('bel-support', { action: 'admin_list', queue: 'open' })).tickets.length; } catch (e) {} }
+    setCounts({ recall: rc || 0, invoices: ic || 0, desk });
+  }, [state.me]);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { loadMe(); }, [loadMe]);
   useEffect(() => { if (state.phase === 'in') loadCounts(); }, [state.phase, loadCounts]);
@@ -916,8 +1054,8 @@ function App() {
   else if (state.phase === 'mfa') body = <SecondFactor status={state.status} onDone={(r) => { if (r.remind) setRemind(true); loadMe(); }} />;
   else {
     const me = state.me;
-    if (['login', 'signup', 'forgot', ''].includes(page)) { go(counts.recall ? 'recall' : 'products'); }
-    const P = { products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, assistant: Assistant, account: Account }[page] || Products;
+    if (['login', 'signup', 'forgot', ''].includes(page)) { go(isStaffUser(me) ? 'desk' : counts.recall ? 'recall' : 'products'); }
+    const P = { products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, desk: Desk, assistant: Assistant, account: Account }[page] || Products;
     body = <Shell me={me} route={route} counts={counts}><P me={me} route={route} refresh={loadCounts} reloadMe={loadMe} /></Shell>;
   }
   return <LangCtx.Provider value={{ t, lang, setLang }}>{body}{remind && state.phase === 'in' && <Remind onClose={() => setRemind(false)} />}</LangCtx.Provider>;

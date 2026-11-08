@@ -235,3 +235,20 @@ textarea { resize: vertical; }
 .small { font-size: 13px; }
 .reg-item { border: 1px solid var(--line, #e7eaee); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 @media (max-width: 640px) { .lib-list li { grid-template-columns: 1fr; gap: 4px; } }
+
+/* ---- Support desk (staff) ---- */
+.desk-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.desk-tab { padding: 7px 14px; border-radius: 999px; font-size: 14px; color: var(--fg2); text-decoration: none; background: var(--paper); box-shadow: var(--shadow); }
+.desk-tab.on { background: var(--ink-2); color: #fff; }
+.desk-find { margin-bottom: 14px; max-width: 420px; } .desk-find input { width: 100%; }
+.desk-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.desk-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.desk-side h3 { margin: 0; font-size: 15px; } .desk-side .card { margin-bottom: 14px; }
+.desk-side select { width: 100%; }
+.desk-assign { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 14px; }
+.desk-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.desk-hist li { display: flex; justify-content: space-between; gap: 10px; } .desk-hist small { color: var(--fg3); white-space: nowrap; }
+.msg.internal { background: var(--warn-bg); box-shadow: none; }
+.msg.customer { background: var(--paper); }
+.kv dd.late { color: var(--bad); font-weight: 700; }
+@media (max-width: 900px) { .desk-grid { grid-template-columns: 1fr; } .desk-row { flex-wrap: wrap; } .desk-row .grow { flex-basis: 70%; } }
