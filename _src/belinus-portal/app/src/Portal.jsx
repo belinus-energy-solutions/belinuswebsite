@@ -616,6 +616,7 @@ function RecallAdmin() {
               <p style={{ margin: 0 }}>{pick(r.summary)}</p>
               <p style={{ margin: 0 }}><b>{t.recallInstructions}:</b> {pick(r.instructions)}</p>
             </article>
+            <RecallCases />
             <div className="tiles"><div className="tile"><b>{list.length}</b><span>{A.recallTotal}</span></div><div className="tile"><b>{by('sent')}</b><span>{A.recallWaiting}</span></div><div className="tile"><b>{by('opened')}</b><span>{A.recallOpened}</span></div><div className="tile"><b>{by('signed', 'appointment', 'replaced', 'closed')}</b><span>{A.recallSigned}</span></div></div>
             {!list.length ? <Empty>{A.recallNone} <a href="#/customers">{t.menu.customers} →</a></Empty> : <div className="table-wrap"><table className="tbl"><thead><tr><th>{A.name}</th><th>{t.menu.products}</th><th>{A.statusL}</th><th>{A.openedOn}</th><th>{A.signedOn}</th><th>{A.choiceL}</th><th>{A.datesL}</th></tr></thead><tbody>
               {list.map((n) => { const p = d.people.find((x) => x.id === n.owner_id) || {}, y = d.systems.find((x) => x.id === n.system_id); return (
@@ -628,16 +629,81 @@ function RecallAdmin() {
     </>
   );
 }
+const RC = {
+  nl: { dossiers: 'Dossiers', customer: 'Klant', sys: 'Systeem', inst: 'In gebruik', inv: 'Factuur', disc: 'Loskoppeling', portal: 'Portaal', confirmed: 'Losgekoppeld', pending: 'Nog niet bevestigd', notInv: 'Niet uitgenodigd', invited: 'Uitgenodigd', active: 'Actief', invite: 'Uitnodigen', reinvite: 'Opnieuw', mark: 'Markeer losgekoppeld', undo: 'Terugzetten', letter: 'Brief', ask: 'Een account aanmaken en de uitnodiging per e-mail sturen naar {e}?', orders: 'Bestellingen', invoiced: 'Gefactureerd', sync: 'Nu ophalen uit Odoo', noMail: 'Geen e-mail in Odoo', lead: '{n} klanten uit Odoo Belinus Energy BV. Een klant krijgt pas toegang en een e-mail wanneer u op Uitnodigen klikt.', sent: 'Uitnodiging verstuurd.', syncErr: 'Odoo kon niet gelezen worden.', activating: 'Uw toegang wordt geactiveerd…', badInvite: 'Deze uitnodiging is niet meer geldig. Kies Wachtwoord vergeten op de aanmeldpagina of mail service@belinus.com.' },
+  en: { dossiers: 'Case files', customer: 'Customer', sys: 'System', inst: 'In use', inv: 'Invoice', disc: 'Disconnection', portal: 'Portal', confirmed: 'Disconnected', pending: 'Not confirmed', notInv: 'Not invited', invited: 'Invited', active: 'Active', invite: 'Invite', reinvite: 'Again', mark: 'Mark disconnected', undo: 'Undo', letter: 'Letter', ask: 'Create an account and send the invitation by e-mail to {e}?', orders: 'Orders', invoiced: 'Invoiced', sync: 'Fetch from Odoo now', noMail: 'No e-mail in Odoo', lead: '{n} customers from Odoo Belinus Energy BV. A customer only gets access and an e-mail when you click Invite.', sent: 'Invitation sent.', syncErr: 'Odoo could not be read.', activating: 'Activating your access…', badInvite: 'This invitation is no longer valid. Choose Forgot password on the sign-in page or email service@belinus.com.' },
+};
+const rcT = (lang) => RC[lang === 'en' ? 'en' : 'nl'];
+const portalState = (c, R) => c.profile_id && c.bel_profiles?.last_login_at ? ['green', R.active] : c.invited_at ? ['blue', R.invited] : ['amber', R.notInv];
+function Activate({ route }) {
+  const { lang } = useT();
+  const R = rcT(lang);
+  const [err, setErr] = useState('');
+  useEffect(() => { fn('bel-customers', { action: 'activate', code: route.q.get('code') }).then((r) => { location.replace('#/reset?code=' + encodeURIComponent(r.code)); }).catch(() => setErr(R.badInvite)); }, []);
+  return <div className="boot">{err ? <Note kind="error">{err}</Note> : <p className="muted">{R.activating}</p>}</div>;
+}
+function RecallCases() {
+  const { t, lang } = useT();
+  const R = rcT(lang);
+  const [d, setD] = useState(null), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [note, setNote] = useState('');
+  const load = useCallback(() => fn('bel-customers', { action: 'list' }).then(setD).catch((e) => setErr(errText(t, e))), []);
+  useEffect(() => { load(); }, [load]);
+  async function run(key, body, done) { setBusy(key); setErr(''); setNote(''); try { await fn('bel-customers', body); await load(); if (done) setNote(done); } catch (x) { setErr(errText(t, x)); } setBusy(''); }
+  if (!d) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  const done = d.cases.filter((c) => c.disconnect_status === 'confirmed');
+  return (
+    <div className="card stack">
+      <h2 style={{ margin: 0 }}>{R.dossiers} · {R.confirmed} {done.length}/{d.cases.length} · {done.reduce((s, c) => s + c.modules, 0)}/{d.cases.reduce((s, c) => s + c.modules, 0)} modules</h2>
+      <Note kind="error">{err}</Note><Note kind="ok">{note}</Note>
+      <div className="table-wrap"><table className="tbl"><thead><tr><th>{R.customer}</th><th>{R.sys}</th><th>{R.inst}</th><th>{R.disc}</th><th>{R.portal}</th><th></th></tr></thead><tbody>
+        {d.cases.map((c) => { const cu = d.customers.find((x) => x.odoo_partner_id === c.odoo_partner_id) || {}, [tone, label] = portalState(cu, R), n = d.notices.find((x) => x.id === c.notice_id); return (
+          <tr key={c.id}><td>{c.contact_name}<small className="ref">{c.portal_email} · {c.street}, {c.postal_code} {c.city}{c.company_name ? ' · ' + c.company_name : ''}</small></td>
+            <td>{c.product} {String(c.capacity_kwh).replace('.', ',')} kWh<small className="ref">{c.modules} modules · {c.model} · {c.invoice_number}</small></td>
+            <td>{day(c.installed_at, lang)}</td>
+            <td><Badge tone={c.disconnect_status === 'confirmed' ? 'green' : 'red'}>{c.disconnect_status === 'confirmed' ? R.confirmed : R.pending}</Badge>{c.disconnected_at ? <small className="ref">{day(c.disconnected_at, lang)}</small> : null}<small className="ref">{c.disconnect_note}</small></td>
+            <td><Badge tone={tone}>{label}</Badge>{n ? <small className="ref">{t.rStatus[n.status]}{n.choice ? ' · ' + t.choice[n.choice] : ''}</small> : null}</td>
+            <td><span className="acts">{c.disconnect_status === 'confirmed' ? <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'pending' })}>{R.undo}</button> : <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'confirmed' })}>{R.mark}</button>}{' '}<Btn kind="ghost" busy={busy === 'i' + c.id} disabled={!!busy} onClick={() => { if (confirm(fmt(R.ask, { e: c.portal_email }))) run('i' + c.id, { action: 'invite', partner_id: c.odoo_partner_id }, R.sent); }}>{cu.invited_at ? R.reinvite : R.invite}</Btn></span></td></tr>
+        ); })}
+      </tbody></table></div>
+    </div>
+  );
+}
+function ImportedCustomers() {
+  const { t, lang } = useT();
+  const A = t.adm, R = rcT(lang);
+  const [d, setD] = useState(null), [find, setFind] = useState(''), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [note, setNote] = useState('');
+  const load = useCallback((sync) => fn('bel-customers', { action: 'list', sync }).then((r) => { setD(r); if (r.sync_error) setErr(R.syncErr); }).catch((e) => setErr(errText(t, e))), []);
+  useEffect(() => { load(false); }, [load]);
+  async function invite(c) { if (!confirm(fmt(R.ask, { e: c.email }))) return; setBusy('i' + c.odoo_partner_id); setErr(''); setNote(''); try { await fn('bel-customers', { action: 'invite', partner_id: c.odoo_partner_id }); await load(false); setNote(R.sent); } catch (x) { setErr(errText(t, x)); } setBusy(''); }
+  if (!d) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  const n = find.trim().toLowerCase();
+  const rows = d.customers.filter((c) => !n || `${c.name} ${c.email || ''} ${c.city || ''}`.toLowerCase().includes(n));
+  return (
+    <>
+      <PageHead title={t.menu.customers} lead={fmt(R.lead, { n: d.customers.length })} action={<Btn kind="ghost" busy={busy === 's'} disabled={!!busy} onClick={async () => { setBusy('s'); setErr(''); await load(true); setBusy(''); }}>{R.sync}</Btn>} />
+      <Note kind="error">{err}</Note><Note kind="ok">{note}</Note>
+      <div className="seg desk-seg" role="tablist">{CUST_F.map((k) => <a key={k} role="tab" aria-selected={k === 'imported'} className={'seg-b' + (k === 'imported' ? ' on' : '')} href={'#/customers?f=' + k}>{A.filter[k]}</a>)}</div>
+      <div className="desk-find"><input type="search" aria-label={A.search} placeholder={A.search} value={find} onChange={(e) => setFind(e.target.value)} /></div>
+      <div className="table-wrap"><table className="tbl"><thead><tr><th>{A.name}</th><th>{A.city}</th><th className="num">{R.orders}</th><th className="num">{R.invoiced}</th><th>{t.menu.recall}</th><th>{R.portal}</th><th></th></tr></thead><tbody>
+        {rows.map((c) => { const k = d.cases.find((x) => x.odoo_partner_id === c.odoo_partner_id), [tone, label] = portalState(c, R); return (
+          <tr key={c.odoo_partner_id} className={c.profile_id ? 'click' : ''} onClick={() => { if (c.profile_id) go('customers/' + c.profile_id); }}><td>{c.name}<small className="ref">{c.email || R.noMail}{c.phone ? ' · ' + c.phone : ''}</small></td><td>{c.city || '—'}</td><td className="num">{c.orders}</td><td className="num">{eur(c.invoiced, lang)}</td>
+            <td>{k ? <Badge tone={k.disconnect_status === 'confirmed' ? 'amber' : 'red'}>{k.disconnect_status === 'confirmed' ? R.confirmed : R.pending}</Badge> : '—'}</td><td><Badge tone={tone}>{label}</Badge></td>
+            <td onClick={(e) => e.stopPropagation()}>{c.email && !c.bel_profiles?.last_login_at ? <Btn kind="ghost" busy={busy === 'i' + c.odoo_partner_id} disabled={!!busy} onClick={() => invite(c)}>{c.invited_at ? R.reinvite : R.invite}</Btn> : null}</td></tr>
+        ); })}
+      </tbody></table></div>
+    </>
+  );
+}
 function RecallNotice({ id, me, refresh }) {
   const { t, lang } = useT();
   const [n, setN] = useState(null), [err, setErr] = useState('');
   const [f, setF] = useState({ read: false, choice: '', name: '', dates: '', phone: me.mobile || '' });
   const [busy, setBusy] = useState(false);
-  const load = useCallback(() => fn('bel-portal', { action: 'recall_open', id }).then((r) => { setN(r.notice); refresh(); }).catch((e) => setErr(errText(t, e))), [id]);
+  const load = useCallback(() => fn('bel-customers', { action: 'recall_open', id }).then((r) => { setN(r.notice); refresh(); }).catch((e) => setErr(errText(t, e))), [id]);
   useEffect(() => { load(); }, [load]);
   async function sign(e) {
     e.preventDefault(); setBusy(true); setErr('');
-    try { await fn('bel-portal', { action: 'recall_sign', id, typed_name: f.name, choice: f.choice, read_confirmed: f.read, phone: f.phone, preferred_dates: f.dates ? f.dates.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean) : [] }); await load(); }
+    try { await fn('bel-customers', { action: 'recall_sign', id, typed_name: f.name, choice: f.choice, read_confirmed: f.read, phone: f.phone, preferred_dates: f.dates ? f.dates.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean) : [] }); await load(); }
     catch (x) { setErr(x.message === 'name-mismatch' ? t.nameMismatch : errText(t, x)); }
     setBusy(false);
   }
@@ -649,13 +715,14 @@ function RecallNotice({ id, me, refresh }) {
       {n.system && <p className="muted">{t.kind[n.system.kind]} · {n.system.product} {n.system.model || ''} · {t.serial} <span className="mono">{n.system.serial || '—'}</span></p>}
       {n.instructions && <div className="alertbox"><h3>{t.recallInstructions}</h3><p className="pre">{n.instructions}</p></div>}
       {n.summary && <p className="pre">{n.summary}</p>}
+      {n.offer && <div className="card stack"><h3 style={{ margin: 0 }}>{t.recallOffer}</h3><p className="pre" style={{ margin: 0 }}>{n.offer}</p></div>}
       {n.pdf && <div className="pdf-wrap"><iframe title={t.recallDoc} src={n.pdf} /><a className="btn ghost sm" href={n.pdf} target="_blank" rel="noopener">{t.recallDoc} ↗</a></div>}
       {n.signed_at ? (
         <div className="signed"><Badge tone="green">{t.rStatus[n.status]}</Badge> {fmt(t.signedOn, { date: when(n.signed_at, lang), name: n.signed_name })}{n.choice ? <> · {t.choice[n.choice]}</> : null}</div>
       ) : (
         <form className="card sign" onSubmit={sign}>
           <h3>{t.recallChoice}</h3>
-          <div className="choices">{['replace', 'return', 'other'].map((c) => <label key={c} className={'choice' + (f.choice === c ? ' on' : '')}><input type="radio" name="choice" checked={f.choice === c} onChange={() => setF({ ...f, choice: c })} required /> {t.choice[c]}</label>)}</div>
+          <div className="choices">{['lfp', 'sodium'].map((c) => <label key={c} className={'choice' + (f.choice === c ? ' on' : '')}><input type="radio" name="choice" checked={f.choice === c} onChange={() => setF({ ...f, choice: c })} required /> {t.choice[c]}</label>)}</div>
           <div className="row2">
             <Field label={t.phone}><input type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
             <Field label={t.preferredDates}><input value={f.dates} onChange={(e) => setF({ ...f, dates: e.target.value })} placeholder="ma 9/11, wo 11/11" /></Field>
@@ -831,9 +898,10 @@ function Dashboard({ me }) {
     </>
   );
 }
-const CUST_F = ['all', 'recall', 'unread'];
+const CUST_F = ['imported', 'all', 'recall', 'unread'];
 function Customers({ route, me }) {
   if (me.role !== 'super') return <SuperOnly me={me} />;
+  if (!route.parts[1] && (route.q.get('f') === 'imported' || !route.q.get('f'))) return <ImportedCustomers />;
   return route.parts[1] ? <CustomerDetail key={route.parts[1]} id={route.parts[1]} /> : <CustomerList route={route} />;
 }
 function CustomerList({ route }) {
@@ -1358,6 +1426,7 @@ function App() {
   let body;
   if (page === 'switch') body = <SwitchIn route={route} />;
   else if (page === 'reset') body = <Reset route={route} onSignedIn={loadMe} />;
+  else if (page === 'activate') body = <Activate route={route} />;
   else if (state.phase === 'boot') body = <div className="boot"><Logo /></div>;
   else if (state.phase === 'out') body = page === 'signup' ? <Signup /> : page === 'forgot' ? <Forgot /> : <Login route={route} onSignedIn={loadMe} />;
   else if (state.phase === 'mfa') body = <SecondFactor status={state.status} onDone={(r) => { if (r.remind) setRemind(true); loadMe(); }} />;
