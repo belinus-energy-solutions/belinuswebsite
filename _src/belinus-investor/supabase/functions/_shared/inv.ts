@@ -112,7 +112,7 @@ export async function sendAccessLink(a: SupabaseClient, inv: { id: string; email
   await a.from("inv_links").delete().eq("investor_id", inv.id);
   await a.from("inv_links").insert({ code_hash: await sha256(code), investor_id: inv.id, expires_at: new Date(Date.now() + 24 * 3600_000).toISOString() });
   const url = `${APP_URL}/#/wachtwoord?code=${encodeURIComponent(code)}`;
-  const L = pickLang(lang || inv.lang), T = ACCESS[L];
+  const L = pickLang(inv.lang || lang), T = ACCESS[L];
   return await sendMail(a, { to: inv.email, kind: "access-link", lang: L, subject: inv.status === "invited" ? T.first : T.again, cta: { url, label: T.label }, text: `${hello(inv.first_name, L)}\n\n${T.body(url)}\n\n${T.thanks}` });
 }
 

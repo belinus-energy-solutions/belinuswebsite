@@ -29,16 +29,12 @@ function Shell({ page, investor, role, email, name, children }) {
     <nav className="sb-tabs">{tabs.map((r) => <a key={r[0]} className={'sb-tab' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]}><Ic n={r[2]} /><span>{t(r[1].replace('Mijn investering', 'Investering').replace('Maak een afspraak', 'Afspraak'))}</span></a>)}<button className="sb-tab" onClick={() => document.documentElement.classList.add('drawer')}><Ic n="menu" /><span>{t('Meer')}</span></button></nav>
   </div>;
 }
-async function syncLang(d) {
-  if (!d.investor) return;
-  let picked = false; try { picked = !!localStorage.getItem('inv_lang_picked'); localStorage.removeItem('inv_lang_picked'); } catch (e) {}
-  if (d.investor.lang && !picked) { if (d.investor.lang !== LANG) setLang(d.investor.lang); return; }
-  if (d.investor.lang !== LANG) { await fn('bel-inv', { action: 'set_lang', lang: LANG }).catch(() => {}); d.investor.lang = LANG; }
-}
+// The language saved on the account decides (standard NL); it is changed on the account page.
+function syncLang(d) { if (d.investor && d.investor.lang && d.investor.lang !== LANG) setLang(d.investor.lang); }
 function App() {
   const route = useRoute();
   const [st, setSt] = useState({ phase: 'boot' });
-  const loadData = useCallback(async () => { const d = await fn('bel-inv', { action: 'me' }); await syncLang(d); setSt((s) => ({ ...s, phase: 'in', d })); return d; }, []);
+  const loadData = useCallback(async () => { const d = await fn('bel-inv', { action: 'me' }); syncLang(d); setSt((s) => ({ ...s, phase: 'in', d })); return d; }, []);
   const load = useCallback(async () => {
     const { data: s } = await sb.auth.getSession();
     if (!s?.session) { setSt({ phase: 'out' }); return; }
