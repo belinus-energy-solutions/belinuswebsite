@@ -675,7 +675,7 @@ const ORDER_STEPS = ['confirmed', 'in_production', 'ready', 'delivered', 'instal
 async function odooPdf(kind, id, name, t) {
   try {
     const { data: x } = await sb.auth.getSession();
-    const res = await fetch(`${CFG.url}/functions/v1/bel-odoo`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, authorization: 'Bearer ' + x?.session?.access_token }, body: JSON.stringify({ action: 'pdf', kind, id }) });
+    const res = await fetch(`${CFG.url}/functions/v1/bel-pdf`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, authorization: 'Bearer ' + x?.session?.access_token }, body: JSON.stringify({ kind, id }) });
     if (!res.ok) throw new Error('pdf-unavailable');
     const url = URL.createObjectURL(await res.blob());
     const l = document.createElement('a'); l.href = url; l.download = String(name).replace(/[^\w.-]+/g, '_') + '.pdf'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
