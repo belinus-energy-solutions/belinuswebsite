@@ -32,7 +32,21 @@ function useRoute() {
 const go = (p) => { location.hash = '#/' + p; };
 
 // ---------- API ----------
-async function fn(name, body) {
+// Super admin "view as customer": read-only preview, kept for this tab only.
+const asView = () => { try { return JSON.parse(sessionStorage.getItem('bel_as') || 'null'); } catch (e) { return null; } };
+const startAs = (c, page) => { try { sessionStorage.setItem('bel_as', JSON.stringify(c)); } catch (e) {} location.hash = '#/' + page; location.reload(); };
+const stopAs = () => { try { sessionStorage.removeItem('bel_as'); } catch (e) {} location.hash = '#/customers'; location.reload(); };
+const AS_ALLOWED = { 'bel-odoo': ['orders', 'invoices'], 'bel-services': ['list', 'products', 'documents', 'attachment'], 'bel-view-as': ['recall'], 'bel-hub': ['recall_info'], 'bel-switch': ['targets'], 'bel-mfa': ['status'] };
+const AS_EMPTY = { 'bel-hub': { messages: { ok: true, messages: [] } }, 'bel-support': { list: { ok: true, tickets: [] } } };
+async function fn(name, bodyIn) {
+  const as = asView();
+  let body = bodyIn;
+  if (as) {
+    const act = (body || {}).action || 'list';
+    if (AS_EMPTY[name]?.[act]) return AS_EMPTY[name][act];
+    if (!(AS_ALLOWED[name] || []).includes(act)) throw new Error('preview-readonly');
+    if (name !== 'bel-mfa' && name !== 'bel-switch') body = { ...body, as_partner: as.partner_id };
+  }
   const { data: s } = await sb.auth.getSession();
   const token = s?.session?.access_token;
   const res = await fetch(`${CFG.url}/functions/v1/${name}`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body || {}) });
@@ -329,7 +343,7 @@ function Shell({ me, route, children, counts }) {
       </aside>
       <div className="sb-scrim" onClick={closeDrawer} />
       <header className="sb-top"><div className="logos"><img src="assets/logo-belinus-blue.png" alt="belinus" /></div><div className="acts"><ThemeToggle /><a className="av" href="#/account" aria-label={t.menu.account}>{initials}</a></div></header>
-      <main className="main"><div className="main-in"><p className="eyebrow">{t.portal}</p>{children}<p className="foot">Belinus Energy BV · a belinus group company · <a href="https://belinus.com/#/privacy" target="_blank" rel="noopener">{t.privacy}</a></p></div></main>
+      <main className="main"><div className="main-in">{asView() && <div className="as-banner"><span>{rcT(lang0()).viewing} <b>{asView().name}</b>. {rcT(lang0()).readOnly}</span><button className="btn ghost sm" onClick={stopAs}>{rcT(lang0()).stop}</button></div>}<p className="eyebrow">{t.portal}</p>{children}<p className="foot">Belinus Energy BV · a belinus group company · <a href="https://belinus.com/#/privacy" target="_blank" rel="noopener">{t.privacy}</a></p></div></main>
       <nav className="sb-tabs">{tabs.map((m) => <a key={m} className={'sb-tab' + (cur === m ? ' on' : '')} href={'#/' + m}><Icon n={m} /><span>{t.menu[m]}</span></a>)}<button className="sb-tab" onClick={() => document.documentElement.classList.add('drawer')}><Icon n="menu" /><span>{t.more}</span></button></nav>
     </div>
   );
@@ -569,6 +583,7 @@ function Recall({ route, me, refresh }) {
   const id = route.parts[1];
   const [list, setList] = useState(null);
   useEffect(() => { if (!id) sb.from('bel_recall_notices').select('id, status, signed_at, created_at, system_id, bel_recalls(code, title, risk)').order('created_at', { ascending: false }).then(({ data }) => setList(data || [])); }, [id]);
+  if (asView()) return <RecallNotice id="preview" me={me} refresh={refresh} />;
   if (id) return <RecallNotice id={id} me={me} refresh={refresh} />;
   if (me.role === 'super') return <RecallAdmin />;
   if (!list) return <p className="muted">{t.loading}</p>;
@@ -630,10 +645,11 @@ function RecallAdmin() {
   );
 }
 const RC = {
-  nl: { dossiers: 'Dossiers', customer: 'Klant', sys: 'Systeem', inst: 'In gebruik', inv: 'Factuur', disc: 'Loskoppeling', portal: 'Portaal', confirmed: 'Losgekoppeld', pending: 'Nog niet bevestigd', notInv: 'Niet uitgenodigd', invited: 'Uitgenodigd', active: 'Actief', invite: 'Uitnodigen', reinvite: 'Opnieuw', mark: 'Markeer losgekoppeld', undo: 'Terugzetten', letter: 'Brief', ask: 'Een account aanmaken en de uitnodiging per e-mail sturen naar {e}?', orders: 'Bestellingen', invoiced: 'Gefactureerd', sync: 'Nu ophalen uit Odoo', noMail: 'Geen e-mail in Odoo', lead: '{n} klanten uit Odoo Belinus Energy BV. Een klant krijgt pas toegang en een e-mail wanneer u op Uitnodigen klikt.', sent: 'Uitnodiging verstuurd.', syncErr: 'Odoo kon niet gelezen worden.', activating: 'Uw toegang wordt geactiveerd…', badInvite: 'Deze uitnodiging is niet meer geldig. Kies Wachtwoord vergeten op de aanmeldpagina of mail service@belinus.com.' },
-  en: { dossiers: 'Case files', customer: 'Customer', sys: 'System', inst: 'In use', inv: 'Invoice', disc: 'Disconnection', portal: 'Portal', confirmed: 'Disconnected', pending: 'Not confirmed', notInv: 'Not invited', invited: 'Invited', active: 'Active', invite: 'Invite', reinvite: 'Again', mark: 'Mark disconnected', undo: 'Undo', letter: 'Letter', ask: 'Create an account and send the invitation by e-mail to {e}?', orders: 'Orders', invoiced: 'Invoiced', sync: 'Fetch from Odoo now', noMail: 'No e-mail in Odoo', lead: '{n} customers from Odoo Belinus Energy BV. A customer only gets access and an e-mail when you click Invite.', sent: 'Invitation sent.', syncErr: 'Odoo could not be read.', activating: 'Activating your access…', badInvite: 'This invitation is no longer valid. Choose Forgot password on the sign-in page or email service@belinus.com.' },
+  nl: { dossiers: 'Dossiers', customer: 'Klant', sys: 'Systeem', inst: 'In gebruik', inv: 'Factuur', disc: 'Loskoppeling', portal: 'Portaal', confirmed: 'Losgekoppeld', pending: 'Nog niet bevestigd', notInv: 'Niet uitgenodigd', invited: 'Uitgenodigd', active: 'Actief', invite: 'Uitnodigen', reinvite: 'Opnieuw', mark: 'Markeer losgekoppeld', undo: 'Terugzetten', letter: 'Brief', ask: 'Een account aanmaken en de uitnodiging per e-mail sturen naar {e}?', orders: 'Bestellingen', invoiced: 'Gefactureerd', sync: 'Nu ophalen uit Odoo', noMail: 'Geen e-mail in Odoo', lead: '{n} klanten uit Odoo Belinus Energy BV. Een klant krijgt pas toegang en een e-mail wanneer u op Uitnodigen klikt.', viewAs: 'Bekijk als', viewing: 'U bekijkt het portaal als', readOnly: 'Alleen lezen: niets wordt opgeslagen of verstuurd.', stop: 'Stoppen', sent: 'Uitnodiging verstuurd.', syncErr: 'Odoo kon niet gelezen worden.', activating: 'Uw toegang wordt geactiveerd…', badInvite: 'Deze uitnodiging is niet meer geldig. Kies Wachtwoord vergeten op de aanmeldpagina of mail service@belinus.com.' },
+  en: { dossiers: 'Case files', customer: 'Customer', sys: 'System', inst: 'In use', inv: 'Invoice', disc: 'Disconnection', portal: 'Portal', confirmed: 'Disconnected', pending: 'Not confirmed', notInv: 'Not invited', invited: 'Invited', active: 'Active', invite: 'Invite', reinvite: 'Again', mark: 'Mark disconnected', undo: 'Undo', letter: 'Letter', ask: 'Create an account and send the invitation by e-mail to {e}?', orders: 'Orders', invoiced: 'Invoiced', sync: 'Fetch from Odoo now', noMail: 'No e-mail in Odoo', lead: '{n} customers from Odoo Belinus Energy BV. A customer only gets access and an e-mail when you click Invite.', viewAs: 'View as', viewing: 'You are viewing the portal as', readOnly: 'Read-only: nothing is saved or sent.', stop: 'Stop', sent: 'Invitation sent.', syncErr: 'Odoo could not be read.', activating: 'Activating your access…', badInvite: 'This invitation is no longer valid. Choose Forgot password on the sign-in page or email service@belinus.com.' },
 };
 const rcT = (lang) => RC[lang === 'en' ? 'en' : 'nl'];
+const lang0 = () => (safeGet('bel_lang') === 'en' ? 'en' : 'nl');
 const portalState = (c, R) => c.profile_id && c.bel_profiles?.last_login_at ? ['green', R.active] : c.invited_at ? ['blue', R.invited] : ['amber', R.notInv];
 function Activate({ route }) {
   const { lang } = useT();
@@ -662,7 +678,7 @@ function RecallCases() {
             <td>{day(c.installed_at, lang)}</td>
             <td><Badge tone={c.disconnect_status === 'confirmed' ? 'green' : 'red'}>{c.disconnect_status === 'confirmed' ? R.confirmed : R.pending}</Badge>{c.disconnected_at ? <small className="ref">{day(c.disconnected_at, lang)}</small> : null}<small className="ref">{c.disconnect_note}</small></td>
             <td><Badge tone={tone}>{label}</Badge>{n ? <small className="ref">{t.rStatus[n.status]}{n.choice ? ' · ' + t.choice[n.choice] : ''}</small> : null}</td>
-            <td><span className="acts"><button className="link" onClick={() => recallLetter({ case_id: c.id }, t)}>{R.letter}</button>{' '}{c.disconnect_status === 'confirmed' ? <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'pending' })}>{R.undo}</button> : <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'confirmed' })}>{R.mark}</button>}{' '}<Btn kind="ghost" busy={busy === 'i' + c.id} disabled={!!busy} onClick={() => { if (confirm(fmt(R.ask, { e: c.portal_email }))) run('i' + c.id, { action: 'invite', partner_id: c.odoo_partner_id }, R.sent); }}>{cu.invited_at ? R.reinvite : R.invite}</Btn></span></td></tr>
+            <td><span className="acts"><button className="link" onClick={() => recallLetter({ case_id: c.id }, t)}>{R.letter}</button>{' '}<button className="link" onClick={() => startAs({ partner_id: c.odoo_partner_id, name: c.contact_name, email: c.portal_email, recall: true }, 'recall')}>{R.viewAs}</button>{' '}{c.disconnect_status === 'confirmed' ? <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'pending' })}>{R.undo}</button> : <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'confirmed' })}>{R.mark}</button>}{' '}<Btn kind="ghost" busy={busy === 'i' + c.id} disabled={!!busy} onClick={() => { if (confirm(fmt(R.ask, { e: c.portal_email }))) run('i' + c.id, { action: 'invite', partner_id: c.odoo_partner_id }, R.sent); }}>{cu.invited_at ? R.reinvite : R.invite}</Btn></span></td></tr>
         ); })}
       </tbody></table></div>
     </div>
@@ -688,7 +704,7 @@ function ImportedCustomers({ tab }) {
         {rows.map((c) => { const k = d.cases.find((x) => x.odoo_partner_id === c.odoo_partner_id), [tone, label] = portalState(c, R); return (
           <tr key={c.odoo_partner_id} className={c.profile_id ? 'click' : ''} onClick={() => { if (c.profile_id) go('customers/' + c.profile_id); }}><td>{c.name}<small className="ref">{c.email || R.noMail}{c.phone ? ' · ' + c.phone : ''}</small></td><td>{c.city || '—'}</td><td className="num">{c.orders}</td><td className="num">{eur(c.invoiced, lang)}</td>
             <td>{k ? <Badge tone={k.disconnect_status === 'confirmed' ? 'amber' : 'red'}>{k.disconnect_status === 'confirmed' ? R.confirmed : R.pending}</Badge> : '—'}</td><td><Badge tone={tone}>{label}</Badge></td>
-            <td onClick={(e) => e.stopPropagation()}>{c.email && !c.bel_profiles?.last_login_at ? <Btn kind="ghost" busy={busy === 'i' + c.odoo_partner_id} disabled={!!busy} onClick={() => invite(c)}>{c.invited_at ? R.reinvite : R.invite}</Btn> : null}</td></tr>
+            <td onClick={(e) => e.stopPropagation()}><span className="acts"><button className="link" onClick={() => startAs({ partner_id: c.odoo_partner_id, name: k ? k.contact_name : c.name, email: c.email, recall: !!k }, k ? 'recall' : 'orders')}>{R.viewAs}</button>{' '}{c.email && !c.bel_profiles?.last_login_at ? <Btn kind="ghost" busy={busy === 'i' + c.odoo_partner_id} disabled={!!busy} onClick={() => invite(c)}>{c.invited_at ? R.reinvite : R.invite}</Btn> : null}</span></td></tr>
         ); })}
       </tbody></table></div>
     </>
@@ -699,7 +715,7 @@ function RecallNotice({ id, me, refresh }) {
   const [n, setN] = useState(null), [err, setErr] = useState('');
   const [f, setF] = useState({ read: false, choice: '', name: '', dates: '', phone: me.mobile || '' });
   const [busy, setBusy] = useState(false);
-  const load = useCallback(() => fn('bel-customers', { action: 'recall_open', id }).then((r) => { setN(r.notice); refresh(); }).catch((e) => setErr(errText(t, e))), [id]);
+  const load = useCallback(() => (asView() ? fn('bel-view-as', { action: 'recall' }) : fn('bel-customers', { action: 'recall_open', id })).then((r) => { setN(r.notice || { none: true }); refresh(); }).catch((e) => setErr(errText(t, e))), [id]);
   useEffect(() => { load(); }, [load]);
   async function sign(e) {
     e.preventDefault(); setBusy(true); setErr('');
@@ -708,6 +724,7 @@ function RecallNotice({ id, me, refresh }) {
     setBusy(false);
   }
   if (!n) return <>{err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>}</>;
+  if (n.none) return <><PageHead title={t.menu.recall} lead={t.recallLead} /><RecallBanner /><Empty>{t.recallEmpty}</Empty></>;
   return (
     <>
       <a href="#/recall" className="back">‹ {t.back}</a>
@@ -715,7 +732,7 @@ function RecallNotice({ id, me, refresh }) {
       {n.system && <p className="muted">{t.kind[n.system.kind]} · {n.system.product} {n.system.model || ''} · {t.serial} <span className="mono">{n.system.serial || '—'}</span></p>}
       {n.instructions && <div className="alertbox"><h3>{t.recallInstructions}</h3><p className="pre">{n.instructions}</p></div>}
       {n.summary && <p className="pre">{n.summary}</p>}
-      <p><button className="btn ghost sm" onClick={() => recallLetter({ notice_id: n.id }, t)}>{t.recallDoc} ↓</button></p>
+      <p><button className="btn ghost sm" onClick={() => recallLetter(asView() ? { case_id: n.case_id } : { notice_id: n.id }, t)}>{t.recallDoc} ↓</button></p>
       {n.offer && <div className="card stack"><h3 style={{ margin: 0 }}>{t.recallOffer}</h3><p className="pre" style={{ margin: 0 }}>{n.offer}</p></div>}
       {n.pdf && <div className="pdf-wrap"><iframe title={t.recallDoc} src={n.pdf} /><a className="btn ghost sm" href={n.pdf} target="_blank" rel="noopener">{t.recallDoc} ↗</a></div>}
       {n.signed_at ? (
@@ -731,7 +748,7 @@ function RecallNotice({ id, me, refresh }) {
           <label className="check"><input type="checkbox" checked={f.read} onChange={(e) => setF({ ...f, read: e.target.checked })} required /> <span>{t.readConfirm}</span></label>
           <Field label={fmt(t.typeName, { name: n.account_name })}><input className="sig-in" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoComplete="off" /></Field>
           <Note kind="error">{err}</Note>
-          <Btn busy={busy} type="submit">{t.signRecall}</Btn>
+          <Btn busy={busy} type="submit" disabled={!!asView()}>{t.signRecall}</Btn>
         </form>
       )}
     </>
@@ -752,7 +769,7 @@ async function recallLetter(body, t) {
 async function odooPdf(kind, id, name, t) {
   try {
     const { data: x } = await sb.auth.getSession();
-    const res = await fetch(`${CFG.url}/functions/v1/bel-pdf`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, authorization: 'Bearer ' + x?.session?.access_token }, body: JSON.stringify({ kind, id }) });
+    const res = await fetch(`${CFG.url}/functions/v1/bel-pdf`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, authorization: 'Bearer ' + x?.session?.access_token }, body: JSON.stringify({ kind, id, as_partner: asView()?.partner_id }) });
     if (!res.ok) throw new Error('pdf-unavailable');
     const url = URL.createObjectURL(await res.blob());
     const l = document.createElement('a'); l.href = url; l.download = String(name).replace(/[^\w.-]+/g, '_') + '.pdf'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
@@ -1406,11 +1423,12 @@ function App() {
     const { data: me } = await sb.from('bel_profiles').select('*').eq('id', s.session.user.id).maybeSingle();
     if (!me) { await sb.auth.signOut({ scope: 'local' }); setState({ phase: 'out' }); return; }
     if (me.lang && LANGS.includes(me.lang) && !safeGet('bel_lang')) setLangS(me.lang);
-    setState({ phase: 'in', me });
+    const as = me.role === 'super' ? asView() : null;
+    setState({ phase: 'in', me: as ? { ...me, role: 'customer', full_name: as.name, first_name: null, last_name: null, email: as.email || me.email, company_name: null, mobile: null } : me });
   }, []);
   const loadCounts = useCallback(async () => {
     const [{ count: rc }, inv, msg] = await Promise.all([
-      sb.from('bel_recall_notices').select('id', { count: 'exact', head: true }).is('signed_at', null),
+      asView() ? Promise.resolve({ count: asView().recall ? 1 : 0 }) : sb.from('bel_recall_notices').select('id', { count: 'exact', head: true }).is('signed_at', null),
       fn('bel-odoo', { action: 'invoices' }).catch(() => ({ invoices: [] })),
       fn('bel-hub', { action: 'messages' }).catch(() => ({ messages: [] })),
     ]);

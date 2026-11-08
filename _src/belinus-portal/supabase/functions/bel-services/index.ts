@@ -56,10 +56,11 @@ Deno.serve(async (req) => {
   const { data: me } = await a.from("bel_profiles").select("id, role, status, created_at").eq("id", user.id).maybeSingle();
   if (!me || me.status === "suspended") return json({ error: "forbidden" }, 403);
 
+  const asPartner = me.role === "super" && Number.isInteger(Number(body.as_partner)) && Number(body.as_partner) > 0 ? Number(body.as_partner) : 0; // read-only "view as customer"
   if (action !== "list") {
     if (!KEY) return json({ error: "odoo-unavailable" }, 503);
     try {
-      const cids = await customerIds(user.email.toLowerCase());
+      const cids = asPartner ? [asPartner] : await customerIds(user.email.toLowerCase());
       if (action === "products") {
         if (!cids.length) return json({ ok: true, products: [] });
         const orders = await rpc("sale.order", "search_read", [[["company_id", "=", COMPANY], ["partner_id", "child_of", cids], ["state", "=", "sale"]]], { fields: ["name", "date_order"], order: "date_order desc", limit: 200 });
@@ -87,6 +88,12 @@ Deno.serve(async (req) => {
     } catch (e) { console.error("bel-services", action, (e as Error).message); return json({ error: "odoo-unavailable" }, 502); }
   }
 
+  if (asPartner) {
+    const { count: kase } = await a.from("bel_recall_cases").select("id", { count: "exact", head: true }).eq("odoo_partner_id", asPartner);
+    let free = (kase || 0) > 0;
+    if (!free && KEY) { try { free = (await rpc("sale.order", "search_count", [[["company_id", "=", COMPANY], ["partner_id", "child_of", [asPartner]], ["state", "=", "sale"]]])) > 0; } catch (_) { /* shown as paid */ } }
+    return json({ ok: true, services: [{ service: "themis", status: "active", price_excl: free ? 0 : 10, vat_rate: 21, promo: free }] });
+  }
   const { count: recall } = await a.from("bel_recall_notices").select("id", { count: "exact", head: true }).eq("owner_id", me.id);
   const internal = me.role === "staff" || me.role === "super";
   let { data: sub } = await a.from("bel_subscriptions").select("*").eq("owner_id", me.id).eq("service", "themis").maybeSingle();

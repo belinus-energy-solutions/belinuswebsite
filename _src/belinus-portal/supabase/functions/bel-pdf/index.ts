@@ -35,14 +35,15 @@ Deno.serve(async (req) => {
   const c = claims(jwt);
   const { data: ok } = await a.rpc("bel_mfa_ok_for", { p_user: user.id, p_session: c.session_id || null, p_aal: c.aal || null, p_amr: c.amr || [] });
   if (ok !== true) return json({ error: "mfa-required" }, 401);
-  const { data: me } = await a.from("bel_profiles").select("status").eq("id", user.id).maybeSingle();
+  const { data: me } = await a.from("bel_profiles").select("status, role").eq("id", user.id).maybeSingle();
   if (!me || me.status === "suspended") return json({ error: "forbidden" }, 403);
   const id = Number(body.id), kind = String(body.kind), email = user.email.toLowerCase();
   if (!Number.isInteger(id) || !["order", "invoice"].includes(kind)) return json({ error: "not-found" }, 404);
   if (!KEY) return json({ error: "odoo-unavailable" }, 503);
   try {
     const rows = await rpc("res.partner", "search_read", [[["email", "=ilike", email], "|", ["company_id", "=", COMPANY], ["company_id", "=", false]]], { fields: ["email", "commercial_partner_id"], limit: 50 });
-    const cids = [...new Set(rows.filter((p: any) => String(p.email || "").trim().toLowerCase() === email).map((p: any) => p.commercial_partner_id[0]))];
+    const asPartner = me.role === "super" && Number(body.as_partner) > 0 ? Number(body.as_partner) : 0; // read-only "view as customer"
+    const cids = asPartner ? [asPartner] : [...new Set(rows.filter((p: any) => String(p.email || "").trim().toLowerCase() === email).map((p: any) => p.commercial_partner_id[0]))];
     if (!cids.length) return json({ error: "not-found" }, 404);
     const n = kind === "invoice"
       ? await rpc("account.move", "search_count", [[["id", "=", id], ["company_id", "=", COMPANY], ["commercial_partner_id", "in", cids], ["move_type", "in", ["out_invoice", "out_refund"]], ["state", "=", "posted"]]])

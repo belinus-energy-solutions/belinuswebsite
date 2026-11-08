@@ -2,7 +2,6 @@
 // The signed-in customer is matched on their confirmed e-mail address: only that contact's commercial entity is read.
 //   { action: "orders" }                 -> orders, status, lines, deliveries, invoices and credit notes, repayment
 //   { action: "invoices" }               -> invoices, credit notes, payments
-//   { action: "pdf", kind, id }          -> the PDF (kind: invoice | order), after checking it belongs to this customer
 //   { action: "summary" }                (super admin) -> totals for the dashboard
 // Secret: ODOO_API_KEY. Optional: ODOO_URL, ODOO_DB, ODOO_UID, ODOO_COMPANY_ID. Deploy: --no-verify-jwt.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -103,7 +102,8 @@ Deno.serve(async (req) => {
       const sum = (r: any[]) => r.reduce((s, x) => s + x.amount_residual, 0);
       return json({ ok: true, open_invoices: inv.length, open_amount: sum(inv), repay_count: cr.length, repay_amount: sum(cr), orders_to_deliver: ord });
     }
-    const cids = await customerIds(user.email.toLowerCase());
+    const asPartner = me.role === "super" && Number.isInteger(Number(body.as_partner)) && Number(body.as_partner) > 0 ? Number(body.as_partner) : 0; // read-only "view as customer"
+    const cids = asPartner ? [asPartner] : await customerIds(user.email.toLowerCase());
     if (action === "orders") return json({ ok: true, orders: cids.length ? await orders(cids) : [] });
     if (action === "invoices") {
       if (!cids.length) return json({ ok: true, invoices: [], payments: [] });
@@ -112,17 +112,6 @@ Deno.serve(async (req) => {
         read("account.payment", [["company_id", "=", COMPANY], ["partner_id", "child_of", cids], ["partner_type", "=", "customer"], ["state", "in", ["in_process", "paid"]]], ["date", "amount", "name", "memo", "payment_type"], "date desc", 300).catch(() => []),
       ]);
       return json({ ok: true, invoices: moves.map(mapMove).map(({ origin, reversed, ...m }: any) => m), payments: pays.map((p: any) => ({ id: p.id, paid_at: p.date, amount: p.payment_type === "outbound" ? -p.amount : p.amount, reference: p.memo || p.name })) });
-    }
-    if (action === "pdf") {
-      const id = Number(body.id), kind = String(body.kind);
-      if (!Number.isInteger(id) || !["invoice", "order"].includes(kind) || !cids.length) return json({ error: "not-found" }, 404);
-      const model = kind === "invoice" ? "account.move" : "sale.order";
-      const n = await rpc(model, "search_count", [[["id", "=", id], ...(kind === "invoice" ? moveDomain(cids) : orderDomain(cids))]]);
-      if (!n) return json({ error: "not-found" }, 404);
-      const path = await rpc(model, "get_portal_url", [[id]], { report_type: "pdf", download: true });
-      const pdf = await fetch(ODOO + path, { signal: AbortSignal.timeout(30000) });
-      if (!pdf.ok || !(pdf.headers.get("content-type") || "").includes("pdf")) { console.error("odoo pdf", kind, id, pdf.status, pdf.headers.get("content-type")); return json({ error: "pdf-unavailable" }, 502); }
-      return new Response(await pdf.arrayBuffer(), { headers: { ...cors, "content-type": "application/pdf" } });
     }
     return json({ error: "bad-action" }, 400);
   } catch (e) { console.error("bel-odoo", action, (e as Error).message); return json({ error: "odoo-unavailable" }, 502); }
