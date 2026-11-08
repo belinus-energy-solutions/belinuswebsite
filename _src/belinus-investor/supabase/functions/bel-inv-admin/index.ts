@@ -61,8 +61,9 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
   if (action === "bookings") {
-    const { data } = await a.from("inv_bookings").select("*, inv_investors(email, first_name, last_name, company_name, phone, tranche, invested, inv_choices(choice, lang)), inv_events(title)").order("starts_at");
-    return json({ ok: true, bookings: data });
+    const { data, error } = await a.from("inv_bookings").select("*, inv_investors(email, first_name, last_name, company_name, phone, tranche, invested, inv_choices(choice)), inv_events(title)").order("starts_at");
+    if (error) { console.error("inv bookings", error.message); return json({ error: "server-error" }, 500); }
+    return json({ ok: true, bookings: data || [] });
   }
   if (action === "booking_update") {
     const status = String(body.status || "");
