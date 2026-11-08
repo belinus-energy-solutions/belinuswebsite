@@ -9,6 +9,11 @@ env:
   STORAGE_ZONE_NAME: "belinuswebsite"
   PULLZONE_ID: "6223909"
 
+# Two pushes close together must not overwrite each other with older files.
+concurrency:
+  group: deploy-belinus
+  cancel-in-progress: false
+
 jobs:
   deploy:
     if: "!contains(github.event.head_commit.message, '[skip deploy]')"
