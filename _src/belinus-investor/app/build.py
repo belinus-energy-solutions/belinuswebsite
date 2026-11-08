@@ -12,7 +12,7 @@ for f in ["ArialNova-Light.woff2", "ArialNova.woff2", "ArialNova-Bold.woff2"]: s
 for f in ["logo-belinus.png", "logo-belinus-white.png", "favicon-32.png", "favicon-180.png"]: shutil.copy(SITE / "portal" / "assets" / f, OUT / "assets" / f)
 shutil.copy(SITE / "assets" / "press" / "belinus-logo-blue.png", OUT / "assets" / "logo-belinus-blue.png")
 for f in (ROOT / "assets").glob("*") if (ROOT / "assets").exists() else []: shutil.copy(f, OUT / "assets" / f.name)
-src = (ROOT / "src" / "Investor.jsx").read_text() + "\n" + (ROOT / "src" / "Admin.jsx").read_text() + "\n" + (ROOT / "src" / "App.jsx").read_text()
+src = (ROOT / "src" / "I18n.jsx").read_text() + "\n" + (ROOT / "src" / "Investor.jsx").read_text() + "\n" + (ROOT / "src" / "Admin.jsx").read_text() + "\n" + (ROOT / "src" / "App.jsx").read_text()
 tmp = ROOT / "_inv.jsx"; tmp.write_text(src)
 js = subprocess.run(["npx", "-y", "esbuild@0.24.0", str(tmp), "--loader:.jsx=jsx", "--jsx=transform", "--minify", "--target=es2019"], check=True, capture_output=True, text=True).stdout
 tmp.unlink()
