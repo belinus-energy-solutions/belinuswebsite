@@ -3,7 +3,7 @@ const { useState, useEffect, useRef, useCallback } = React;
 const CFG = window.BELINUS_INV;
 const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
 const ERR = {
-  'view-only': 'Dit kan niet: u kijkt mee als investeerder.', 'bad-email': 'Vul een geldig e-mailadres in.', 'mail-not-configured': 'Het versturen van e-mails is nog niet actief.', 'mail-failed': 'De e-mail kon niet verstuurd worden. Probeer het later opnieuw.',
+  'already-active': 'Deze investeerder heeft al een wachtwoord ingesteld.', 'view-only': 'Dit kan niet: u kijkt mee als investeerder.', 'bad-email': 'Vul een geldig e-mailadres in.', 'mail-not-configured': 'Het versturen van e-mails is nog niet actief.', 'mail-failed': 'De e-mail kon niet verstuurd worden. Probeer het later opnieuw.',
   expired: 'Deze link of code is verlopen of al gebruikt. Vraag een nieuwe aan.', 'weak-password': 'Dit wachtwoord voldoet niet aan alle voorwaarden.', 'leaked-password': 'Dit wachtwoord komt voor in gekende datalekken. Kies een ander wachtwoord.',
   'wrong-code': 'Deze code klopt niet.', 'bad-code': 'Vul de 6 cijfers van de code in.', 'too-many-attempts': 'Te veel pogingen. Vraag een nieuwe code aan.', wait: 'Wacht even voor u een nieuwe code vraagt.', 'too-many': 'Te veel aanvragen. Probeer het over een uur opnieuw.',
   closed: 'De uiterste datum is verstreken. Uw keuze kan niet meer gewijzigd worden.', 'reason-required': 'Vermeld kort waarom u niet akkoord gaat.', 'confirm-required': 'Bevestig uw keuze met het vinkje.',
@@ -92,15 +92,27 @@ function PwRules({ c }) {
   return <div className="pw-rules"><p>{t('Uw wachtwoord moet bevatten:')}</p><ul><R on={c.length}>{t('Minstens 12 tekens')}</R><R on={c.three}>{t('Minstens 3 van de volgende:')}</R><R sub on={c.lower}>{t('Kleine letters (a-z)')}</R><R sub on={c.upper}>{t('Hoofdletters (A-Z)')}</R><R sub on={c.digit}>{t('Cijfers (0-9)')}</R><R sub on={c.special}>{t('Speciale tekens (bv. !@#$%^&*)')}</R><R on={c.repeat}>{t('Niet meer dan 2 identieke tekens na elkaar')}</R></ul></div>;
 }
 function SetPassword({ route, onIn }) {
-  const code = route.q.get('code') || '';
-  const [email, setEmail] = useState(null), [bad, setBad] = useState(false), [p1, setP1] = useState(''), [p2, setP2] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');
-  useEffect(() => { fn('bel-inv-auth', { action: 'check', code }).then((r) => setEmail(r.email)).catch(() => setBad(true)); }, [code]);
+  // Opened from the personal invitation (uitnodiging=1) or from a "set / forgot password" link. After saving, the investor
+  // is signed in straight away; the link counts as the second factor for this first sign-in.
+  const code = route.q.get('code') || '', invite = route.q.get('uitnodiging') === '1';
+  const [email, setEmail] = useState(null), [bad, setBad] = useState(''), [p1, setP1] = useState(''), [p2, setP2] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [renewed, setRenewed] = useState(false);
+  useEffect(() => { fn('bel-inv-auth', { action: 'check', code }).then((r) => setEmail(r.email)).catch((e) => setBad(e.message === 'already-active' ? 'active' : 'expired')); }, [code]);
   async function submit(e) { e.preventDefault(); setErr(''); if (p1 !== p2) return; if (!pwCheck(p1).ok) { setErr(t(ERR['weak-password'])); return; } setBusy(true);
-    try { const r = await fn('bel-inv-auth', { action: 'set_password', code, password: p1, lang: LANG }); const { error } = await sb.auth.signInWithPassword({ email: r.email, password: p1 }); if (error) throw new Error('generic'); go(''); await onIn(); } catch (x) { setErr(errText(x)); } setBusy(false); }
-  if (bad) return <AuthFrame><h2>{t('Link niet meer geldig')}</h2><Note kind="error">{t(ERR.expired)}</Note><div className="auth-links"><a href="#/start">{t('Vraag een nieuwe link aan')}</a></div></AuthFrame>;
+    try {
+      const r = await fn('bel-inv-auth', { action: 'set_password', code, password: p1, lang: LANG });
+      const { error } = await sb.auth.signInWithPassword({ email: r.email, password: p1 }); if (error) throw new Error('generic');
+      try { await fn('bel-inv', { action: 'mfa_link', code }); } catch (x) { /* falls back to the code by e-mail */ }
+      go(''); await onIn();
+    } catch (x) { setErr(errText(x)); } setBusy(false); }
+  async function renew() { setBusy(true); setErr(''); try { await fn('bel-inv-auth', { action: 'renew', code }); setRenewed(true); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  if (bad === 'active') return <AuthFrame><h2>{t('U hebt al een wachtwoord')}</h2><p className="lead">{t('Uw account is al geactiveerd. Meld u aan met uw e-mailadres en wachtwoord.')}</p><Btn type="button" onClick={() => go('')}>{t('Naar aanmelden')}</Btn><div className="auth-links"><a href="#/start?vergeten=1">{t('Wachtwoord vergeten?')}</a></div></AuthFrame>;
+  if (bad) return <AuthFrame><h2>{t('Link niet meer geldig')}</h2>{renewed
+    ? <Note kind="ok">{t('We stuurden een nieuwe link naar uw e-mailadres. Kijk ook in uw map met ongewenste e-mail.')}</Note>
+    : <><p className="lead">{t('Deze link is verlopen of al gebruikt. Met één klik sturen we een nieuwe link naar het e-mailadres waarop u de uitnodiging ontving.')}</p><Note kind="error">{err}</Note><Btn busy={busy} type="button" onClick={renew}>{t('Stuur mij een nieuwe link')}</Btn></>}
+    <div className="auth-links"><a href="#/">{t('Naar aanmelden')}</a></div></AuthFrame>;
   if (!email) return <AuthFrame><div className="boot" style={{ minHeight: 200 }}><span className="spin" /></div></AuthFrame>;
-  return <AuthFrame><h2>{t('Kies een wachtwoord')}</h2><p className="lead">{t('Voor')} {email}.</p>
-    <form className="stack" onSubmit={submit}><Field label={t('Nieuw wachtwoord')}><input type="password" autoComplete="new-password" required value={p1} onChange={(e) => setP1(e.target.value)} /></Field><PwRules c={pwCheck(p1)} /><Field label={t('Herhaal het wachtwoord')}><input type="password" autoComplete="new-password" required value={p2} aria-invalid={p2 !== '' && p1 !== p2} onChange={(e) => setP2(e.target.value)} /></Field>{p2 !== '' && p1 !== p2 && <Note kind="error">{t('De twee wachtwoorden zijn niet gelijk.')}</Note>}<Note kind="error">{err}</Note><Btn busy={busy} disabled={p1 !== p2} type="submit">{t('Wachtwoord opslaan')}</Btn></form></AuthFrame>;
+  return <AuthFrame>{invite ? <><h2>{t('Welkom in het investeerdersportaal')}</h2><p className="lead">{t('Uw account staat klaar. Uw gebruikersnaam is uw e-mailadres:')} <b>{email}</b>. {t('Kies een wachtwoord en u komt meteen bij uw investering en uw keuze.')}</p></> : <><h2>{t('Kies een wachtwoord')}</h2><p className="lead">{t('Voor')} {email}.</p></>}
+    <form className="stack" onSubmit={submit}><input type="email" autoComplete="username" value={email} readOnly hidden /><Field label={t('Nieuw wachtwoord')}><input type="password" autoComplete="new-password" required value={p1} onChange={(e) => setP1(e.target.value)} /></Field><PwRules c={pwCheck(p1)} /><Field label={t('Herhaal het wachtwoord')}><input type="password" autoComplete="new-password" required value={p2} aria-invalid={p2 !== '' && p1 !== p2} onChange={(e) => setP2(e.target.value)} /></Field>{p2 !== '' && p1 !== p2 && <Note kind="error">{t('De twee wachtwoorden zijn niet gelijk.')}</Note>}<Note kind="error">{err}</Note><Btn busy={busy} disabled={p1 !== p2} type="submit">{invite ? t('Wachtwoord opslaan en verder') : t('Wachtwoord opslaan')}</Btn></form></AuthFrame>;
 }
 function SecondFactor({ status, onDone }) {
   const [mode, setMode] = useState(status.totp ? 'app' : 'email'), [code, setCode] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [info, setInfo] = useState('');

@@ -52,9 +52,30 @@ Deno.serve(async (req) => {
 
   if (action === "check") {
     const l = await linkOf(String(body.code || "").slice(0, 100));
-    if (!l) return json({ ok: false, error: "expired" });
+    if (!l) {
+      // Tell an investor who already set a password to simply sign in; nothing else is revealed.
+      const { data: old } = await a.from("inv_links").select("investor_id").eq("code_hash", await sha256(String(body.code || "").slice(0, 100))).maybeSingle();
+      if (old) { const { data: i } = await a.from("inv_investors").select("status").eq("id", old.investor_id).maybeSingle(); if (i?.status === "active") return json({ ok: false, error: "already-active" }); }
+      return json({ ok: false, error: "expired", renewable: !!old });
+    }
     const { data: inv } = await a.from("inv_investors").select("email").eq("id", l.investor_id).single();
     return json({ ok: true, email: inv.email });
+  }
+
+  // Expired invitation link: one click sends a fresh link to the address on file (the address itself is never shown).
+  if (action === "renew") {
+    const code = String(body.code || "").slice(0, 100);
+    if (!code) return json({ ok: true });
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    if (ip && !(await allow("inv-renew-ip:" + (await sha256(ip)), 0, 20))) return json({ ok: true });
+    const { data: old } = await a.from("inv_links").select("investor_id").eq("code_hash", await sha256(code)).maybeSingle();
+    if (!old) return json({ ok: true });
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, lang").eq("id", old.investor_id).maybeSingle();
+    if (!inv || inv.status === "suspended") return json({ ok: true });
+    if (!(await allow("inv-mail:" + (await sha256(inv.email)), 60, 5))) return json({ ok: true });
+    await sendAccessLink(a, inv);
+    await audit(a, null, "link-renewed", inv.email, { ip });
+    return json({ ok: true });
   }
 
   if (action === "set_password") {

@@ -65,37 +65,40 @@ export async function access(a: SupabaseClient, u: { id: string; jwt: string }):
 
 // ---- mail: Mailgun EU, else Brevo; both with an optional calendar attachment ----
 export function mailConfigured(): boolean { return !!(Deno.env.get("MAILGUN_API_KEY") && Deno.env.get("MAILGUN_DOMAIN")) || !!Deno.env.get("BREVO_API_KEY"); }
+const NOREPLY = Deno.env.get("INV_MAIL_NOREPLY") || "noreply@belinus.com";
 const FROM_ADDR = Deno.env.get("INV_MAIL_FROM") || "investors@belinus.com", FROM_NAME = "EVChargeking via Belinus", REPLY = Deno.env.get("INV_MAIL_REPLY_TO") || "info@evchargeking.com";
 const FONT = "'Arial Nova','Helvetica Neue',Helvetica,Arial,sans-serif";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-function html(text: string, cta: { url: string; label: string } | undefined, L: Lang): string {
+const NOREPLY_FOOT = (u: string) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Dit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen. Vragen? Meld u aan op ${u} en maak een afspraak.`;
+function html(text: string, cta: { url: string; label: string } | undefined, L: Lang, noreply = false): string {
   const parts = text.replace(/\r/g, "").split(/\n{2,}/).map((p) => {
     if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">${esc(MC[L].btn)}<br>${esc(cta.url)}</p>`;
+    if (p.startsWith("## ")) return `<p style="margin:26px 0 10px;font-family:${FONT};font-size:13px;letter-spacing:.06em;font-weight:700;color:#0A0C0F">${esc(p.slice(3).trim())}</p>`;
     if (/^\d{6}$/.test(p.trim())) return `<p style="margin:6px 0 24px;font-family:${FONT};font-size:40px;line-height:1.2;font-weight:700;letter-spacing:8px;color:#0A0C0F">${esc(p.trim())}</p>`;
     return `<p style="margin:0 0 18px;font-family:${FONT};font-size:15px;line-height:1.6;color:#222830">${esc(p).replace(/\n/g, "<br>")}</p>`;
   });
   return `<!doctype html><html lang="${L}"><head><meta charset="utf-8"></head><body style="margin:0;background:#F5F6F7"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px;overflow:hidden">`
     + `<tr><td style="padding:22px 36px;border-bottom:3px solid #2EB9EA"><table role="presentation" width="100%"><tr><td align="left"><img src="https://belinus.com/investor/assets/logo-evchargeking.png" height="30" alt="EVChargeking" style="height:30px;border:0"></td><td align="right"><img src="https://belinus.com/investor/assets/logo-belinus.png" height="24" alt="belinus" style="height:24px;border:0"></td></tr></table></td></tr>`
     + `<tr><td style="padding:30px 36px 14px">${parts.join("")}</td></tr>`
-    + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">${MC[L].foot(APP_URL)}</td></tr></table></td></tr></table></body></html>`;
+    + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">${noreply ? NOREPLY_FOOT(APP_URL) : MC[L].foot(APP_URL)}</td></tr></table></td></tr></table></body></html>`;
 }
-export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang }): Promise<boolean> {
+export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang; noreply?: boolean }): Promise<boolean> {
   const L = pickLang(m.lang);
   const log = (provider: string, status: string) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
-  const body = m.text + "\n\n--\n" + MC[L].sig;
+  const body = m.text.replace(/^## /gm, "") + "\n\n--\n" + MC[L].sig + (m.noreply ? "\nDit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen." : "");
   try {
     if (key && domain) {
       const f = new FormData();
-      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta, L));
-      f.set("h:Reply-To", REPLY); f.set("o:tracking", "no"); f.set("v:kind", m.kind);
+      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta, L, !!m.noreply));
+      if (m.noreply) f.set("from", `${FROM_NAME} <${NOREPLY}>`); else f.set("h:Reply-To", REPLY); f.set("o:tracking", "no"); f.set("v:kind", m.kind);
       if (m.ics) f.append("attachment", new File([m.ics], "afspraak.ics", { type: "text/calendar" }));
       const r = await fetch(`${(Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "")}/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", headers: { Authorization: "Basic " + btoa("api:" + key) }, body: f });
       if (!r.ok) throw new Error("mailgun " + r.status + " " + (await r.text()).slice(0, 200));
       await log("mailgun", "sent"); return true;
     }
     if (brevo) {
-      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: FROM_ADDR }, to: [{ email: m.to }], replyTo: { email: REPLY }, subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta, L), tags: [m.kind], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : FROM_ADDR }, to: [{ email: m.to }], ...(m.noreply ? {} : { replyTo: { email: REPLY } }), subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta, L, !!m.noreply), tags: [m.kind], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
       if (!r.ok) throw new Error("brevo " + r.status + " " + (await r.text()).slice(0, 200));
       await log("brevo", "sent"); return true;
     }
@@ -148,4 +151,92 @@ export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: stri
 export function strong(p: string): boolean {
   const types = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
   return p.length >= 12 && p.length <= 128 && types >= 3 && !/(.)\1\1/su.test(p);
+}
+
+// ---- personal invitation (Steve, 8 November 2026): the investor already has an account under this e-mail address; one
+// button sets the password and signs in. No-reply: questions go through the portal. The link stays valid until the
+// deadline (at least 7 days), is not used up by opening it, and the first sign-in after it needs no extra code.
+const eur0 = (n: number) => new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+export async function sendInvite(a: SupabaseClient, inv: { id: string; email: string; first_name?: string | null; status: string; invested?: number | string | null }): Promise<boolean> {
+  const st = await settings(a);
+  const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
+  const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
+  const code = randomCode();
+  await a.from("inv_links").delete().eq("investor_id", inv.id);
+  await a.from("inv_links").insert({ code_hash: await sha256(code), investor_id: inv.id, expires_at: expires.toISOString() });
+  const url = `${APP_URL}/#/wachtwoord?code=${encodeURIComponent(code)}&uitnodiging=1`;
+  const D = nlDate(deadline);
+  const text = `${hello(inv.first_name, "nl")}
+
+U investeerde in 2024 via Winwinner in EVChargeking (Some BV). Bedankt daarvoor. We hebben belangrijk nieuws en vragen uw steun.
+
+## WAT VERANDERT ER?
+
+EVChargeking wordt deel van de Belinus-groep. Deze transactie wordt nu afgerond en duurt nog ongeveer drie maanden. Vanaf 2027:
+• worden onze laadpalen verkocht als Belinus-product;
+• krijgen we toegang tot een Europees netwerk van verkoopkanalen;
+• lanceren we een leasemodel voor laadpalen voor bedrijven in België.
+
+## WAAROM VRAGEN WE DIT NU?
+
+We willen open zijn: EVChargeking heeft op korte termijn nood aan liquiditeit, voor drie zaken:
+1. De lancering in 2027 van een nieuw laadstation voor bedrijven, aangeboden in lease.
+2. De verdere ontwikkeling van de ETAPpro, zodat die conform blijft met de nieuwe Europese productregels (o.a. ISO 15118, vanaf januari 2027).
+3. De uitbreiding van ons technisch team, om de productie te beheersen, in het bijzonder de aankoop van elektronische componenten en onze "made in EU"-strategie.
+
+De integratie in de Belinus-groep moet de continuïteit van het bedrijf waarborgen. Daarom is uw snelle antwoord belangrijk.
+
+## ONS VOORSTEL
+
+• De looptijd van uw lening wordt met één jaar verlengd.
+• De volgende betaling bevat enkel de interesten en gebeurt binnen de drie maanden.
+• Vanaf 2027 loopt alles verder zoals gepland, maar één jaar langer.
+De rentevoet blijft dezelfde. U ontvangt dus één jaar extra interest.
+
+## UW KEUZE
+
+A – Ik ga akkoord met de verlenging.
+B – Ik ga akkoord dat de interesten binnen de drie maanden worden betaald, maar ik wil een voorstel om mijn investering en interesten volledig terugbetaald te krijgen binnen de looptijd van mijn contract.
+C – Ik ga niet akkoord. Vermeld kort waarom; we nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft dan ongewijzigd van toepassing.
+
+## UW ACCOUNT STAAT KLAAR – UW KEUZE UITERLIJK OP ${D.toUpperCase()}
+
+U hebt al een account in ons investeerdersportaal. Uw gebruikersnaam is het e-mailadres waarop u deze e-mail ontving: ${inv.email}
+
+Klik op de knop hieronder, kies een wachtwoord en u komt meteen bij uw investering${inv.invested ? ` (${eur0(Number(inv.invested))})` : ""}, uw betaalschema en uw keuze.
+
+${url}
+
+Deze knop is persoonlijk en werkt tot en met ${nlDate(expires)}. Stuur deze e-mail niet door.
+
+Daarna meldt u zich aan op ${APP_URL} met uw e-mailadres en wachtwoord. Voor uw veiligheid vragen we vanaf de volgende keer bij elke aanmelding ook een code van 6 cijfers, die u per e-mail ontvangt.
+
+U ontvangt een e-mail ter bevestiging van uw keuze. Tot de uiterste datum kunt u uw keuze nog wijzigen in het portaal. Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.
+
+## VRAGEN? MAAK EEN AFSPRAAK IN HET PORTAAL
+
+Kom langs op een van onze investeerdersdagen, bij EVChargeking, Hooilaar 40, 2230 Herselt, telkens van 10 tot 12 uur, met koffie en iets lekkers:
+• zaterdag 28 november 2026
+• zaterdag 5 december 2026
+
+U kiest zelf hoe we elkaar spreken: een bezoek op een investeerdersdag (met maximaal twee personen), een videogesprek of een terugbelverzoek. Na het aanmelden kiest u uw dag en uur onder "Maak een afspraak". U krijgt meteen een bevestiging met een uitnodiging voor uw agenda.
+
+Werkt de knop niet meer? Ga naar ${APP_URL}, klik op "Wachtwoord vergeten" en vul uw e-mailadres in. U krijgt dan meteen een nieuwe link.
+
+## BELINUS IN 2027
+
+Belinus lanceert volgend jaar een residentiële natrium-ionbatterij, made in Belgium: lithiumvrij, veilig en met 15 jaar garantie. Ze maakt deel uit van een totaalpakket met een slim zonnepaneel (in partnerschap met LONGi), een hybride SiC-omvormer, energieopslag, de ETAPpro-laadpaal van EVChargeking en een AI-energiebeheersysteem. Bekijk het aanbod: https://www.belinus.com/b2c/index.html
+
+Na uw positief antwoord verwelkomen we u in de groep met een heel bijzonder geschenk.
+
+Hartelijk dank voor uw vertrouwen.
+
+Met vriendelijke groeten,
+
+Erwin Raets
+Zaakvoerder, EVChargeking (Some BV)
+
+Steve Van Beirs
+CEO, Belinus`;
+  return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, subject: `EVChargeking wordt deel van de Belinus-groep – uw keuze uiterlijk op ${D}`, cta: { url, label: "Activeer uw account en maak uw keuze" }, text });
 }

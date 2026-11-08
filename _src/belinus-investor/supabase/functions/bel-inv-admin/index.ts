@@ -1,8 +1,13 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
-import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, nlDate, pickLang, sendAccessLink, sendMail, settings, str } from "../_shared/inv.ts";
+import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
+
+async function invitedMap(a: any): Promise<Map<string, string>> {
+  const { data } = await a.from("inv_mail_log").select("recipient, created_at").eq("kind", "invite").eq("status", "sent").order("created_at");
+  return new Map((data || []).map((r: any) => [String(r.recipient).toLowerCase(), r.created_at]));
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -25,7 +30,8 @@ Deno.serve(async (req) => {
       a.from("inv_tranches").select("*").order("code"),
     ]);
     const byC = new Map((ch || []).map((c: any) => [c.investor_id, c]));
-    return json({ ok: true, role: acc.role, investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null })), followups: fu, tranches: tr, settings: await settings(a) });
+    const sent = await invitedMap(a);
+    return json({ ok: true, role: acc.role, investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });
   }
   if (action === "detail") {
     const [{ data: inv }, { data: sch }, { data: log }, { data: bk }] = await Promise.all([
@@ -44,6 +50,30 @@ Deno.serve(async (req) => {
     await applyChoice(a, inv, { choice, reason, wish, note, by_admin: u.id });
     await audit(a, u, "choice-by-admin", inv.email, { choice, note });
     return json({ ok: true });
+  }
+  // Personal invitation (the investor letter with a one-click activation button), to one investor: for tests, or again.
+  if (action === "invite") {
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested").eq("id", id).single();
+    if (inv.status !== "invited") return json({ error: "already-active" }, 400);
+    const ok = await sendInvite(a, inv);
+    await audit(a, u, "invite-sent", inv.email);
+    return ok ? json({ ok: true }) : json({ error: "mail-failed" }, 503);
+  }
+  // Mass send, Belinus only: real investors (no test accounts) without a password and not yet invited, 20 per call; the
+  // page calls again until nothing is left.
+  if (action === "invite_pending" || action === "invite_batch") {
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested").eq("is_test", false).eq("status", "invited").order("last_name");
+    const sent = await invitedMap(a);
+    const todo = (inv || []).filter((i: any) => !sent.has(i.email));
+    if (action === "invite_pending") return json({ ok: true, pending: todo.length, invited: (inv || []).length - todo.length });
+    if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
+    if (body.confirm !== "VERSTUREN") return json({ error: "bad-input" }, 400);
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    let ok = 0, failed = 0;
+    for (const i of todo.slice(0, 20)) { if (await sendInvite(a, i)) ok++; else failed++; }
+    await audit(a, u, "invite-batch", "investors", { ok, failed });
+    return json({ ok: true, sent: ok, failed, left: Math.max(0, todo.length - ok - failed) });
   }
   if (action === "resend_invite") {
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, lang").eq("id", id).single();

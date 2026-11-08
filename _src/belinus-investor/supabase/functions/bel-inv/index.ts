@@ -104,6 +104,20 @@ Deno.serve(async (req) => {
     await a.from("bel_mfa_codes").update({ used_at: new Date().toISOString() }).eq("user_id", u.id).eq("session_id", sessionId).is("used_at", null);
     return await complete("email");
   }
+  // Right after setting the password through the personal e-mail link, the link itself is the second factor: it proves the
+  // same mailbox the 6-digit code would. One use, within 15 minutes of the password being set, only for this investor's own
+  // link and only for accounts without an authenticator app (Steve, 8 November 2026).
+  if (action === "mfa_link") {
+    const code = String(body.code || "").slice(0, 100);
+    if (!code || !inv) return json({ error: "expired" }, 400);
+    const { data: l } = await a.from("inv_links").select("code_hash, investor_id, used_at").eq("code_hash", await sha256(code)).maybeSingle();
+    if (!l || l.investor_id !== inv.id || !l.used_at || Date.now() - new Date(l.used_at).getTime() > 15 * 60_000) return json({ error: "expired" }, 400);
+    const { data: f } = await a.auth.admin.mfa.listFactors({ userId: u.id });
+    if ((f?.factors || []).some((x: any) => x.status === "verified")) return json({ error: "expired" }, 400);
+    const { data: gone } = await a.from("inv_links").delete().eq("code_hash", l.code_hash).select("code_hash");
+    if (!gone?.length) return json({ error: "expired" }, 400);
+    return await complete("invite-link");
+  }
   if (action === "mfa_totp_done") { if (c.aal !== "aal2") return json({ error: "mfa-required" }, 401); return await complete("totp"); }
 
   if (!acc.mfa) return json({ error: "mfa-required" }, 401);
