@@ -158,6 +158,9 @@ tr.grp td { border-top:2px solid var(--line2); }
 .ph-body { fill:#0A0C0F; } .ph-screen { fill:#F2FAFE; } .ph-dot { fill:#3A4048; }
 .ph-shield { fill:#2EB9EA; } .ph-check { fill:none; stroke:#fff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
 .ph-code { font:700 13px/1 'Arial Nova',Arial,sans-serif; letter-spacing:1.5px; fill:#0A0C0F; } .ph-bar { fill:#2EB9EA; opacity:.35; }
+/* The footer line sits at the bottom of the page, also on short pages. */
+.main { box-sizing:border-box; min-height:100vh; display:flex; flex-direction:column; } .main-in { flex:1 0 auto; width:100%; box-sizing:border-box; display:flex; flex-direction:column; } .main-in > * { flex-shrink:0; } .main-in > .foot { margin-top:auto; } .main-in > :nth-last-child(2) { margin-bottom:28px; }
+@media print { .main { min-height:0; display:block; } .main-in { display:block; } }
 
 /* Customer portal. Layout, type, colours and components come from the investor stylesheet (built in front of this file);
    this file only adds what exists in the customer portal alone, in the same tokens. */
