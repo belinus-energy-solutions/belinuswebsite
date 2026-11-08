@@ -47,7 +47,7 @@ function Login({ onIn }) {
     const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: pw });
     if (error) { setErr(t('E-mailadres of wachtwoord niet herkend. Is dit uw eerste bezoek? Stel dan eerst uw wachtwoord in.')); setBusy(false); return; }
     await onIn(); setBusy(false); }
-  return <AuthFrame><h2>{t('Aanmelden')}</h2><p className="lead">{t('Enkel voor investeerders van EVChargeking.')}</p>
+  return <AuthFrame><h2>{t('Aanmelden')}</h2>
     <a className="btn ghost" style={{ width: '100%', marginBottom: 18 }} href="#/start">{t('Eerste keer? Stel uw wachtwoord in')}</a>
     <form className="stack" onSubmit={submit}>
       <Field label={t('E-mailadres')}><input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
