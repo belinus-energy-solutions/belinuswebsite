@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
   }
   if (action === "detail") {
     const [{ data: inv }, { data: sch }, { data: log }, { data: bk }] = await Promise.all([
-      a.from("inv_investors").select("*").eq("id", id).single(),
+      a.from("inv_investors").select("id, email, first_name, last_name, company_name, phone, tranche, invested, invested_on, status, is_test, activated_at, last_login_at, lang").eq("id", id).single(),
       a.from("inv_schedule").select("*").eq("investor_id", id).order("period"),
       a.from("inv_choice_log").select("*").eq("investor_id", id).order("created_at", { ascending: false }),
       a.from("inv_bookings").select("*").eq("investor_id", id).order("starts_at"),

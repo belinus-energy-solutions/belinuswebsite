@@ -45,6 +45,15 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // Login page: a registered investor who has not set a password yet is told so (Steve, 8 November 2026).
+  if (action === "account_status") {
+    const email = str(body.email, 200).toLowerCase();
+    if (!EMAIL.test(email)) return json({ ok: true, needs_password: false });
+    if (ip && !(await allow("inv-status-ip:" + (await sha256(ip)), 0, 40))) return json({ ok: true, needs_password: false });
+    const { data: inv } = await a.from("inv_investors").select("status").eq("email", email).maybeSingle();
+    return json({ ok: true, needs_password: inv?.status === "invited" });
+  }
+
   if (action === "check") {
     const l = await linkOf(String(body.code || "").slice(0, 100));
     if (!l) return json({ ok: false, error: "expired" });

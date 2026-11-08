@@ -36,10 +36,10 @@ const TOPIC = { keuze: 'Vraag over mijn keuze', terugbetaling: 'Vraag over terug
 function Btn({ busy, kind = '', children, ...p }) { return <button className={'btn ' + kind} disabled={busy || p.disabled} {...p}>{busy ? <span className="spin" /> : children}</button>; }
 function Note({ kind = '', children }) { return children ? <div className={'note ' + kind} role={kind === 'error' ? 'alert' : 'status'}>{children}</div> : null; }
 function Field({ label, hint, children }) { return <label className="field"><span>{label}</span>{children}{hint && <em className="hint" style={{ fontStyle: 'normal' }}>{hint}</em>}</label>; }
-function Evc({ light }) { const [bad, setBad] = useState(false); return bad ? <span className="evc-txt" style={{ color: light ? '#fff' : 'inherit' }}>EVChargeking</span> : <img src={light ? 'assets/logo-evchargeking-white.png' : 'assets/logo-evchargeking.png'} alt="EVChargeking" onError={() => setBad(true)} />; }
+function Evc({ light }) { return light ? <img src="assets/logo-evchargeking-white.png" alt="EVChargeking" /> : <><img className="th-dark" src="assets/logo-evchargeking-white.png" alt="EVChargeking" /><img className="th-light" src="assets/logo-evchargeking.png" alt="" /></>; }
 function Logos({ light }) { return <div className="logos"><Evc light={light} /><img src={light ? 'assets/logo-belinus-white.png' : 'assets/logo-belinus.png'} alt="belinus" /></div>; }
 function AuthFrame({ children }) {
-  return <div className="auth"><div className="auth-panel"><div><img className="auth-belinus" src="assets/logo-belinus-blue.png" alt="belinus" /></div><div><h1>{t('Investeerdersportaal')}<img className="auth-evc" src="assets/logo-evchargeking-white.png" alt="EVChargeking" /></h1><p>a belinus group company</p></div><div /></div><div className="auth-form"><div><LangSwitch />{children}</div></div></div>;
+  return <div className="auth"><div className="auth-panel"><div><img className="auth-belinus" src="assets/logo-belinus-blue.png" alt="belinus" /></div><div><h1>{t('Investeerdersportaal')}<img className="auth-evc" src="assets/logo-evchargeking-white.png" alt="EVChargeking" /></h1><p>a belinus group company</p></div><div /></div><div className="auth-form"><div><div className="tools"><LangSwitch /><ThemeToggle /></div><div className="auth-box">{children}</div></div></div></div>;
 }
 function PwInput(props) {
   const [show, setShow] = useState(false);
@@ -47,16 +47,22 @@ function PwInput(props) {
   return <div className="pw-wrap"><input {...props} type={show ? 'text' : 'password'} /><button type="button" className="pw-eye" aria-label={label} title={label} aria-pressed={show} onClick={() => setShow(!show)}><svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />{show && <path d="M4 4l16 16" />}</svg></button></div>;
 }
 function Login({ onIn }) {
-  const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');
-  async function submit(e) { e.preventDefault(); setBusy(true); setErr('');
-    const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: pw });
-    if (error) { setErr(t('E-mailadres of wachtwoord niet herkend. Is dit uw eerste bezoek? Stel dan eerst uw wachtwoord in.')); setBusy(false); return; }
+  const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [needs, setNeeds] = useState(false), [sending, setSending] = useState(false), [sent, setSent] = useState(false);
+  const addr = () => email.trim().toLowerCase();
+  async function needsPassword() { try { const r = await fn('bel-inv-auth', { action: 'account_status', email: addr() }); const v = !!(r && r.needs_password); setNeeds(v); return v; } catch (x) { return false; } }
+  async function submit(e) { e.preventDefault(); setBusy(true); setErr(''); setSent(false);
+    if (!pw) { if (!(await needsPassword())) setErr(t('Vul uw wachtwoord in.')); setBusy(false); return; }
+    const { error } = await sb.auth.signInWithPassword({ email: addr(), password: pw });
+    if (error) { if (!(await needsPassword())) setErr(t('E-mailadres of wachtwoord niet herkend.')); setBusy(false); return; }
     await onIn(); setBusy(false); }
+  async function sendLink() { setSending(true); setErr(''); try { await fn('bel-inv-auth', { action: 'start', email: addr(), lang: LANG }); setSent(true); } catch (x) { setErr(errText(x)); } setSending(false); }
   return <AuthFrame><h2>{t('Aanmelden')}</h2>
     <form className="stack" onSubmit={submit}>
-      <Field label={t('E-mailadres')}><input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-      <Field label={t('Wachtwoord')}><PwInput autoComplete="current-password" required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
-      <Note kind="error">{err}</Note><Btn busy={busy} type="submit">{t('Aanmelden')}</Btn></form>
+      <Field label={t('E-mailadres')}><input type="email" autoComplete="username" required value={email} onChange={(e) => { setEmail(e.target.value); setNeeds(false); setSent(false); }} onBlur={() => { if (/.+@.+\..+/.test(email)) needsPassword(); }} /></Field>
+      {needs ? (sent ? <Note kind="ok">{t('Is dit het e-mailadres waarmee u investeerde? Dan ontvangt u binnen enkele minuten een e-mail met een link. De link is 24 uur geldig. Kijk ook bij uw ongewenste e-mail.')}</Note>
+        : <div className="note"><p style={{ margin: '0 0 12px' }}>{t('U hebt al een account op dit platform, maar u hebt nog geen wachtwoord ingesteld.')}</p><Btn busy={sending} type="button" onClick={sendLink}>{t('Stuur mij de link')}</Btn></div>)
+      : <><Field label={t('Wachtwoord')}><PwInput autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
+      <Note kind="error">{err}</Note><Btn busy={busy} type="submit">{t('Aanmelden')}</Btn></>}</form>
     <div className="auth-links"><a href="#/start?vergeten=1">{t('Wachtwoord vergeten?')}</a></div></AuthFrame>;
 }
 function Start({ route }) {
