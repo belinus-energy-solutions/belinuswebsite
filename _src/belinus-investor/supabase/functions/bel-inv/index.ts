@@ -20,27 +20,31 @@ function ics(b: { id: string; title: string; start: string; end: string; locatio
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Belinus//Investeerdersportaal//NL", "METHOD:PUBLISH", "BEGIN:VEVENT", `UID:${b.id}@investor.belinus.com`, `DTSTAMP:${icsT(new Date())}`, `DTSTART:${icsT(b.start)}`, `DTEND:${icsT(b.end)}`, `SUMMARY:${e(b.title)}`, ...(b.location ? [`LOCATION:${e(b.location)}`] : []), `DESCRIPTION:${e(b.desc)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
 }
 
-async function freeSlots(a: any, kind: string, cfg: any): Promise<{ day: string; slots: string[] }[]> {
+// One agenda: every video call and call-back is handled by Erwin, so a taken moment is taken for both kinds and an investor day blocks its hours.
+async function freeSlots(a: any, kind: string, cfg: any): Promise<{ day: string; slots: string[]; busy: string[] }[]> {
   const now = Date.now(), earliest = now + cfg.notice_hours * 3600_000, step = cfg.slot_minutes + cfg.buffer_minutes;
-  const [{ data: av }, { data: bl }, { data: bk }] = await Promise.all([
+  const [{ data: av }, { data: bl }, { data: bk }, { data: evs }] = await Promise.all([
     a.from("inv_availability").select("weekday, start_time, end_time, kinds"),
     a.from("inv_blocked").select("day"),
     a.from("inv_bookings").select("starts_at").in("kind", ["video", "callback"]).eq("status", "confirmed").gte("starts_at", new Date(now).toISOString()),
+    a.from("inv_events").select("starts_at, ends_at").eq("active", true),
   ]);
   const blocked = new Set((bl || []).map((b: any) => b.day)), taken = new Set((bk || []).map((b: any) => new Date(b.starts_at).getTime()));
-  const out: { day: string; slots: string[] }[] = [];
+  const inEvent = (u: Date) => (evs || []).some((e: any) => u.getTime() < new Date(e.ends_at).getTime() && u.getTime() + cfg.slot_minutes * 60000 > new Date(e.starts_at).getTime());
+  const out: { day: string; slots: string[]; busy: string[] }[] = [];
   for (let i = 0; i <= cfg.horizon_days; i++) {
     const day = localDay(new Date(now + i * 86400_000));
     if (blocked.has(day)) continue;
-    const wd = new Date(day + "T12:00:00Z").getUTCDay() || 7, list: string[] = [];
+    const wd = new Date(day + "T12:00:00Z").getUTCDay() || 7, list: string[] = [], busy: string[] = [];
     for (const w of (av || []).filter((x: any) => x.weekday === wd && x.kinds.includes(kind))) {
       const [sh, sm] = w.start_time.split(":").map(Number), [eh, em] = w.end_time.split(":").map(Number);
       for (let t = sh * 60 + sm; t + cfg.slot_minutes <= eh * 60 + em; t += step) {
         const u = toUtc(day, `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`);
-        if (u.getTime() >= earliest && !taken.has(u.getTime())) list.push(u.toISOString());
+        if (u.getTime() < earliest) continue;
+        (taken.has(u.getTime()) || inEvent(u) ? busy : list).push(u.toISOString());
       }
     }
-    if (list.length) out.push({ day, slots: list.sort() });
+    if (list.length || busy.length) out.push({ day, slots: list.sort(), busy: busy.sort() });
   }
   return out;
 }
