@@ -13,12 +13,15 @@ const errText = (e) => t(ERR[e && e.message] || ERR.generic);
 let AS = ''; try { AS = sessionStorage.getItem('inv_as') || ''; } catch (e) {}
 function viewAs(id) { try { sessionStorage.setItem('inv_as', id); } catch (e) {} location.hash = '#/'; location.reload(); }
 function stopAs() { try { sessionStorage.removeItem('inv_as'); } catch (e) {} location.hash = '#/investeerders'; location.reload(); }
+const SESSION_LOST = { done: false };
 async function fn(name, body) {
   if (name === 'bel-inv' && AS) body = { ...(body || {}), as: AS };
   const { data: s } = await sb.auth.getSession();
   const token = s?.session?.access_token;
   const res = await fetch(`${CFG.url}/functions/v1/${name}`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body || {}) });
   const j = await res.json().catch(() => ({}));
+  // Session ended elsewhere (signed out on another tab or device): back to the sign-in screen instead of an error.
+  if (token && res.status === 401 && j.error === 'unauthorized' && !SESSION_LOST.done) { SESSION_LOST.done = true; await sb.auth.signOut({ scope: 'local' }); location.reload(); }
   if (!res.ok || j.error) { const e = new Error(j.error || 'generic'); e.status = res.status; throw e; }
   return j;
 }
@@ -127,7 +130,7 @@ function SecondFactor({ status, onDone }) {
     } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <AuthFrame><h2>{t('Bevestig dat u het bent')}</h2><p className="lead">{mode === 'app' ? t('Vul de 6 cijfers uit uw authenticator-app in.') : t('Vul de code van 6 cijfers in die u per e-mail ontving.')}</p>
     <form className="stack" onSubmit={submit}><Field label={t('Code')}><input className="code" inputMode="numeric" autoComplete="one-time-code" maxLength="6" required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field><Note kind="error">{err}</Note><Note>{mode === 'email' ? info : ''}</Note><Btn busy={busy} type="submit">{t('Bevestigen')}</Btn></form>
-    <div className="auth-links">{mode === 'email' && <button className="link" onClick={send}>{t('Stuur een nieuwe code')}</button>}{status.totp && <button className="link" onClick={() => { setMode(mode === 'app' ? 'email' : 'app'); setCode(''); setErr(''); }}>{mode === 'app' ? t('Gebruik een code per e-mail') : t('Gebruik de authenticator-app')}</button>}<button className="link" onClick={() => sb.auth.signOut().then(() => location.reload())}>{t('Afmelden')}</button></div></AuthFrame>;
+    <div className="auth-links">{mode === 'email' && <button className="link" onClick={send}>{t('Stuur een nieuwe code')}</button>}{status.totp && <button className="link" onClick={() => { setMode(mode === 'app' ? 'email' : 'app'); setCode(''); setErr(''); }}>{mode === 'app' ? t('Gebruik een code per e-mail') : t('Gebruik de authenticator-app')}</button>}<button className="link" onClick={() => sb.auth.signOut({ scope: 'local' }).then(() => location.reload())}>{t('Afmelden')}</button></div></AuthFrame>;
 }
 
 const SCH_STATUS = { planned: ['gepland', ''], paid: ['betaald', 'ok'], deferred: ['uitgesteld', 'warn'] };

@@ -14,7 +14,7 @@ function Shell({ page, investor, role, email, name, children }) {
   const tabs = secs.flatMap((s) => s[1]).slice(0, 3);
   const filt = (r) => !q || t(r[1]).toLowerCase().includes(q.toLowerCase());
   const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); try { localStorage.setItem('inv_rail', on ? '1' : ''); } catch (e) {} };
-  const out = () => sb.auth.signOut().then(() => { location.hash = ''; location.reload(); });
+  const out = () => sb.auth.signOut({ scope: 'local' }).then(() => { location.hash = ''; location.reload(); });
   useEffect(() => { if (!menu) return; const f = (e) => { if (!e.target.closest('.sb-foot')) setMenu(false); }; addEventListener('click', f); return () => removeEventListener('click', f); }, [menu]);
   return <div>
     <aside className="sb-side">
@@ -40,13 +40,13 @@ function App() {
     const { data: s } = await sb.auth.getSession();
     if (!s?.session) { setSt({ phase: 'out' }); return; }
     let m;
-    try { m = await fn('bel-inv', { action: 'mfa_status' }); } catch (e) { await sb.auth.signOut(); setSt({ phase: 'out', denied: e.status === 403 }); return; }
+    try { m = await fn('bel-inv', { action: 'mfa_status' }); } catch (e) { await sb.auth.signOut({ scope: 'local' }); setSt({ phase: 'out', denied: e.status === 403 }); return; }
     if (!m.verified) { setSt({ phase: 'mfa', status: m }); return; }
     setSt({ phase: 'in', email: s.session.user.email });
     await loadData();
   }, [loadData]);
   useEffect(() => { try { if (localStorage.getItem('inv_rail')) document.documentElement.classList.add('rail'); } catch (e) {} load(); }, [load]);
-  useEffect(() => { if (st.phase !== 'in') return; let last = Date.now(); const bump = () => { last = Date.now(); }; ['click', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true })); const iv = setInterval(() => { if (Date.now() - last > 30 * 60000) sb.auth.signOut().then(() => location.reload()); }, 60000); return () => { clearInterval(iv); ['click', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, bump)); }; }, [st.phase]);
+  useEffect(() => { if (st.phase !== 'in') return; let last = Date.now(); const bump = () => { last = Date.now(); }; ['click', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true })); const iv = setInterval(() => { if (Date.now() - last > 30 * 60000) sb.auth.signOut({ scope: 'local' }).then(() => location.reload()); }, 60000); return () => { clearInterval(iv); ['click', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, bump)); }; }, [st.phase]);
   const page = route.parts[0] || '';
   if (page === 'wachtwoord') return <SetPassword route={route} onIn={load} />;
   if (st.phase === 'boot') return <div className="boot"><span className="spin" /></div>;
