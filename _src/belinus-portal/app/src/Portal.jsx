@@ -278,7 +278,19 @@ const ICON = {
 };
 const Icon = ({ n }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON[n]} /></svg>;
 
+// Collapsible menu sections; the choice is remembered in this browser (same behaviour in both portals).
+function useNavFold() {
+  const read = () => { try { return JSON.parse(localStorage.getItem('nav_closed')) || []; } catch (e) { return []; } };
+  const [closed, set] = useState(read);
+  const toggle = (id) => set((c) => { const n = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]; try { localStorage.setItem('nav_closed', JSON.stringify(n)); } catch (e) {} return n; });
+  return { closed, toggle };
+}
+function SbSec({ id, label, on, force, fold, children }) {
+  const shut = !force && fold.closed.includes(id);
+  return <div className={'sb-sec' + (shut ? ' shut' : '')}><button type="button" className={'sb-h sb-fold' + (shut && on ? ' on' : '')} aria-expanded={!shut} onClick={(e) => { e.preventDefault(); e.stopPropagation(); fold.toggle(id); }}><span>{label}</span><svg className="sb-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg></button><div className="sb-rows">{children}</div></div>;
+}
 function Shell({ me, route, children, counts }) {
+  const fold = useNavFold();
   const { t } = useT();
   const [menu, setMenu] = useState(false), [q, setQ] = useState(''), [investor, setInvestor] = useState(false), [switching, setSwitching] = useState(false);
   useEffect(() => { fn('bel-switch', { action: 'targets' }).then((r) => setInvestor(!!r.investor)).catch(() => {}); }, []);
@@ -290,8 +302,8 @@ function Shell({ me, route, children, counts }) {
   const name = me.full_name || [me.first_name, me.last_name].filter(Boolean).join(' ') || me.email;
   const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
   const secs = [];
-  if (staff) secs.push([t.secManage, ['desk']]);
-  secs.push([t.secInstall, ['products', 'library', 'recall']], [t.secOrders, ['orders', 'invoices']], [t.secHelp, ['support', 'assistant']]);
+  if (staff) secs.push([t.secManage, ['desk'], 'manage']);
+  secs.push([t.secInstall, ['products', 'library', 'recall'], 'install'], [t.secOrders, ['orders', 'invoices'], 'orders'], [t.secHelp, ['support', 'assistant'], 'help']);
   const filt = (m) => !q || t.menu[m].toLowerCase().includes(q.toLowerCase());
   const tabs = staff ? ['desk', 'products', 'support'] : ['products', 'support', 'assistant'];
   const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); safeSet('inv_rail', on ? '1' : ''); };
@@ -303,10 +315,10 @@ function Shell({ me, route, children, counts }) {
         <a className="sb-brand" href="#/products"><img src="assets/logo-belinus-blue.png" alt="belinus" /><img className="sb-b" src="assets/favicon-180.png" alt="belinus" /><span className="sb-lbl">{t.portal}</span></a>
         <label className="sb-search"><span className="sr">{t.search}</span><Icon n="search" /><input type="search" placeholder={t.search} value={q} onChange={(e) => setQ(e.target.value)} /></label>
         <nav className="sb-nav" onClick={closeDrawer}>
-          {secs.map(([h, rows]) => { const vis = rows.filter(filt); return vis.length ? <div key={h}><p className="sb-h">{h}</p>{vis.map((m) => (
+          {secs.map(([h, rows, id]) => { const vis = rows.filter(filt); return vis.length ? <SbSec key={id} id={id} label={h} on={rows.includes(cur)} force={!!q} fold={fold}>{vis.map((m) => (
             <a key={m} href={'#/' + m} title={t.menu[m]} className={'nav-row' + (cur === m ? ' on' : '') + (m === 'recall' && counts.recall ? ' alert' : '')}><Icon n={m} /><span>{t.menu[m]}</span>{counts[m] ? <b className="count">{counts[m]}</b> : null}</a>
-          ))}</div> : null; })}
-          {investor && <div><p className="sb-h">{t.secOther}</p><a className="nav-row" href="#/" onClick={toInvestor} title={t.switchInvestor}><Icon n="invest" /><span>{t.switchInvestor}</span></a></div>}
+          ))}</SbSec> : null; })}
+          {investor && <SbSec id="other" label={t.secOther} on={false} force={!!q} fold={fold}><a className="nav-row" href="#/" onClick={toInvestor} title={t.switchInvestor}><Icon n="invest" /><span>{t.switchInvestor}</span></a></SbSec>}
         </nav>
         <div className="sb-foot">
           {menu && <div className="sb-menu"><a href="#/account" onClick={() => { setMenu(false); closeDrawer(); }}>{t.menu.account}</a><button onClick={out}>{t.signOut}</button></div>}

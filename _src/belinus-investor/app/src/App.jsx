@@ -6,7 +6,19 @@ const I = {
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', flag: 'M4 22V4s2-1 5-1 5 2 8 2 3-1 3-1v11s-1 1-3 1-5-2-8-2-5 1-5 1', clock: 'M12 7v5l3 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20', cog: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12l2-1-2-4-2 1-2-1V5h-4v2l-2 1-2-1-2 4 2 1v2l-2 1 2 4 2-1 2 1v2h4v-2l2-1 2 1 2-4-2-1z', menu: 'M4 7h16M4 12h16M4 17h16', mail: 'M4 6h16v12H4zM4 7l8 6 8-6', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16',
 };
 const Ic = ({ n }) => <svg className="ic" viewBox="0 0 24 24"><path d={I[n]} /></svg>;
+// Collapsible menu sections; the choice is remembered in this browser (same behaviour in both portals).
+function useNavFold() {
+  const read = () => { try { return JSON.parse(localStorage.getItem('nav_closed')) || []; } catch (e) { return []; } };
+  const [closed, set] = useState(read);
+  const toggle = (id) => set((c) => { const n = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]; try { localStorage.setItem('nav_closed', JSON.stringify(n)); } catch (e) {} return n; });
+  return { closed, toggle };
+}
+function SbSec({ id, label, on, force, fold, children }) {
+  const shut = !force && fold.closed.includes(id);
+  return <div className={'sb-sec' + (shut ? ' shut' : '')}><button type="button" className={'sb-h sb-fold' + (shut && on ? ' on' : '')} aria-expanded={!shut} onClick={(e) => { e.preventDefault(); e.stopPropagation(); fold.toggle(id); }}><span>{label}</span><svg className="sb-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg></button><div className="sb-rows">{children}</div></div>;
+}
 function Shell({ page, investor, role, email, name, unread = 0, children }) {
+  const fold = useNavFold();
   const [menu, setMenu] = useState(false), [q, setQ] = useState('');
   const [support, setSupport] = useState(false);
   useEffect(() => { if (!AS) fn('bel-switch', { action: 'targets' }).then((r) => setSupport(!!r.support)).catch(() => {}); }, []);
@@ -24,7 +36,7 @@ function Shell({ page, investor, role, email, name, unread = 0, children }) {
     <aside className="sb-side">
       <a className="sb-brand" href="#/"><img src="assets/logo-belinus-blue.png" alt="belinus" /><img className="sb-b" src="assets/favicon-180.png" alt="belinus" /><span className="sb-lbl">{t('Investeerdersportaal')}</span><span className="sb-co"><i />EVChargeking</span></a>
       <label className="sb-search"><span className="sr">{t('Zoeken')}</span><Ic n="search" /><input type="search" placeholder={t('Zoeken')} value={q} onChange={(e) => setQ(e.target.value)} /></label>
-      <nav className="sb-nav">{secs.map(([h, rows]) => <div key={h}><p className="sb-h">{t(h)}</p>{rows.filter(filt).map((r) => <a key={r[0]} className={'nav-row' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]} title={t(r[1])}><Ic n={r[2]} /><span>{t(r[1])}</span>{r[0] === 'berichten' && unread > 0 && <em className="nav-badge">{unread}</em>}</a>)}</div>)}{support && <div><p className="sb-h">{t('Andere portalen')}</p><a className="nav-row" href="#/" onClick={toSupport} title={t('Supportportaal')}><Ic n="support" /><span>{t('Supportportaal')}</span></a></div>}</nav>
+      <nav className="sb-nav">{secs.map(([h, rows]) => <SbSec key={h} id={h} label={t(h)} on={rows.some((r) => r[0] === page)} force={!!q} fold={fold}>{rows.filter(filt).map((r) => <a key={r[0]} className={'nav-row' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]} title={t(r[1])}><Ic n={r[2]} /><span>{t(r[1])}</span>{r[0] === 'berichten' && unread > 0 && <em className="nav-badge">{unread}</em>}</a>)}</SbSec>)}{support && <SbSec id="other" label={t('Andere portalen')} on={false} force={!!q} fold={fold}><a className="nav-row" href="#/" onClick={toSupport} title={t('Supportportaal')}><Ic n="support" /><span>{t('Supportportaal')}</span></a></SbSec>}</nav>
       <div className="sb-foot">{menu && <div className="sb-menu"><a href="#/account" onClick={() => setMenu(false)}>{t('Mijn account')}</a><button onClick={out}>{t('Afmelden')}</button></div>}<button className="sb-acct" onClick={() => setMenu(!menu)}><span className="av">{initials}</span><div><b>{name || email}</b><small>{role ? (role === 'belinus' ? 'Beheerder Belinus' : 'Beheerder EVChargeking') : t('Investeerder')}</small></div></button><ThemeToggle /></div>
       <button className="sb-edge" onClick={toggleRail} aria-label="Menu in- of uitklappen"><svg viewBox="0 0 24 24"><path d="M14 7l-5 5 5 5" /></svg></button>
     </aside>

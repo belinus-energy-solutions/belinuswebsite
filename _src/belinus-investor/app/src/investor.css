@@ -114,3 +114,7 @@ tr.grp td { border-top:2px solid var(--line2); }
 .bubble p { margin:4px 0 0; white-space:pre-wrap; font-size:14px; }
 .nav-badge { margin-left:auto; font-style:normal; font-size:11px; min-width:20px; height:20px; border-radius:999px; background:var(--blue); color:#fff; display:grid; place-items:center; padding:0 6px; }
 @media (max-width:900px) { .inv-grid { grid-template-columns:1fr; } }
+
+/* collapsible menu sections */
+.sb-fold { display:flex; align-items:center; justify-content:space-between; gap:8px; width:calc(100% - 24px); border:0; background:none; padding:0; text-align:left; cursor:pointer; } .sb-fold:hover { color:var(--fg1); } .sb-fold.on { color:var(--link); }
+.sb-chev { width:14px; height:14px; flex:none; stroke:currentColor; stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; transition:transform 150ms var(--ease); } .sb-sec.shut .sb-chev { transform:rotate(-90deg); } .sb-sec.shut .sb-rows { display:none; } html.rail .sb-sec.shut .sb-rows { display:block; }
