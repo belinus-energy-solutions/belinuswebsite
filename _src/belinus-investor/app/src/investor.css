@@ -100,9 +100,3 @@ html.rail { --sbw:68px; } html.rail .sb-brand img:not(.sb-b),html.rail .sb-brand
 tr.grp td { border-top:2px solid var(--line2); }
 @media (max-width:760px) { .agm-day { min-height:64px; } .agm-it { font-size:0; padding:0; height:6px; } .agd-it { grid-template-columns:56px 1fr; } .agd-it > :last-child { grid-column:1 / -1; } }
 @media print { .sb-side,.sb-tabs,.sb-top,.seg,.page-head .row,.btn { display:none !important; } .main { margin:0 !important; } }
-
-.totp-nudge { max-width:440px; text-align:left; }
-.totp-phone { width:96px; height:136px; align-self:center; }
-.ph-body { fill:#0A0C0F; } .ph-screen { fill:#F2FAFE; } .ph-dot { fill:#3A4048; }
-.ph-shield { fill:#2EB9EA; } .ph-check { fill:none; stroke:#fff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
-.ph-code { font:700 13px/1 'Arial Nova',Arial,sans-serif; letter-spacing:1.5px; fill:#0A0C0F; } .ph-bar { fill:#2EB9EA; opacity:.35; }
