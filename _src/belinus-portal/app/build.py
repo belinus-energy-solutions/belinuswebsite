@@ -44,7 +44,9 @@ html = f"""<!doctype html>
 <meta name="description" content="Belinus klantenportaal: uw producten, terugroepingen, bestellingen, facturen en support.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0A0C0F">
-<link rel="icon" href="assets/logo-belinus.png">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/favicon-180.png">
 <style>{css}</style>
 </head>
 <body>
