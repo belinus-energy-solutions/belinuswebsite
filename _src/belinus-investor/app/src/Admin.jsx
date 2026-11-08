@@ -48,9 +48,20 @@ function AdmInvestors() {
       <div className="tblw"><table className="tbl cards"><thead><tr><th>Investeerder</th><th>Platform</th><th>Tranche</th><th className="n">Bedrag</th><th>Keuze</th><th>Account</th><th>Laatst aangemeld</th></tr></thead><tbody>{rows.map((i) => <tr key={i.id} className="click" onClick={() => { location.hash = '#/investeerders/' + i.id; }}><td data-l="Investeerder"><b>{nameOf(i)}</b>{d.unread?.[i.id] ? <span className="chip info" style={{ marginLeft: 6 }}>{d.unread[i.id]} nieuw bericht{d.unread[i.id] > 1 ? 'en' : ''}</span> : null}{i.is_demo ? <span className="chip info" style={{ marginLeft: 6 }}>demo</span> : i.is_test && <span className="chip warn" style={{ marginLeft: 6 }}>test</span>}<br /><span className="hint">{i.email}</span> <button className="link" style={{ fontSize: 13 }} onClick={(e) => { e.stopPropagation(); viewAs(i.id); }}>Bekijk als</button></td><td data-l="Platform">{platformName(plCode(i.tranche))}</td><td data-l="Tranche">{trName(i.tranche)}</td><td data-l="Bedrag" className="n">{eur(i.invested)}</td><td data-l="Keuze">{i.choice ? <span className="chip info">{i.choice.choice}</span> : <span className="chip warn">—</span>}</td><td data-l="Account"><span className={'chip ' + (i.status === 'active' ? 'ok' : i.invited_at ? 'info' : '')}>{i.status === 'active' ? 'actief' : i.invited_at ? 'uitgenodigd ' + dayNl(i.invited_at) : 'nog niet uitgenodigd'}</span></td><td data-l="Laatst aangemeld">{i.last_login_at ? dayNl(i.last_login_at) : '—'}</td></tr>)}</tbody></table></div></div>
     {open && <InvDetail id={open} onClose={() => { setOpen(null); load(); }} />}</>;
 }
+// Shows the personal invitation exactly as the investor will receive it (sender, subject and the rendered mail).
+function InvitePreview({ id, onClose }) {
+  const [p, setP] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { adm('invite_preview', id ? { id } : {}).then(setP).catch((x) => setErr(errText(x))); }, [id]);
+  return <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}><div className="modal stack preview-modal">
+    <div className="row" style={{ justifyContent: 'space-between' }}><h2 style={{ fontSize: 20, margin: 0 }}>Persoonlijke uitnodiging</h2><button className="btn ghost sm" onClick={onClose}>Sluiten</button></div>
+    {!p ? <Wait err={err} /> : <><div className="mail-meta"><span>Van</span><b>{p.from}</b><span>Aan</span><b>{p.to}</b><span>Onderwerp</span><b>{p.subject}</b></div>
+      <iframe className="mail-frame" title="Voorbeeld van de uitnodiging" sandbox="" srcDoc={p.html} />
+      <p className="hint" style={{ margin: 0 }}>Exact zoals verstuurd, met de gegevens van deze investeerder. De knop in dit voorbeeld werkt niet: elke investeerder krijgt een eigen persoonlijke link.</p></>}
+  </div></div>;
+}
 // Mass send of the personal invitation (Belinus only). Test accounts are never included; they get it from their own detail.
 function InviteAll({ reload }) {
-  const [p, setP] = useState(null), [sure, setSure] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  const [p, setP] = useState(null), [sure, setSure] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [show, setShow] = useState(false);
   const get = () => adm('invite_pending').then(setP).catch((x) => setErr(errText(x)));
   useEffect(() => { get(); }, []);
   async function go() { setBusy(true); setErr(''); setMsg(''); let total = 0, failed = 0;
@@ -58,7 +69,7 @@ function InviteAll({ reload }) {
     setBusy(false); setSure(''); await get(); reload(); }
   if (!p) return null;
   return <div className="card stack" style={{ marginBottom: 18 }}><h2 style={{ fontSize: 18, margin: 0 }}>Persoonlijke uitnodigingen</h2>
-    <p style={{ margin: 0 }}>{p.pending ? `${p.pending} investeerders hebben nog geen uitnodiging gekregen.` : 'Alle investeerders zijn uitgenodigd.'} {p.invited ? `${p.invited} al uitgenodigd.` : ''} De mail gaat van noreply@belinus.com; antwoorden is niet mogelijk. Test eerst via een testaccount: open het en kies "Stuur persoonlijke uitnodiging".</p>
+    <p style={{ margin: 0 }}>{p.pending ? `${p.pending} investeerders hebben nog geen uitnodiging gekregen.` : 'Alle investeerders zijn uitgenodigd.'} {p.invited ? `${p.invited} al uitgenodigd.` : ''} De mail gaat van noreply@belinus.com; antwoorden is niet mogelijk. Test eerst via een testaccount: open het en kies "Stuur persoonlijke uitnodiging". <button className="link" onClick={() => setShow(true)}>Bekijk de uitnodiging</button></p>{show && <InvitePreview onClose={() => setShow(false)} />}
     {!!p.pending && <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ flex: '0 1 260px' }}><Field label={'Typ VERSTUREN om te bevestigen'}><input value={sure} onChange={(e) => setSure(e.target.value)} /></Field></div><Btn busy={busy} disabled={sure !== 'VERSTUREN'} onClick={go}>{`Verstuur naar ${p.pending} investeerders`}</Btn></div>}
     <Note kind="ok">{msg}</Note><Note kind="error">{err}</Note></div>;
 }
@@ -120,7 +131,7 @@ function Notes({ notes, bookingId, investorId, onChange, compact }) {
 }
 // Full page per investor: appointments with notes, loose notes, messages, loan, choices, mails.
 function InvPage({ id }) {
-  const [d, setD] = useState(null), [err, setErr] = useState(''), [msg, setMsg] = useState(''), [ok, setOk] = useState(''), [busy, setBusy] = useState(false), [c, setC] = useState(''), [cn, setCn] = useState(''), [reason, setReason] = useState('');
+  const [d, setD] = useState(null), [err, setErr] = useState(''), [msg, setMsg] = useState(''), [ok, setOk] = useState(''), [busy, setBusy] = useState(false), [c, setC] = useState(''), [cn, setCn] = useState(''), [reason, setReason] = useState(''), [prev, setPrev] = useState(false);
   const load = useCallback(() => adm('investor_page', { id }).then(setD).catch((x) => setErr(errText(x))), [id]);
   useEffect(() => { load(); }, [load]);
   if (!d) return <Wait err={err} />;
@@ -132,8 +143,8 @@ function InvPage({ id }) {
   return <>
     <div className="page-head"><div><p className="hint" style={{ margin: 0 }}><a href="#/investeerders">Investeerders</a> ›</p><h1 className="page-title">{nameOf(i)}{i.is_demo ? <span className="chip info" style={{ marginLeft: 10, verticalAlign: 'middle' }}>demo</span> : i.is_test ? <span className="chip warn" style={{ marginLeft: 10, verticalAlign: 'middle' }}>test</span> : null}</h1>
       <p className="page-sub">{trName(i.tranche)} · {eur(i.invested)} · keuze {d.choice?.choice || '—'} · {i.status === 'active' ? 'actief sinds ' + dayNl(i.activated_at) : 'nog geen wachtwoord'}</p></div>
-      <div className="row"><button className="btn ghost sm" onClick={() => viewAs(i.id)}>Bekijk als</button><button className="btn ghost sm" onClick={invite}>{i.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</button><button className="btn sm" onClick={() => document.querySelector('.composer textarea')?.focus()}>Bericht sturen</button></div></div>
-    <Note kind="ok">{ok}</Note><Note kind="error">{err}</Note>
+      <div className="row"><button className="btn ghost sm" onClick={() => viewAs(i.id)}>Bekijk als</button>{i.status === 'invited' && <button className="btn ghost sm" onClick={() => setPrev(true)}>Bekijk uitnodiging</button>}<button className="btn ghost sm" onClick={invite}>{i.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</button><button className="btn sm" onClick={() => document.querySelector('.composer textarea')?.focus()}>Bericht sturen</button></div></div>
+    <Note kind="ok">{ok}</Note><Note kind="error">{err}</Note>{prev && <InvitePreview id={i.id} onClose={() => setPrev(false)} />}
     <div className="inv-grid">
       <div className="card stack"><h2 style={{ margin: 0 }}>Afspraken en notities <span className="chip warn">alleen beheerders</span></h2>
         {!d.bookings.length && <p className="hint" style={{ margin: 0 }}>Nog geen afspraken.</p>}

@@ -1,5 +1,5 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
-import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage } from "../_shared/inv.ts";
+import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -111,6 +111,13 @@ Deno.serve(async (req) => {
   }
   // Mass send, Belinus only: real investors (no test accounts) without a password and not yet invited, 20 per call; the
   // page calls again until nothing is left.
+  // Preview of the invitation, exactly as rendered for the chosen (or first pending) investor; the button link is a dummy.
+  if (action === "invite_preview") {
+    let inv: any = null;
+    if (id) ({ data: inv } = await a.from("inv_investors").select("email, first_name, invested").eq("id", id).maybeSingle());
+    if (!inv) { const { data } = await a.from("inv_investors").select("email, first_name, invested").eq("is_test", false).eq("status", "invited").order("last_name").limit(1); inv = data?.[0] || { email: "voorbeeld@investeerder.be", first_name: "Jan", invested: 5000 }; }
+    return json({ ok: true, ...(await invitePreview(a, inv)) });
+  }
   if (action === "invite_pending" || action === "invite_batch") {
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested").eq("is_test", false).eq("status", "invited").order("last_name");
     const sent = await invitedMap(a);

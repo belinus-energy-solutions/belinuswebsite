@@ -165,6 +165,11 @@ export async function sendInvite(a: SupabaseClient, inv: { id: string; email: st
   await a.from("inv_links").delete().eq("investor_id", inv.id);
   await a.from("inv_links").insert({ code_hash: await sha256(code), investor_id: inv.id, expires_at: expires.toISOString() });
   const url = `${APP_URL}/#/wachtwoord?code=${encodeURIComponent(code)}&uitnodiging=1`;
+  const m = inviteContent(inv, url, deadline, expires);
+  return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, subject: m.subject, cta: m.cta, text: m.text });
+}
+// The invitation exactly as it is sent; also used for the preview in Beheer (with a dummy link).
+export function inviteContent(inv: { email: string; first_name?: string | null; invested?: number | string | null }, url: string, deadline: Date, expires: Date): { subject: string; text: string; cta: { url: string; label: string } } {
   const D = nlDate(deadline);
   const text = `${hello(inv.first_name, "nl")}
 
@@ -238,7 +243,14 @@ Zaakvoerder, EVChargeking (Some BV)
 
 Steve Van Beirs
 CEO, Belinus`;
-  return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, subject: `EVChargeking wordt deel van de Belinus-groep – uw keuze uiterlijk op ${D}`, cta: { url, label: "Activeer uw account en maak uw keuze" }, text });
+  return { subject: `EVChargeking wordt deel van de Belinus-groep – uw keuze uiterlijk op ${D}`, cta: { url, label: "Activeer uw account en maak uw keuze" }, text };
+}
+export async function invitePreview(a: SupabaseClient, inv: { email: string; first_name?: string | null; invested?: number | string | null }): Promise<{ subject: string; html: string; from: string; to: string }> {
+  const st = await settings(a);
+  const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
+  const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
+  const m = inviteContent(inv, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
+  return { subject: m.subject, html: html(m.text, m.cta, "nl", true), from: `${FROM_NAME} <${NOREPLY}>`, to: inv.email };
 }
 
 // ---- messages (Steve, 8 November 2026): admins write to an investor. The mail comes from investor@belinus.com and can be
