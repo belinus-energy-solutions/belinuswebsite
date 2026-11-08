@@ -81,3 +81,22 @@ html.rail { --sbw:68px; } html.rail .sb-brand img:not(.sb-b),html.rail .sb-brand
 .picker-day { margin:6px 0 14px; font-size:18px; text-transform:capitalize; }
 .picker-times .slots { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:8px; }
 @media (max-width:760px) { .picker { grid-template-columns:1fr; } .picker-times { border-left:0; padding-left:0; border-top:1px solid var(--line); padding-top:18px; } }
+
+.seg { display:inline-flex; gap:4px; padding:4px; border:1px solid var(--line2); border-radius:999px; flex-wrap:wrap; }
+.seg-b { border:0; background:none; padding:8px 16px; border-radius:999px; font-size:14px; color:var(--fg2); }
+.seg-b.on { background:var(--tint2); color:var(--link); }
+.agm { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; }
+.agm-day { min-height:104px; display:flex; flex-direction:column; align-items:stretch; gap:3px; text-align:left; padding:6px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--fg1); }
+.agm-day:hover { border-color:var(--blue); }
+.agm-day.today .agm-n { background:var(--blue); color:#fff; border-radius:999px; padding:0 7px; align-self:flex-start; }
+.agm-n { font-size:13px; color:var(--fg2); }
+.agm-it { font-size:11.5px; line-height:1.35; padding:2px 6px; border-radius:5px; background:var(--tint2); color:var(--link); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.agm-it.k-visit { background:#E6F6EC; color:#1F7A44; } .agm-it.k-callback { background:#FFF3E0; color:#9A5B00; }
+.agm-more { font-size:11px; color:var(--fg3); }
+.agd { display:flex; flex-direction:column; gap:10px; }
+.agd-it { display:grid; grid-template-columns:70px 1fr auto; gap:14px; align-items:start; padding:14px; border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:10px; }
+.agd-it.k-visit { border-left-color:#2E9D5B; } .agd-it.k-callback { border-left-color:#E59A1C; } .agd-it.off { opacity:.5; }
+.agd-t { font-size:20px; font-weight:600; }
+tr.grp td { border-top:2px solid var(--line2); }
+@media (max-width:760px) { .agm-day { min-height:64px; } .agm-it { font-size:0; padding:0; height:6px; } .agd-it { grid-template-columns:56px 1fr; } .agd-it > :last-child { grid-column:1 / -1; } }
+@media print { .sb-side,.sb-tabs,.sb-top,.seg,.page-head .row,.btn { display:none !important; } .main { margin:0 !important; } }
