@@ -64,7 +64,7 @@ function App() {
   else if (hasInv && page === 'afspraak') body = <Afspraak d={d} reload={loadData} />;
   else if (hasInv) body = <Home d={d} />;
   else if (role) body = <AdmOverview />;
-  return <Shell page={!hasInv && !P[page] && page !== 'account' ? 'beheer' : page} investor={hasInv} role={acting ? null : role} email={st.email} name={name}>{acting && <AsBanner d={d} reload={loadData} />}{body}</Shell>;
+  return <><TotpNudge /><Shell page={!hasInv && !P[page] && page !== 'account' ? 'beheer' : page} investor={hasInv} role={acting ? null : role} email={st.email} name={name}>{acting && <AsBanner d={d} reload={loadData} />}{body}</Shell></>;
 }
 function Root() { useLang(); return <App />; }
 ReactDOM.createRoot(document.getElementById('root')).render(<Root />);

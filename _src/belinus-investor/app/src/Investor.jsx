@@ -133,7 +133,7 @@ function SecondFactor({ status, onDone }) {
   async function submit(e) { e.preventDefault(); setBusy(true); setErr('');
     try {
       if (mode === 'app') { const { data: f } = await sb.auth.mfa.listFactors(); const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: f.totp[0].id, code: code.trim() }); if (error) throw new Error('wrong-code'); await sb.auth.refreshSession(); await fn('bel-inv', { action: 'mfa_totp_done' }); }
-      else await fn('bel-inv', { action: 'mfa_verify', code });
+      else { await fn('bel-inv', { action: 'mfa_verify', code }); try { sessionStorage.setItem('inv_ask_totp', '1'); } catch (x) {} }
       await onDone();
     } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <AuthFrame><h2>{t('Bevestig dat u het bent')}</h2><p className="lead">{mode === 'app' ? t('Vul de 6 cijfers uit uw authenticator-app in.') : t('Vul de code van 6 cijfers in die u per e-mail ontving.')}</p>
@@ -229,7 +229,7 @@ function Afspraak({ d, reload }) {
 function Account({ d, reload, email }) {
   const [phone, setPhone] = useState(d?.investor?.phone || ''), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [factor, setFactor] = useState(null), [enroll, setEnroll] = useState(null), [code, setCode] = useState(''), [busy, setBusy] = useState(false);
   const loadF = () => sb.auth.mfa.listFactors().then(({ data }) => setFactor((data?.totp || []).find((f) => f.status === 'verified') || null));
-  useEffect(() => { loadF(); }, []);
+  useEffect(() => { loadF().then(() => { if (/[?&]totp=1/.test(location.hash)) { history.replaceState(null, '', '#/account'); sb.auth.mfa.listFactors().then(({ data }) => { if (!(data?.totp || []).some((f) => f.status === 'verified')) start(); }); } }); }, []);
   async function saveLang(l) { setErr(''); setLang(l); if (d?.investor) try { await fn('bel-inv', { action: 'set_lang', lang: l }); setMsg(t('Opgeslagen.')); } catch (x) { setErr(errText(x)); } }
   async function savePhone() { setErr(''); try { await fn('bel-inv', { action: 'set_phone', phone }); await reload(); setMsg(t('Opgeslagen.')); } catch (x) { setErr(errText(x)); } }
   async function start() { setErr(''); setBusy(true); const { data: all } = await sb.auth.mfa.listFactors(); for (const f of (all?.all || []).filter((f) => f.status !== 'verified')) await sb.auth.mfa.unenroll({ factorId: f.id }); const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Belinus ' + new Date().toISOString().slice(0, 10) }); setBusy(false); if (error) setErr(t(ERR.generic)); else setEnroll(data); }
@@ -247,4 +247,32 @@ function Account({ d, reload, email }) {
     </div>
     <div className="card stack"><h2>{t('Wachtwoord')}</h2><div><Btn kind="ghost" onClick={newPw}>{t('Stuur mij een link om te wijzigen')}</Btn></div></div>
   </>;
+}
+
+// From the second sign-in on (the first is through the invitation link): suggest an authenticator app, once per sign-in,
+// unless the investor already has one or chose "not for 6 months" (kept on the account, so it holds on every device).
+const SNOOZE_DAYS = 182;
+function TotpNudge() {
+  const [show, setShow] = useState(false), [later, setLater] = useState(false);
+  useEffect(() => { (async () => {
+    let ask = false; try { ask = sessionStorage.getItem('inv_ask_totp') === '1'; sessionStorage.removeItem('inv_ask_totp'); } catch (e) {}
+    if (!ask) return;
+    const { data: f } = await sb.auth.mfa.listFactors(); if ((f?.totp || []).some((x) => x.status === 'verified')) return;
+    const { data: u } = await sb.auth.getUser(); const until = u?.user?.user_metadata?.inv_totp_snooze_until;
+    if (until && new Date(until) > new Date()) return;
+    setShow(true);
+  })().catch(() => {}); }, []);
+  if (!show) return null;
+  async function close(setup) {
+    setShow(false);
+    if (later) await sb.auth.updateUser({ data: { inv_totp_snooze_until: new Date(Date.now() + SNOOZE_DAYS * 86400000).toISOString() } }).catch(() => {});
+    if (setup) location.hash = '#/account?totp=1';
+  }
+  return <div className="modal-bg" role="dialog" aria-modal="true" aria-labelledby="totp-h"><div className="modal stack totp-nudge">
+    <svg className="totp-phone" viewBox="0 0 120 170" aria-hidden="true"><rect x="22" y="6" width="76" height="158" rx="14" className="ph-body" /><rect x="29" y="22" width="62" height="118" rx="4" className="ph-screen" /><rect x="50" y="12" width="20" height="4" rx="2" className="ph-dot" /><circle cx="60" cy="152" r="5" className="ph-dot" /><path d="M60 40l16 6v12c0 10-7 18-16 21-9-3-16-11-16-21V46z" className="ph-shield" /><path d="M53 58l5 5 9-10" className="ph-check" /><text x="60" y="108" textAnchor="middle" className="ph-code">482 913</text><rect x="38" y="118" width="44" height="4" rx="2" className="ph-bar" /></svg>
+    <h2 id="totp-h" style={{ margin: 0 }}>{t('Sneller en veiliger aanmelden')}</h2>
+    <p style={{ margin: 0 }}>{t('Koppel een authenticator-app, zoals Google Authenticator, aan uw account. U hoeft dan niet meer op een code per e-mail te wachten: de app op uw smartphone toont meteen een nieuwe code. Het instellen duurt ongeveer een minuut.')}</p>
+    <label className="check"><input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} /><span>{t('Niet meer herinneren voor 6 maanden')}</span></label>
+    <div className="row"><Btn type="button" onClick={() => close(true)}>{t('OK, instellen')}</Btn><Btn kind="ghost" type="button" onClick={() => close(false)}>{t('Sluiten')}</Btn></div>
+  </div></div>;
 }
