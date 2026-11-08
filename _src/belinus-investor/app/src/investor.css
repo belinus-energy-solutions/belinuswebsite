@@ -118,3 +118,9 @@ tr.grp td { border-top:2px solid var(--line2); }
 /* collapsible menu sections */
 .sb-fold { display:flex; align-items:center; justify-content:space-between; gap:8px; width:calc(100% - 24px); border:0; background:none; padding:0; text-align:left; cursor:pointer; } .sb-fold:hover { color:var(--fg1); } .sb-fold.on { color:var(--link); }
 .sb-chev { width:14px; height:14px; flex:none; stroke:currentColor; stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; transition:transform 150ms var(--ease); } .sb-sec.shut .sb-chev { transform:rotate(-90deg); } .sb-sec.shut .sb-rows { display:none; } html.rail .sb-sec.shut .sb-rows { display:block; }
+
+.otp { display:flex; gap:10px; justify-content:flex-start; }
+.otp-box { width:52px; height:60px; padding:0; text-align:center; font-size:26px; font-weight:500; border-radius:10px; caret-color:transparent; }
+.otp-box.on { border-color:var(--blue, #2EB9EA); }
+.otp-box:focus { outline:none; border-color:var(--blue, #2EB9EA); box-shadow:0 0 0 3px rgba(46,185,234,.25); }
+@media (max-width:420px) { .otp { gap:6px; } .otp-box { width:42px; height:52px; font-size:22px; } }

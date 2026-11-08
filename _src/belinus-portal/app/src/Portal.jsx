@@ -236,7 +236,7 @@ function SecondFactor({ status, onDone }) {
       <h1>{t.codeTitle}</h1>
       <p>{mode === 'app' ? t.appCode : fmt(t.codeSent, { email: status.email })}</p>
       <form onSubmit={submit} className="stack">
-        <Field label={t.code}><input className="code-in" inputMode="numeric" autoComplete="one-time-code" maxLength="6" required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field>
+        <Field label={t.code}><OtpBoxes value={code} onChange={setCode} autoFocus autoSubmit label={t.code} /></Field>
         <Note kind="error">{err}</Note><Note>{info}</Note>
         <Btn busy={busy} type="submit">{t.verify}</Btn>
       </form>
@@ -1261,7 +1261,7 @@ function Security({ me }) {
         <form className="enroll" onSubmit={confirmEnroll}>
           <img src={enroll.totp.qr_code} alt="QR" width="180" height="180" />
           <div className="stack"><p>{t.totpScan}</p><p className="mono small">{enroll.totp.secret}</p>
-            <Field label={t.code}><input className="code-in" inputMode="numeric" maxLength="6" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} required /></Field>
+            <Field label={t.code}><OtpBoxes value={code} onChange={setCode} label={t.code} /></Field>
             <div className="acts"><Btn busy={busy === 'totp'} type="submit">{t.verify}</Btn><button type="button" className="btn ghost" onClick={() => setEnroll(null)}>{t.cancel}</button></div></div>
         </form>
       )}
@@ -1272,7 +1272,7 @@ function Security({ me }) {
           <label className="field"><span className="field-l">{t.newPassword}</span><PwInput autoComplete="new-password" value={pw.n1} onChange={(e) => setPw({ ...pw, n1: e.target.value })} required /><PwRules pw={pw.n1} /></label>
           <Field label={t.repeatPassword}><PwInput autoComplete="new-password" value={pw.n2} onChange={(e) => setPw({ ...pw, n2: e.target.value })} required /></Field>
         </div>
-        {!factor && <div className="row-code"><Field label={t.code}><input className="code-in" inputMode="numeric" maxLength="6" value={pw.code} onChange={(e) => setPw({ ...pw, code: e.target.value.replace(/\D/g, '') })} /></Field><button type="button" className="btn ghost" onClick={sendCode}>{t.sendCode}</button></div>}
+        {!factor && <div className="row-code"><Field label={t.code}><OtpBoxes value={pw.code} onChange={(x) => setPw({ ...pw, code: x })} label={t.code} /></Field><button type="button" className="btn ghost" onClick={sendCode}>{t.sendCode}</button></div>}
         <Note kind="error">{err}</Note><Note kind="ok">{msg}</Note>
         <Btn busy={busy === 'pw'} type="submit">{t.changePassword}</Btn>
       </form>
@@ -1354,3 +1354,19 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+// Six separate boxes for a 6-digit code (as in Clavoris): typing moves to the next box, Backspace goes back, arrows move,
+// pasting or SMS/mail autofill of the whole code fills all boxes. With autoSubmit the form is sent once all 6 are in.
+function OtpBoxes({ value, onChange, autoFocus, autoSubmit, label }) {
+  const refs = useRef([]), v = (value || '').replace(/\D/g, '').slice(0, 6), cells = Array.from({ length: 6 }, (_, i) => v[i] || '');
+  useEffect(() => { if (autoFocus) refs.current[Math.min(v.length, 5)]?.focus(); }, []);
+  const set = (next, focusAt, form) => { const s = next.replace(/\D/g, '').slice(0, 6); onChange(s); if (focusAt != null) setTimeout(() => refs.current[Math.max(0, Math.min(5, focusAt))]?.focus(), 0); if (autoSubmit && s.length === 6 && form) setTimeout(() => form.requestSubmit ? form.requestSubmit() : form.submit(), 60); };
+  const onInput = (i, e) => { const d = e.target.value.replace(/\D/g, ''); if (!d) return; if (d.length > 1) { set((v.slice(0, i) + d).slice(0, 6), i + d.length, e.target.form); return; } const arr = cells.slice(); arr[i] = d; set(arr.join(''), i + 1, e.target.form); };
+  const onKey = (i, e) => {
+    if (e.key === 'Backspace') { e.preventDefault(); const arr = cells.slice(); if (arr[i]) { arr[i] = ''; set(arr.join(''), i); } else if (i > 0) { arr[i - 1] = ''; set(arr.join(''), i - 1); } }
+    else if (e.key === 'ArrowLeft' && i > 0) { e.preventDefault(); refs.current[i - 1]?.focus(); }
+    else if (e.key === 'ArrowRight' && i < 5) { e.preventDefault(); refs.current[i + 1]?.focus(); }
+  };
+  const onPaste = (i, e) => { const d = (e.clipboardData?.getData('text') || '').replace(/\D/g, ''); if (!d) return; e.preventDefault(); set((v.slice(0, i) + d).slice(0, 6), i + d.length, e.target.form); };
+  return <div className="otp" role="group" aria-label={label || 'Code'}>{cells.map((c, i) => <input key={i} ref={(el) => (refs.current[i] = el)} className={'otp-box' + (c ? ' on' : '')} inputMode="numeric" pattern="[0-9]*" autoComplete={i === 0 ? 'one-time-code' : 'off'} maxLength={i === 0 ? 6 : 1} aria-label={(label || 'Code') + ' ' + (i + 1)} value={c} onChange={(e) => onInput(i, e)} onKeyDown={(e) => onKey(i, e)} onPaste={(e) => onPaste(i, e)} onFocus={(e) => e.target.select()} required={i === 0} />)}</div>;
+}

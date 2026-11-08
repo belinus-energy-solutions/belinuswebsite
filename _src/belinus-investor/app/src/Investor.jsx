@@ -137,7 +137,7 @@ function SecondFactor({ status, onDone }) {
       await onDone();
     } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <AuthFrame><h2>{t('Bevestig dat u het bent')}</h2><p className="lead">{mode === 'app' ? t('Vul de 6 cijfers uit uw authenticator-app in.') : t('Vul de code van 6 cijfers in die u per e-mail ontving.')}</p>
-    <form className="stack" onSubmit={submit}><Field label={t('Code')}><input className="code" inputMode="numeric" autoComplete="one-time-code" maxLength="6" required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field><Note kind="error">{err}</Note><Note>{mode === 'email' ? info : ''}</Note><Btn busy={busy} type="submit">{t('Bevestigen')}</Btn></form>
+    <form className="stack" onSubmit={submit}><Field label={t('Code')}><OtpBoxes value={code} onChange={setCode} autoFocus autoSubmit label={t('Code')} /></Field><Note kind="error">{err}</Note><Note>{mode === 'email' ? info : ''}</Note><Btn busy={busy} type="submit">{t('Bevestigen')}</Btn></form>
     <div className="auth-links">{mode === 'email' && <button className="link" onClick={send}>{t('Stuur een nieuwe code')}</button>}{status.totp && <button className="link" onClick={() => { setMode(mode === 'app' ? 'email' : 'app'); setCode(''); setErr(''); }}>{mode === 'app' ? t('Gebruik een code per e-mail') : t('Gebruik de authenticator-app')}</button>}<button className="link" onClick={() => sb.auth.signOut({ scope: 'local' }).then(() => location.reload())}>{t('Afmelden')}</button></div></AuthFrame>;
 }
 
@@ -243,7 +243,7 @@ function Account({ d, reload, email }) {
     <div className="card stack"><h2>{t('Taal')}</h2><Field label={t('Taal van het portaal en van uw e-mails')}><select value={LANG} onChange={(e) => saveLang(e.target.value)}><option value="nl">Nederlands</option><option value="fr">Français</option><option value="en">English</option></select></Field></div>
     <div className="card stack"><h2>{t('Aanmelden in twee stappen')}</h2><p style={{ margin: 0 }}>{t('Na uw wachtwoord bevestigt u elke aanmelding met een code per e-mail of, als u die activeert, met een authenticator-app.')}</p>
       {factor ? <div className="row"><span className="chip ok">{t('Authenticator-app actief')}</span><button className="btn danger sm" onClick={remove}>{t('Verwijderen')}</button></div> : !enroll ? <div><Btn kind="ghost" busy={busy} onClick={start}>{t('Authenticator-app activeren')}</Btn></div> :
-        <form className="stack" onSubmit={confirm}><p style={{ margin: 0 }}>{t('Scan deze QR-code met uw authenticator-app en vul de code in.')}</p><img src={enroll.totp.qr_code} alt="QR-code" width="180" height="180" /><p className="hint" style={{ margin: 0, wordBreak: 'break-all' }}>{t('Handmatige sleutel:')} {enroll.totp.secret}</p><Field label={t('Code')}><input className="code" inputMode="numeric" maxLength="6" required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field><div><Btn busy={busy} type="submit">{t('Activeren')}</Btn></div></form>}
+        <form className="stack" onSubmit={confirm}><p style={{ margin: 0 }}>{t('Scan deze QR-code met uw authenticator-app en vul de code in.')}</p><img src={enroll.totp.qr_code} alt="QR-code" width="180" height="180" /><p className="hint" style={{ margin: 0, wordBreak: 'break-all' }}>{t('Handmatige sleutel:')} {enroll.totp.secret}</p><Field label={t('Code')}><OtpBoxes value={code} onChange={setCode} autoFocus label={t('Code')} /></Field><div><Btn busy={busy} type="submit">{t('Activeren')}</Btn></div></form>}
     </div>
     <div className="card stack"><h2>{t('Wachtwoord')}</h2><div><Btn kind="ghost" onClick={newPw}>{t('Stuur mij een link om te wijzigen')}</Btn></div></div>
   </>;
@@ -259,4 +259,20 @@ function Berichten({ d, reload }) {
     <div className="page-head"><div><h1 className="page-title">{t('Berichten')}</h1><p className="page-sub">{t('Berichten van EVChargeking en Belinus. U kunt hier antwoorden.')}</p></div></div>
     <div className="card stack"><div className="thread">{!msgs.length && <p className="hint" style={{ margin: 0 }}>{t('U hebt nog geen berichten.')}</p>}{msgs.map((m) => <div key={m.id} className={'bubble ' + (m.direction === 'out' ? 'in' : 'out')}><span className="hint">{m.direction === 'out' ? 'EVChargeking' : t('U')} · {whenNl(m.created_at)}</span><p>{m.body}</p></div>)}<div ref={end} /></div>
       <Field label={t('Uw antwoord')}><textarea rows={4} maxLength="8000" value={txt} onChange={(e) => setTxt(e.target.value)} /></Field><Note kind="ok">{ok}</Note><Note kind="error">{err}</Note><div><Btn busy={busy} disabled={!txt.trim()} onClick={send}>{t('Versturen')}</Btn></div></div></>;
+}
+
+// Six separate boxes for a 6-digit code (as in Clavoris): typing moves to the next box, Backspace goes back, arrows move,
+// pasting or SMS/mail autofill of the whole code fills all boxes. With autoSubmit the form is sent once all 6 are in.
+function OtpBoxes({ value, onChange, autoFocus, autoSubmit, label }) {
+  const refs = useRef([]), v = (value || '').replace(/\D/g, '').slice(0, 6), cells = Array.from({ length: 6 }, (_, i) => v[i] || '');
+  useEffect(() => { if (autoFocus) refs.current[Math.min(v.length, 5)]?.focus(); }, []);
+  const set = (next, focusAt, form) => { const s = next.replace(/\D/g, '').slice(0, 6); onChange(s); if (focusAt != null) setTimeout(() => refs.current[Math.max(0, Math.min(5, focusAt))]?.focus(), 0); if (autoSubmit && s.length === 6 && form) setTimeout(() => form.requestSubmit ? form.requestSubmit() : form.submit(), 60); };
+  const onInput = (i, e) => { const d = e.target.value.replace(/\D/g, ''); if (!d) return; if (d.length > 1) { set((v.slice(0, i) + d).slice(0, 6), i + d.length, e.target.form); return; } const arr = cells.slice(); arr[i] = d; set(arr.join(''), i + 1, e.target.form); };
+  const onKey = (i, e) => {
+    if (e.key === 'Backspace') { e.preventDefault(); const arr = cells.slice(); if (arr[i]) { arr[i] = ''; set(arr.join(''), i); } else if (i > 0) { arr[i - 1] = ''; set(arr.join(''), i - 1); } }
+    else if (e.key === 'ArrowLeft' && i > 0) { e.preventDefault(); refs.current[i - 1]?.focus(); }
+    else if (e.key === 'ArrowRight' && i < 5) { e.preventDefault(); refs.current[i + 1]?.focus(); }
+  };
+  const onPaste = (i, e) => { const d = (e.clipboardData?.getData('text') || '').replace(/\D/g, ''); if (!d) return; e.preventDefault(); set((v.slice(0, i) + d).slice(0, 6), i + d.length, e.target.form); };
+  return <div className="otp" role="group" aria-label={label || 'Code'}>{cells.map((c, i) => <input key={i} ref={(el) => (refs.current[i] = el)} className={'otp-box' + (c ? ' on' : '')} inputMode="numeric" pattern="[0-9]*" autoComplete={i === 0 ? 'one-time-code' : 'off'} maxLength={i === 0 ? 6 : 1} aria-label={(label || 'Code') + ' ' + (i + 1)} value={c} onChange={(e) => onInput(i, e)} onKeyDown={(e) => onKey(i, e)} onPaste={(e) => onPaste(i, e)} onFocus={(e) => e.target.select()} required={i === 0} />)}</div>;
 }

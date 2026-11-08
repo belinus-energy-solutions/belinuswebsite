@@ -163,3 +163,9 @@ a.seg-b { text-decoration: none; } .desk-seg { margin-bottom: 14px; }
 .doc-rows { list-style: none; margin: 8px 0 14px; padding: 0; display: grid; gap: 8px; font-size: 14px; } .doc-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; } .doc-row .grow { flex: 1; min-width: 200px; } .doc-row b { font-weight: 400; }
 .tbl tr.click { cursor: pointer; }
 .doc-rows.card { padding: 18px 24px; }
+
+.otp { display:flex; gap:10px; justify-content:flex-start; }
+.otp-box { width:52px; height:60px; padding:0; text-align:center; font-size:26px; font-weight:500; border-radius:10px; caret-color:transparent; }
+.otp-box.on { border-color:var(--blue, #2EB9EA); }
+.otp-box:focus { outline:none; border-color:var(--blue, #2EB9EA); box-shadow:0 0 0 3px rgba(46,185,234,.25); }
+@media (max-width:420px) { .otp { gap:6px; } .otp-box { width:42px; height:52px; font-size:22px; } }
