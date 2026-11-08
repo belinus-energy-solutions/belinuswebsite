@@ -34,7 +34,7 @@ function syncLang(d) { if (d.investor && d.investor.lang && d.investor.lang !== 
 function App() {
   const route = useRoute();
   const [st, setSt] = useState({ phase: 'boot' });
-  const loadData = useCallback(async () => { const d = await fn('bel-inv', { action: 'me' }); syncLang(d); setSt((s) => ({ ...s, phase: 'in', d })); return d; }, []);
+  const loadData = useCallback(async () => { let d; try { d = await fn('bel-inv', { action: 'me' }); } catch (e) { if (AS) { stopAs(); return; } throw e; } if (!d.as) syncLang(d); setSt((s) => ({ ...s, phase: 'in', d })); return d; }, []);
   const load = useCallback(async () => {
     const { data: s } = await sb.auth.getSession();
     if (!s?.session) { setSt({ phase: 'out' }); return; }
@@ -53,17 +53,17 @@ function App() {
   if (st.phase === 'mfa') return <SecondFactor status={st.status} onDone={load} />;
   const d = st.d;
   if (!d) return <div className="boot"><span className="spin" /></div>;
-  const hasInv = !!d.investor, role = d.admin;
+  const acting = d.as, role = d.admin, hasInv = !!d.investor && (!role || !!acting);
   const name = hasInv ? (d.investor.company_name || [d.investor.first_name, d.investor.last_name].filter(Boolean).join(' ')) : '';
   const P = { beheer: AdmOverview, investeerders: AdmInvestors, opvolging: AdmFollow, afspraken: AdmBookings, beschikbaarheid: AdmAvail, instellingen: AdmSettings };
   let body;
   if (page === 'account') body = <Account d={d} reload={loadData} email={st.email} />;
-  else if (role && P[page]) { const C = P[page]; body = <C />; }
+  else if (role && !acting && P[page]) { const C = P[page]; body = <C />; }
   else if (hasInv && page === 'keuze') body = <Keuze d={d} reload={loadData} />;
   else if (hasInv && page === 'afspraak') body = <Afspraak d={d} reload={loadData} />;
   else if (hasInv) body = <Home d={d} />;
   else if (role) body = <AdmOverview />;
-  return <Shell page={!hasInv && !P[page] && page !== 'account' ? 'beheer' : page} investor={hasInv} role={role} email={st.email} name={name}>{body}</Shell>;
+  return <Shell page={!hasInv && !P[page] && page !== 'account' ? 'beheer' : page} investor={hasInv} role={acting ? null : role} email={st.email} name={name}>{acting && <AsBanner d={d} reload={loadData} />}{body}</Shell>;
 }
 function Root() { useLang(); return <App />; }
 ReactDOM.createRoot(document.getElementById('root')).render(<Root />);

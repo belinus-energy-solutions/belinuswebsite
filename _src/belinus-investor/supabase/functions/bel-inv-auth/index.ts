@@ -3,13 +3,9 @@
 //   { action: "start", email }            e-mails a one-time link (24 h) to set a password (first access or forgotten)
 //   { action: "check", code }             -> { ok, email } while the link is valid
 //   { action: "set_password", code, password } -> { ok, email }; the page then signs in with the password
-import { adminClient, audit, clientIp, cors, EMAIL, json, mailConfigured, pickLang, sendAccessLink, sha256, str } from "../_shared/inv.ts";
+import { adminClient, audit, clientIp, cors, EMAIL, json, mailConfigured, pickLang, sendAccessLink, sha256, str, strong } from "../_shared/inv.ts";
 
 // At least 12 characters, at least 3 of the 4 character types, no more than 2 identical characters in a row (Steve, 8 November 2026).
-function strong(p: string): boolean {
-  const types = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
-  return p.length >= 12 && p.length <= 128 && types >= 3 && !/(.)\1\1/su.test(p);
-}
 
 async function leaked(p: string): Promise<boolean> {
   try {

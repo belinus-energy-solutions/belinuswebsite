@@ -1,7 +1,7 @@
 // bel-inv — signed-in investor actions of the EVChargeking investor area.
 // Second factor (as in Clavoris: a code by e-mail, or the authenticator app): mfa_status, mfa_send, mfa_verify, mfa_totp_done.
 // After it: me, choose, slots, book, cancel, set_phone.
-import { access, adminClient, APP_URL, applyChoice, audit, claims, clientIp, cors, currentUser, dateIn, eventTitle, hello, json, KIND_L, nlDate, pickLang, sendMail, settings, sha256, str } from "../_shared/inv.ts";
+import { access, adminClient, APP_URL, applyChoice, audit, claims, clientIp, cors, currentUser, dateIn, eventTitle, hello, json, KIND_L, nlDate, pickLang, sendMail, settings, sha256, str, strong } from "../_shared/inv.ts";
 
 const TOPICS = ["keuze", "terugbetaling", "andere"];
 const KIND_NL: Record<string, string> = { visit: "Bezoek op een investeerdersdag", video: "Videogesprek", callback: "Terugbelverzoek" };
@@ -53,8 +53,11 @@ Deno.serve(async (req) => {
   const a = adminClient();
   const u = await currentUser(a, req);
   if (!u) return json({ error: "unauthorized" }, 401);
-  const { data: inv } = await a.from("inv_investors").select("*").eq("user_id", u.id).maybeSingle();
-  const acc = await access(a, u);
+  const { data: self } = await a.from("inv_investors").select("*").eq("user_id", u.id).maybeSingle();
+  let inv: any = self;
+  const acc0 = await access(a, u);
+  // The demo investor signs in with a password only (Steve, 8 November 2026). No other account is exempt.
+  const acc = self?.is_demo ? { ...acc0, mfa: true } : acc0;
   if ((!inv && !acc.role) || inv?.status === "suspended") return json({ error: "forbidden" }, 403);
   const c = claims(u.jwt), sessionId = c.session_id as string;
   const ip = clientIp(req);
@@ -100,6 +103,18 @@ Deno.serve(async (req) => {
   if (action === "mfa_totp_done") { if (c.aal !== "aal2") return json({ error: "mfa-required" }, 401); return await complete("totp"); }
 
   if (!acc.mfa) return json({ error: "mfa-required" }, 401);
+  // Admins can view the portal as an investor. A real investor is read-only; the demo investor is fully usable and its mail goes to the admin.
+  let asMode = "", demoEmail = "";
+  if (body.as) {
+    if (!acc.role) return json({ error: "forbidden" }, 403);
+    const { data: target } = await a.from("inv_investors").select("*").eq("id", String(body.as)).maybeSingle();
+    if (!target) return json({ error: "not-found" }, 404);
+    asMode = target.is_demo ? "demo" : "view";
+    demoEmail = target.email;
+    inv = target.is_demo ? { ...target, email: u.email } : target;
+    if (action === "me") await audit(a, u, "view-as", target.email, { mode: asMode, ip });
+  }
+  const notifyTo = (st: any) => asMode === "demo" ? u.email : inv.is_test ? "steve@belinus.com" : (st.notify_email || "erwin@evchargeking.com");
   const s = await settings(a);
   const closed = Date.now() > new Date(s.deadline).getTime();
 
@@ -115,9 +130,35 @@ Deno.serve(async (req) => {
     ]);
     const events = (ev || []).map((e: any) => ({ ...e, free: e.capacity - (used || []).filter((x: any) => x.event_id === e.id).reduce((n: number, x: any) => n + x.persons, 0), capacity: undefined }));
     const gift = ch && ch.choice !== "C" && s.gift?.text ? s.gift : null;
-    return json({ ok: true, admin: acc.role, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
+    return json({ ok: true, admin: acc.role, as: asMode ? { mode: asMode, id: inv.id, admin_email: u.email } : null, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
   }
   if (!inv) return json({ error: "not-investor" }, 403);
+  if (asMode === "view" && action !== "slots") return json({ error: "view-only" }, 403);
+  if (action === "demo_reset") {
+    if (asMode !== "demo") return json({ error: "forbidden" }, 403);
+    for (const t of ["inv_bookings", "inv_followups", "inv_choice_log", "inv_choices", "inv_links"]) await a.from(t).delete().eq("investor_id", inv.id);
+    await a.from("inv_investors").update({ phone: null, lang: "nl" }).eq("id", inv.id);
+    await audit(a, u, "demo-reset", demoEmail);
+    return json({ ok: true });
+  }
+  if (action === "demo_password") {
+    if (asMode !== "demo") return json({ error: "forbidden" }, 403);
+    const password = String(body.password || "");
+    if (!strong(password)) return json({ error: "weak-password" }, 400);
+    let uid: string | null = inv.user_id;
+    if (!uid) { const { data } = await a.rpc("inv_auth_user_id", { p_email: demoEmail }); uid = data || null; }
+    if (uid) {
+      const { error } = await a.auth.admin.updateUserById(uid, { password, email_confirm: true });
+      if (error) { console.error("inv demo user", error.message); return json({ error: "server-error" }, 500); }
+    } else {
+      const { data, error } = await a.auth.admin.createUser({ email: demoEmail, password, email_confirm: true, app_metadata: { app: "belinus-investor" } });
+      if (error || !data?.user) { console.error("inv demo user", error?.message); return json({ error: "server-error" }, 500); }
+      uid = data.user.id;
+    }
+    await a.from("inv_investors").update({ user_id: uid, status: "active", activated_at: new Date().toISOString() }).eq("id", inv.id);
+    await audit(a, u, "demo-password", demoEmail);
+    return json({ ok: true });
+  }
 
   if (action === "set_lang") { if (!["nl", "fr", "en"].includes(body.lang)) return json({ error: "bad-input" }, 400); await a.from("inv_investors").update({ lang: body.lang }).eq("id", inv.id); return json({ ok: true }); }
   if (action === "set_phone") { await a.from("inv_investors").update({ phone: str(body.phone, 40) || null }).eq("id", inv.id); return json({ ok: true }); }
@@ -175,7 +216,7 @@ Deno.serve(async (req) => {
     const L = pickLang(inv.lang), K = KIND_L[L][kind], BT = { nl: [`Bevestiging van uw afspraak: ${K}`, "Uw afspraak is bevestigd.", "Afspraak verplaatsen of annuleren kan in het portaal:", "Met vriendelijke groeten,"], fr: [`Confirmation de votre rendez-vous : ${K}`, "Votre rendez-vous est confirmé.", "Vous pouvez déplacer ou annuler le rendez-vous dans le portail :", "Cordialement,"], en: [`Confirmation of your appointment: ${K}`, "Your appointment is confirmed.", "You can move or cancel the appointment in the portal:", "Kind regards,"] }[L];
     await sendMail(a, { to: inv.email, kind: "booking", lang: L, subject: BT[0], ics: ics({ id, title: `EVChargeking: ${K}`, start: b.starts_at, end: b.ends_at, location: kind === "visit" ? b.inv_events.address : undefined, desc: detailIn(L) }), text: `${hello(inv.first_name, L)}\n\n${BT[1]}\n\n${K}\n${detailIn(L)}\n\n${BT[2]} ${APP_URL}/afspraak\n\n${BT[3]}\nEVChargeking` });
     const name = inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email;
-    await sendMail(a, { to: inv.is_test ? "steve@belinus.com" : (s.notify_email || "erwin@evchargeking.com"), kind: "booking-notice", subject: `Nieuwe afspraak: ${name} (${KIND_NL[kind]})`, ics: ics({ id, title: `Investeerder ${name}: ${KIND_NL[kind]}`, start: b.starts_at, end: b.ends_at, location: kind === "visit" ? b.inv_events.address : undefined, desc: `${detail}\nOnderwerp: ${topic}\n${message}` }), text: `Nieuwe afspraak via het investeerdersportaal.\n\nInvesteerder: ${name} (${inv.email})\n${KIND_NL[kind]}\n${detail}\nOnderwerp: ${topic}${message ? "\nBericht: " + message : ""}` });
+    await sendMail(a, { to: notifyTo(s), kind: "booking-notice", subject: `Nieuwe afspraak: ${name} (${KIND_NL[kind]})`, ics: ics({ id, title: `Investeerder ${name}: ${KIND_NL[kind]}`, start: b.starts_at, end: b.ends_at, location: kind === "visit" ? b.inv_events.address : undefined, desc: `${detail}\nOnderwerp: ${topic}\n${message}` }), text: `Nieuwe afspraak via het investeerdersportaal.\n\nInvesteerder: ${name} (${inv.email})\n${KIND_NL[kind]}\n${detail}\nOnderwerp: ${topic}${message ? "\nBericht: " + message : ""}` });
     await audit(a, u, "booking", inv.email, { id, kind });
     return json({ ok: true, id });
   }
@@ -187,7 +228,7 @@ Deno.serve(async (req) => {
     await a.from("inv_bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", b.id);
     const CL = pickLang(inv.lang), CK = KIND_L[CL][b.kind], CW = dateIn(b.starts_at, true, CL), CT = { nl: ["Uw afspraak is geannuleerd – EVChargeking", `Uw afspraak (${CK}, ${CW}) is geannuleerd.\n\nEen nieuwe afspraak maken kan via ${APP_URL}/afspraak`], fr: ["Votre rendez-vous est annulé – EVChargeking", `Votre rendez-vous (${CK}, ${CW}) est annulé.\n\nVous pouvez prendre un nouveau rendez-vous via ${APP_URL}/afspraak`], en: ["Your appointment has been cancelled – EVChargeking", `Your appointment (${CK}, ${CW}) has been cancelled.\n\nYou can make a new appointment at ${APP_URL}/afspraak`] }[CL];
     await sendMail(a, { to: inv.email, kind: "booking-cancel", lang: CL, subject: CT[0], text: CT[1] });
-    await sendMail(a, { to: inv.is_test ? "steve@belinus.com" : (s.notify_email || "erwin@evchargeking.com"), kind: "booking-notice", subject: `Afspraak geannuleerd: ${inv.email}`, text: `${inv.email} annuleerde: ${KIND_NL[b.kind]}, ${nlDate(b.starts_at, true)}.` });
+    await sendMail(a, { to: notifyTo(s), kind: "booking-notice", subject: `Afspraak geannuleerd: ${inv.email}`, text: `${inv.email} annuleerde: ${KIND_NL[b.kind]}, ${nlDate(b.starts_at, true)}.` });
     await audit(a, u, "booking-cancel", inv.email, { id: b.id });
     return json({ ok: true });
   }
