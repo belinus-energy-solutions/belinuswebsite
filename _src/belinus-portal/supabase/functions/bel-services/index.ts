@@ -26,8 +26,9 @@ async function records(cids: number[]) {
     rpc("sale.order", "search_read", [[["company_id", "=", COMPANY], ["partner_id", "child_of", cids], ["state", "in", ["sent", "sale", "cancel"]]]], { fields: ["name", "date_order", "state", "invoice_ids"], order: "date_order desc", limit: 200 }),
     rpc("account.move", "search_read", [[["company_id", "=", COMPANY], ["commercial_partner_id", "in", cids], ["move_type", "in", ["out_invoice", "out_refund"]], ["state", "=", "posted"]]], { fields: ["name", "invoice_date", "move_type"], order: "invoice_date desc", limit: 300 }),
   ]);
-  return { orders: orders.filter((o: any) => o.state !== "cancel" || o.invoice_ids.length || !/^QT/i.test(o.name)), moves };
+  return { orders: orders.filter((o: any) => (o.state !== "cancel" || o.invoice_ids.length || !/^QT/i.test(o.name)) && !HIDDEN.has(o.name)), moves };
 }
+let HIDDEN = new Set<string>(); // orders hidden from the portal (bel_odoo_overrides)
 const attachmentDomain = (o: number[], m: number[]) => ["|", "&", ["res_model", "=", "sale.order"], ["res_id", "in", o], "&", ["res_model", "=", "account.move"], ["res_id", "in", m]];
 async function existingCustomer(email: string): Promise<boolean> {
   const cids = await customerIds(email);
@@ -58,12 +59,14 @@ Deno.serve(async (req) => {
 
   const asPartner = me.role === "super" && Number.isInteger(Number(body.as_partner)) && Number(body.as_partner) > 0 ? Number(body.as_partner) : 0; // read-only "view as customer"
   if (action !== "list") {
+    const { data: ov } = await a.from("bel_odoo_overrides").select("number").eq("kind", "order").eq("status", "hidden");
+    HIDDEN = new Set((ov || []).map((x: any) => x.number));
     if (!KEY) return json({ error: "odoo-unavailable" }, 503);
     try {
       const cids = asPartner ? [asPartner] : await customerIds(user.email.toLowerCase());
       if (action === "products") {
         if (!cids.length) return json({ ok: true, products: [] });
-        const orders = await rpc("sale.order", "search_read", [[["company_id", "=", COMPANY], ["partner_id", "child_of", cids], ["state", "=", "sale"]]], { fields: ["name", "date_order"], order: "date_order desc", limit: 200 });
+        const orders = (await rpc("sale.order", "search_read", [[["company_id", "=", COMPANY], ["partner_id", "child_of", cids], ["state", "=", "sale"]]], { fields: ["name", "date_order"], order: "date_order desc", limit: 200 })).filter((o: any) => !HIDDEN.has(o.name));
         if (!orders.length) return json({ ok: true, products: [] });
         const lines = await rpc("sale.order.line", "search_read", [[["order_id", "in", orders.map((o: any) => o.id)], ["display_type", "=", false], ["product_id.type", "in", ["consu", "product", "combo"]]]], { fields: ["order_id", "product_id", "product_uom_qty"], limit: 1000 });
         const by = new Map(orders.map((o: any) => [o.id, o]));

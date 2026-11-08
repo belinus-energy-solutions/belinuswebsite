@@ -823,14 +823,16 @@ function Invoices() {
   useEffect(() => { fn('bel-odoo', { action: 'invoices' }).then((r) => setD({ inv: r.invoices, pay: r.payments })).catch((e) => { setErr(errText(t, e)); setD({ inv: [], pay: [] }); }); }, []);
   if (!d) return <p className="muted">{t.loading}</p>;
   const openSum = d.inv.filter((i) => i.kind === 'invoice' && ['open', 'partly_paid', 'overdue'].includes(i.status)).reduce((x, i) => x + Number(i.residual), 0);
+  const credits = d.inv.filter((i) => i.kind === 'credit' && i.status !== 'cancelled'), invoicesOnly = d.inv.filter((i) => i.kind !== 'credit');
+  const repaySum = credits.reduce((x, i) => x + Number(i.residual), 0);
   return (
     <>
-      <PageHead title={t.menu.invoices} lead={t.invoicesLead} action={openSum > 0 ? <div className="kpi"><small>{t.toPay}</small><b>{eur(openSum, lang)}</b></div> : null} />
+      <PageHead title={t.menu.invoices} lead={t.invoicesLead} action={openSum > 0 || repaySum > 0 ? <div className="acts">{openSum > 0 ? <div className="kpi"><small>{t.toPay}</small><b>{eur(openSum, lang)}</b></div> : null}{repaySum > 0 ? <div className="kpi"><small>{t.toRepay}</small><b>{eur(repaySum, lang)}</b></div> : null}</div> : null} />
       <Note kind="error">{err}</Note>
       {!d.inv.length ? (err ? null : <Empty>{t.invoicesEmpty}</Empty>) : (
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>{t.invoice}</th><th>{t.issued}</th><th>{t.due}</th><th className="num">{t.amount}</th><th className="num">{t.paid}</th><th></th><th></th></tr></thead>
-          <tbody>{d.inv.map((i) => (
+          <tbody>{invoicesOnly.map((i) => (
             <tr key={i.id}>
               <td className="mono">{i.number}{i.kind === 'credit' ? <small className="ref">{t.creditNote}</small> : i.status !== 'paid' && i.structured_ref ? <small className="ref">{t.payRef}: {i.structured_ref}</small> : null}</td>
               <td data-l={t.issued}>{day(i.issued_at, lang)}</td><td data-l={t.due}>{day(i.due_at, lang)}</td>
@@ -841,6 +843,7 @@ function Invoices() {
           ))}</tbody>
         </table></div>
       )}
+      {credits.length ? <section className="block"><h2>{t.creditNotes}</h2><div className="table-wrap"><table className="tbl"><thead><tr><th>{t.creditNote}</th><th>{t.issued}</th><th className="num">{t.amount}</th><th className="num">{t.repaid}</th><th className="num">{t.toRepay}</th><th></th><th></th></tr></thead><tbody>{credits.map((i) => <tr key={i.id}><td className="mono">{i.number}</td><td data-l={t.issued}>{day(i.issued_at, lang)}</td><td className="num" data-l={t.amount}>{eur(Math.abs(i.total_incl), lang)}</td><td className="num" data-l={t.repaid}>{eur(Math.abs(i.amount_paid), lang)}</td><td className="num" data-l={t.toRepay}><b>{eur(i.residual, lang)}</b></td><td><Badge tone={TONE[i.status] || 'amber'}>{t.iStatus[i.status]}</Badge></td><td><button className="link" onClick={() => odooPdf('invoice', i.odoo_id, i.number, t)}>PDF</button></td></tr>)}</tbody></table></div></section> : null}
       {d.pay.length ? <section className="block"><h2>{t.payments}</h2><div className="table-wrap"><table className="tbl"><tbody>{d.pay.map((p) => <tr key={p.id}><td>{day(p.paid_at, lang)}</td><td>{p.reference || ''}</td><td className="num">{eur(p.amount, lang)}</td></tr>)}</tbody></table></div></section> : null}
     </>
   );
@@ -919,7 +922,7 @@ function Dashboard({ me }) {
       <div className="tiles"><Tile v={d.tickets.open} l={A.openTickets} to="#/desk" /><Tile v={d.tickets.safety} l={A.safety} to="#/desk?q=safety" bad={d.tickets.safety > 0} /><Tile v={d.tickets.overdue} l={A.overdue} to="#/desk" bad={d.tickets.overdue > 0} /><Tile v={d.tickets.unassigned} l={A.unassigned} to="#/desk?q=unassigned" /></div>
       <h2>{t.menu.recall}</h2>
       <div className="tiles"><Tile v={d.recall.total} l={A.recallTotal} to="#/customers?f=recall" /><Tile v={d.recall.waiting} l={A.recallWaiting} to="#/customers?f=recall" bad={d.recall.waiting > 0} /><Tile v={d.recall.opened} l={A.recallOpened} to="#/customers?f=recall" /><Tile v={d.recall.signed + d.recall.done} l={A.recallSigned} to="#/customers?f=recall" /></div>
-      {o ? <><h2>Odoo · Belinus Energy BV</h2><div className="tiles"><Tile v={eur(o.open_amount, lang)} l={fmt(A.openInv, { n: o.open_invoices })} to="#/dashboard" /><Tile v={eur(o.repay_amount, lang)} l={fmt(A.repay, { n: o.repay_count })} to="#/dashboard" bad={o.repay_count > 0} /><Tile v={o.orders_to_deliver} l={A.toDeliver} to="#/dashboard" /></div></> : o === false ? <Note>{t.errors['odoo-unavailable']}</Note> : null}
+      {o ? <><h2>Odoo · Belinus Energy BV</h2><div className="tiles"><Tile v={eur(o.open_amount, lang)} l={fmt(A.openInv, { n: o.open_invoices })} to="#/dashboard" /><Tile v={eur(o.repay_amount, lang)} l={fmt(A.repay, { n: o.repay_count })} to="#/dashboard" bad={o.repay_count > 0} /><Tile v={o.orders_to_deliver} l={A.toDeliver} to="#/dashboard" /></div>{o.repayments?.length ? <section className="block"><h2>{t.creditNotes}</h2><div className="table-wrap"><table className="tbl"><thead><tr><th>{t.creditNote}</th><th>{A.name}</th><th>{t.issued}</th><th className="num">{t.amount}</th><th className="num">{t.toRepay}</th></tr></thead><tbody>{o.repayments.map((r) => <tr key={r.number}><td className="mono">{r.number}</td><td>{r.customer}</td><td>{day(r.date, lang)}</td><td className="num">{eur(r.total, lang)}</td><td className="num"><b>{eur(r.outstanding, lang)}</b></td></tr>)}</tbody></table></div></section> : null}</> : o === false ? <Note>{t.errors['odoo-unavailable']}</Note> : null}
       <h2>{A.latest}</h2>
       {!d.latest.length ? <Empty>{A.noCustomers}</Empty> : <div className="list">{d.latest.map((p) => <a key={p.id} className="row-link" href={'#/customers/' + p.id}><span className="grow">{p.name}<small>{p.email} · {day(p.created_at, lang)}</small></span>{p.recall && <Badge tone="red">{t.rStatus[p.recall]}</Badge>}<span className="chev">›</span></a>)}</div>}
     </>

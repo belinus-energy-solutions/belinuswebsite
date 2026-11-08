@@ -47,7 +47,7 @@ const MOVE_FIELDS = ["name", "move_type", "invoice_date", "invoice_date_due", "a
 async function orders(cids: number[]) {
   const all = (await read("sale.order", orderDomain(cids), ["name", "date_order", "state", "delivery_status", "commitment_date", "expected_date", "amount_total", "picking_ids", "invoice_ids"], "date_order desc", 100))
     // A cancelled quotation (QT...) was never an order, unless it was already invoiced.
-    .filter((o: any) => o.state !== "cancel" || o.invoice_ids.length || !/^QT/i.test(o.name));
+    .filter((o: any) => (o.state !== "cancel" || o.invoice_ids.length || !/^QT/i.test(o.name)) && OV.get("order:" + o.name)?.status !== "hidden");
   if (!all.length) return [];
   const ids = all.map((o: any) => o.id), pids = all.flatMap((o: any) => o.picking_ids);
   const [lines, moves] = await Promise.all([
@@ -102,11 +102,12 @@ Deno.serve(async (req) => {
       const base = [["company_id", "=", COMPANY], ["state", "=", "posted"]];
       const [inv, cr, ord] = await Promise.all([
         read("account.move", [...base, ["move_type", "=", "out_invoice"], ["payment_state", "in", ["not_paid", "partial"]]], ["amount_residual"], "id", 2000),
-        read("account.move", [...base, ["move_type", "=", "out_refund"], ["payment_state", "in", ["not_paid", "partial"]]], ["amount_residual"], "id", 2000),
+        read("account.move", [...base, ["move_type", "=", "out_refund"], ["payment_state", "in", ["not_paid", "partial"]]], ["name", "partner_id", "invoice_date", "amount_total", "amount_residual"], "invoice_date desc", 2000),
         rpc("sale.order", "search_count", [[["company_id", "=", COMPANY], ["state", "=", "sale"], ["delivery_status", "in", ["pending", "started", "partial"]]]]),
       ]);
       const sum = (r: any[]) => r.reduce((s, x) => s + x.amount_residual, 0);
-      return json({ ok: true, open_invoices: inv.length, open_amount: sum(inv), repay_count: cr.length, repay_amount: sum(cr), orders_to_deliver: ord });
+      return json({ ok: true, open_invoices: inv.length, open_amount: sum(inv), repay_count: cr.length, repay_amount: sum(cr), orders_to_deliver: ord,
+        repayments: cr.map((x: any) => ({ number: x.name, customer: x.partner_id ? x.partner_id[1] : "", date: x.invoice_date, total: x.amount_total, outstanding: x.amount_residual })) });
     }
     const asPartner = me.role === "super" && Number.isInteger(Number(body.as_partner)) && Number(body.as_partner) > 0 ? Number(body.as_partner) : 0; // read-only "view as customer"
     const cids = asPartner ? [asPartner] : await customerIds(user.email.toLowerCase());
