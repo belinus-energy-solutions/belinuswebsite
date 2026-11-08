@@ -84,8 +84,10 @@ Deno.serve(async (req) => {
     const b0 = str(body.body, 8000);
     if (!b0) return json({ error: "bad-input" }, 400);
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang").eq("id", id).single();
-    const sent = await mailMessage(a, inv, b0);
-    const { data: m } = await a.from("inv_messages").insert({ investor_id: inv.id, direction: "out", body: b0, author: u.id, author_email: u.email, mail_status: sent ? "sent" : "failed" }).select("*").single();
+    const { data: m0, error: e0 } = await a.from("inv_messages").insert({ investor_id: inv.id, direction: "out", body: b0, author: u.id, author_email: u.email, mail_status: "sending" }).select("id").single();
+    if (e0) { console.error("inv message", e0.message); return json({ error: "server-error" }, 500); }
+    const sent = await mailMessage(a, inv, b0, m0.id);
+    const { data: m } = await a.from("inv_messages").update({ mail_status: sent ? "sent" : "failed" }).eq("id", m0.id).select("*").single();
     await audit(a, u, "message-sent", inv.email, { mail: sent });
     return json({ ok: true, message: m, mail: sent });
   }

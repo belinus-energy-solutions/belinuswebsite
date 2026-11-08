@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
       a.from("inv_events").select("id, title, starts_at, ends_at, address, capacity, arrival_slots, description").eq("active", true).gte("ends_at", new Date().toISOString()).order("starts_at"),
       a.from("inv_bookings").select("event_id, persons").eq("kind", "visit").eq("status", "confirmed"),
     ]);
-    const { data: msgs } = await a.from("inv_messages").select("id, direction, body, created_at, read_at").eq("investor_id", inv.id).order("created_at");
+    const { data: msgs } = await a.from("inv_messages").select("id, direction, body, created_at, read_at, channel").eq("investor_id", inv.id).order("created_at");
     const events = (ev || []).map((e: any) => ({ ...e, free: e.capacity - (used || []).filter((x: any) => x.event_id === e.id).reduce((n: number, x: any) => n + x.persons, 0), capacity: undefined }));
     const gift = ch && ch.choice !== "C" && s.gift?.text ? s.gift : null;
     return json({ ok: true, messages: msgs || [], admin: acc.role, as: asMode ? { mode: asMode, id: inv.id, admin_email: u.email } : null, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
   if (action === "message_reply") {
     const b0 = str(body.body, 8000);
     if (!b0) return json({ error: "bad-input" }, 400);
-    const { data: m } = await a.from("inv_messages").insert({ investor_id: inv.id, direction: "in", body: b0, author: asMode === "demo" ? null : u.id, author_email: inv.email }).select("id, direction, body, created_at, read_at").single();
+    const { data: m } = await a.from("inv_messages").insert({ investor_id: inv.id, direction: "in", body: b0, author: asMode === "demo" ? null : u.id, author_email: inv.email }).select("id, direction, body, created_at, read_at, channel").single();
     const who = inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email;
     await sendMail(a, { to: notifyTo(s), kind: "message-in", lang: "nl", subject: `Nieuw bericht van ${who}`, text: `${who} antwoordde in het investeerdersportaal:\n\n${b0}\n\nBekijk en antwoord: ${APP_URL}/#/investeerders/${inv.id}` });
     await audit(a, u, "message-reply", inv.email);

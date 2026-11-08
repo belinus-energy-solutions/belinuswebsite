@@ -70,7 +70,7 @@ const FROM_ADDR = Deno.env.get("INV_MAIL_FROM") || "investors@belinus.com", FROM
 const FONT = "'Arial Nova','Helvetica Neue',Helvetica,Arial,sans-serif";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const NOREPLY_FOOT = (u: string) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Dit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen. Vragen? Meld u aan op ${u} en maak een afspraak.`;
-function html(text: string, cta: { url: string; label: string } | undefined, L: Lang, noreply = false): string {
+function html(text: string, cta: { url: string; label: string } | undefined, L: Lang, noreply = false, foot = ""): string {
   const parts = text.replace(/\r/g, "").split(/\n{2,}/).map((p) => {
     if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">${esc(MC[L].btn)}<br>${esc(cta.url)}</p>`;
     if (p.startsWith("## ")) return `<p style="margin:26px 0 10px;font-family:${FONT};font-size:13px;letter-spacing:.06em;font-weight:700;color:#0A0C0F">${esc(p.slice(3).trim())}</p>`;
@@ -80,9 +80,9 @@ function html(text: string, cta: { url: string; label: string } | undefined, L: 
   return `<!doctype html><html lang="${L}"><head><meta charset="utf-8"></head><body style="margin:0;background:#F5F6F7"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px;overflow:hidden">`
     + `<tr><td style="padding:22px 36px;border-bottom:3px solid #2EB9EA"><table role="presentation" width="100%"><tr><td align="left"><img src="https://belinus.com/investor/assets/logo-evchargeking.png" height="30" alt="EVChargeking" style="height:30px;border:0"></td><td align="right"><img src="https://belinus.com/investor/assets/logo-belinus.png" height="24" alt="belinus" style="height:24px;border:0"></td></tr></table></td></tr>`
     + `<tr><td style="padding:30px 36px 14px">${parts.join("")}</td></tr>`
-    + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">${noreply ? NOREPLY_FOOT(APP_URL) : MC[L].foot(APP_URL)}</td></tr></table></td></tr></table></body></html>`;
+    + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">${foot || (noreply ? NOREPLY_FOOT(APP_URL) : MC[L].foot(APP_URL))}</td></tr></table></td></tr></table></body></html>`;
 }
-export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang; noreply?: boolean }): Promise<boolean> {
+export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang; noreply?: boolean; from?: string; replyTo?: string; foot?: string }): Promise<boolean> {
   const L = pickLang(m.lang);
   const log = (provider: string, status: string) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
@@ -90,15 +90,15 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
   try {
     if (key && domain) {
       const f = new FormData();
-      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta, L, !!m.noreply));
-      if (m.noreply) f.set("from", `${FROM_NAME} <${NOREPLY}>`); else f.set("h:Reply-To", REPLY); f.set("o:tracking", "no"); f.set("v:kind", m.kind);
+      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta, L, !!m.noreply, m.foot || ""));
+      if (m.noreply) f.set("from", `${FROM_NAME} <${NOREPLY}>`); else { if (m.from) f.set("from", `${FROM_NAME} <${m.from}>`); f.set("h:Reply-To", m.replyTo || REPLY); } f.set("o:tracking", "no"); f.set("v:kind", m.kind);
       if (m.ics) f.append("attachment", new File([m.ics], "afspraak.ics", { type: "text/calendar" }));
       const r = await fetch(`${(Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "")}/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", headers: { Authorization: "Basic " + btoa("api:" + key) }, body: f });
       if (!r.ok) throw new Error("mailgun " + r.status + " " + (await r.text()).slice(0, 200));
       await log("mailgun", "sent"); return true;
     }
     if (brevo) {
-      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : FROM_ADDR }, to: [{ email: m.to }], ...(m.noreply ? {} : { replyTo: { email: REPLY } }), subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta, L, !!m.noreply), tags: [m.kind], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : (m.from || FROM_ADDR) }, to: [{ email: m.to }], ...(m.noreply ? {} : { replyTo: { email: m.replyTo || REPLY } }), subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta, L, !!m.noreply, m.foot || ""), tags: [m.kind], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
       if (!r.ok) throw new Error("brevo " + r.status + " " + (await r.text()).slice(0, 200));
       await log("brevo", "sent"); return true;
     }
@@ -241,15 +241,18 @@ CEO, Belinus`;
   return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, subject: `EVChargeking wordt deel van de Belinus-groep – uw keuze uiterlijk op ${D}`, cta: { url, label: "Activeer uw account en maak uw keuze" }, text });
 }
 
-// ---- messages (Steve, 8 November 2026): admins write to an investor; the investor reads and answers only in the portal.
-// The e-mail carries the full text and a sign-in button, and cannot be answered.
-export async function mailMessage(a: SupabaseClient, inv: { email: string; first_name?: string | null; lang?: string | null }, body: string): Promise<boolean> {
+// ---- messages (Steve, 8 November 2026): admins write to an investor. The mail comes from investor@belinus.com and can be
+// answered: each message has its own reply address on the Mailgun domain (bericht-<message id>@mg.belinus.com), and the
+// answer lands in the investor's thread (bel-inv-inbound). The investor can also answer in the portal.
+export const MSG_FROM = Deno.env.get("INV_MSG_FROM") || "investor@belinus.com";
+export const replyAddress = (messageId: string) => `bericht-${messageId}@${Deno.env.get("INV_REPLY_DOMAIN") || Deno.env.get("MAILGUN_DOMAIN") || "mg.belinus.com"}`;
+export async function mailMessage(a: SupabaseClient, inv: { email: string; first_name?: string | null; lang?: string | null }, body: string, messageId: string): Promise<boolean> {
   const L = pickLang(inv.lang);
   const T = {
-    nl: ["Nieuw bericht van EVChargeking", "U hebt een nieuw bericht in het investeerdersportaal:", "Antwoorden kan alleen in het portaal. Meld u aan met uw e-mailadres en wachtwoord.", "Meld u aan om te antwoorden"],
-    fr: ["Nouveau message d'EVChargeking", "Vous avez un nouveau message dans le portail investisseurs :", "Vous pouvez répondre uniquement dans le portail. Connectez-vous avec votre adresse e-mail et votre mot de passe.", "Connectez-vous pour répondre"],
-    en: ["New message from EVChargeking", "You have a new message in the investor portal:", "You can only reply in the portal. Sign in with your e-mail address and password.", "Sign in to reply"],
+    nl: ["Nieuw bericht van EVChargeking", "U hebt een nieuw bericht in het investeerdersportaal:", "U kunt gewoon op deze e-mail antwoorden, of antwoorden in het portaal.", "Bekijk in het portaal", "U kunt op deze e-mail antwoorden. Uw antwoord komt bij uw berichten in het portaal."],
+    fr: ["Nouveau message d'EVChargeking", "Vous avez un nouveau message dans le portail investisseurs :", "Vous pouvez simplement répondre à cet e-mail, ou répondre dans le portail.", "Voir dans le portail", "Vous pouvez répondre à cet e-mail. Votre réponse sera ajoutée à vos messages dans le portail."],
+    en: ["New message from EVChargeking", "You have a new message in the investor portal:", "You can simply reply to this e-mail, or reply in the portal.", "View in the portal", "You can reply to this e-mail. Your answer is added to your messages in the portal."],
   }[L];
   const url = `${APP_URL}/#/berichten`;
-  return await sendMail(a, { to: inv.email, kind: "message", lang: L, noreply: true, subject: T[0], cta: { url, label: T[3] }, text: `${hello(inv.first_name, L)}\n\n${T[1]}\n\n${body}\n\n${T[2]}\n\n${url}` });
+  return await sendMail(a, { to: inv.email, kind: "message", lang: L, from: MSG_FROM, replyTo: replyAddress(messageId), foot: `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>${T[4]}`, subject: T[0], cta: { url, label: T[3] }, text: `${hello(inv.first_name, L)}\n\n${T[1]}\n\n${body}\n\n${T[2]}\n\n${url}` });
 }
