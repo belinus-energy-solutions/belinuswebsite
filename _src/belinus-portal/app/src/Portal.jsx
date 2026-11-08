@@ -711,7 +711,7 @@ function Orders() {
               {!cancelled && <><dt>{t.expected}</dt><dd>{day(o.expected_delivery, lang)}</dd></>}
               {o.total_incl != null && <><dt>{t.total}</dt><dd>{eur(o.total_incl, lang)}</dd></>}
             </dl>
-            {(o.bel_order_lines || []).length ? <ul className="lines">{o.bel_order_lines.map((l) => <li key={l.id}><span>{l.quantity} ×</span> {l.product}{l.description ? <small> — {l.description}</small> : null}</li>)}</ul> : null}
+            {(o.bel_order_lines || []).length ? <ul className="lines">{o.bel_order_lines.map((l) => <li key={l.id}><span>{l.quantity} ×</span> {String(l.product).replace(/^\[[^\]]*\]\s*/, '')}{l.description ? <small> — {l.description}</small> : null}</li>)}</ul> : null}
             {(o.bel_deliveries || []).length ? <><h4>{t.deliveries}</h4><ul className="lines">{o.bel_deliveries.map((d) => <li key={d.id}><Badge tone={TONE[d.status] || 'blue'}>{t.dStatus[d.status]}</Badge> {d.carrier || ''} {d.delivered_at ? day(d.delivered_at, lang) : d.planned_at ? day(d.planned_at, lang) : ''} {d.tracking_url ? <a href={d.tracking_url} target="_blank" rel="noopener">{t.track} ↗</a> : d.tracking_number || ''}</li>)}</ul></> : null}
             {(o.docs || []).length ? <><h4>{t.documents}</h4><ul className="doc-rows">{o.docs.map((d) => <DocRow key={d.id} d={d} />)}</ul></> : null}
             <button className="btn ghost sm" onClick={() => odooPdf('order', o.odoo_id, o.number, t)}>{o.status === 'quote' ? t.oStatus.quote : t.order} PDF</button>
