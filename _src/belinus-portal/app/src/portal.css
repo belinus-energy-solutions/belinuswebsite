@@ -158,3 +158,7 @@ a.seg-b { text-decoration: none; } .desk-seg { margin-bottom: 14px; }
 .kpi { background: var(--card); color: var(--fg1); border: 1px solid var(--line); box-shadow: var(--card-shadow); } .kpi small { color: var(--fg3); }
 .enroll img { background: #fff; }
 @media (max-width: 860px) { .row2, .row3 { grid-template-columns: 1fr; } .desk-seg { border-radius: 22px; } .desk-row .chev { display: none; } }
+
+.dash-tile { display: block; text-decoration: none; color: inherit; } .dash-tile:hover { border-color: var(--blue); } .main-in > h2 { margin: 24px 0 12px; }
+.doc-rows { list-style: none; margin: 8px 0 14px; padding: 0; display: grid; gap: 8px; font-size: 14px; } .doc-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; } .doc-row .grow { flex: 1; min-width: 200px; } .doc-row b { font-weight: 400; }
+.tbl tr.click { cursor: pointer; }

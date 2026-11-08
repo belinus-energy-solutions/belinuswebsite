@@ -50,7 +50,7 @@ function Note({ kind = 'info', children }) { return children ? <div className={'
 function Badge({ tone = 'grey', children }) { return <span className={'chip ' + ({ green: 'ok', amber: 'warn', red: 'bad', blue: 'info' }[tone] || '')}>{children}</span>; }
 function Empty({ children }) { return <div className="empty">{children}</div>; }
 function PageHead({ title, lead, action }) { return <div className="page-head"><div><h1 className="page-title">{title}</h1>{lead && <p className="page-sub">{lead}</p>}</div>{action}</div>; }
-const TONE = { pending: 'amber', active: 'green', delivered: 'green', installed: 'green', paid: 'green', signed: 'green', replaced: 'green', answered: 'blue', open: 'amber', opened: 'amber', sent: 'red', recalled: 'red', overdue: 'red', service: 'amber', closed: 'grey', cancelled: 'grey' };
+const TONE = { repay_pending: 'amber', repay_partial: 'amber', repaid: 'green', pending: 'amber', active: 'green', delivered: 'green', installed: 'green', paid: 'green', signed: 'green', replaced: 'green', answered: 'blue', open: 'amber', opened: 'amber', sent: 'red', recalled: 'red', overdue: 'red', service: 'amber', closed: 'grey', cancelled: 'grey' };
 
 // ---------- auth screens ----------
 function AuthFrame({ children }) {
@@ -274,7 +274,7 @@ function SwitchIn({ route }) {
 const MENU = ['products', 'library', 'recall', 'orders', 'invoices', 'support', 'assistant'];
 const ICON = {
   products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', library: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
-  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', services: 'M12 3l2.5 5.5L20 9.3l-4 4 1 5.7-5-2.8L7 19l1-5.7-4-4 5.5-.8z', messages: 'M3 6h18v12H3zM3 7l9 6 9-6', dashboard: 'M4 20V10M10 20V4M16 20v-7M22 20H2', customers: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
 const Icon = ({ n }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON[n]} /></svg>;
 
@@ -302,8 +302,8 @@ function Shell({ me, route, children, counts }) {
   const name = me.full_name || [me.first_name, me.last_name].filter(Boolean).join(' ') || me.email;
   const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
   const secs = [];
-  if (staff) secs.push([t.secManage, ['desk'], 'manage']);
-  secs.push([t.secInstall, ['products', 'library', 'recall'], 'install'], [t.secOrders, ['orders', 'invoices'], 'orders'], [t.secHelp, ['support', 'assistant'], 'help']);
+  if (staff) secs.push([t.secManage, me.role === 'super' ? ['dashboard', 'desk', 'customers'] : ['desk'], 'manage']);
+  secs.push([t.secInstall, ['products', 'services', 'library', 'recall'], 'install'], [t.secOrders, ['orders', 'invoices'], 'orders'], [t.secHelp, ['messages', 'support', 'assistant'], 'help']);
   const filt = (m) => !q || t.menu[m].toLowerCase().includes(q.toLowerCase());
   const tabs = staff ? ['desk', 'products', 'support'] : ['products', 'support', 'assistant'];
   const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); safeSet('inv_rail', on ? '1' : ''); };
@@ -543,7 +543,7 @@ function Recall({ route, me, refresh }) {
   return (
     <>
       <PageHead title={t.menu.recall} lead={t.recallLead} />
-      {!list.length ? <Empty>{t.recallEmpty}</Empty> : (
+      {!list.length ? <><RecallBanner /><Empty>{t.recallEmpty}</Empty></> : (
         <div className="list">
           {list.map((n) => (
             <a key={n.id} href={'#/recall/' + n.id} className={'row-link' + (!n.signed_at ? ' urgent' : '')}>
@@ -602,30 +602,49 @@ function RecallNotice({ id, me, refresh }) {
 
 // ---------- Orders and deliveries ----------
 const ORDER_STEPS = ['confirmed', 'in_production', 'ready', 'delivered', 'installed'];
+async function odooPdf(kind, id, name, t) {
+  try {
+    const { data: x } = await sb.auth.getSession();
+    const res = await fetch(`${CFG.url}/functions/v1/bel-odoo`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, authorization: 'Bearer ' + x?.session?.access_token }, body: JSON.stringify({ action: 'pdf', kind, id }) });
+    if (!res.ok) throw new Error('pdf-unavailable');
+    const url = URL.createObjectURL(await res.blob());
+    const l = document.createElement('a'); l.href = url; l.download = String(name).replace(/[^\w.-]+/g, '_') + '.pdf'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch (e) { alert(errText(t, e)); }
+}
+function DocRow({ d }) {
+  const { t, lang } = useT();
+  return <li className="doc-row"><span className="grow">{d.kind === 'credit' ? t.creditNote : t.invoice} <span className="mono">{d.number}</span> · {day(d.issued_at, lang)}</span><b>{eur(d.total_incl, lang)}</b><Badge tone={TONE[d.status] || 'amber'}>{t.iStatus[d.status]}</Badge><button className="link" onClick={() => odooPdf('invoice', d.odoo_id, d.number, t)}>PDF</button></li>;
+}
+const CANCEL_STEPS = ['cancelled', 'credit', 'repay_pending', 'repaid'];
 function Orders() {
   const { t, lang } = useT();
-  const [orders, setOrders] = useState(null);
-  useEffect(() => { sb.from('bel_orders').select('*, bel_order_lines(*), bel_deliveries(*)').order('ordered_at', { ascending: false }).then(({ data }) => setOrders(data || [])); }, []);
+  const [orders, setOrders] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { fn('bel-odoo', { action: 'orders' }).then((r) => setOrders(r.orders)).catch((e) => { setErr(errText(t, e)); setOrders([]); }); }, []);
   if (!orders) return <p className="muted">{t.loading}</p>;
   return (
     <>
       <PageHead title={t.menu.orders} lead={t.ordersLead} />
-      {!orders.length ? <Empty>{t.ordersEmpty}</Empty> : orders.map((o) => {
+      <Note kind="error">{err}</Note>
+      {!orders.length ? (err ? null : <Empty>{t.ordersEmpty}</Empty>) : orders.map((o) => {
         const idx = ORDER_STEPS.indexOf(o.status === 'partly_delivered' ? 'ready' : o.status);
+        const cancelled = o.status === 'cancelled';
+        const cIdx = !o.repayment ? 0 : o.repayment === 'repaid' ? 3 : 2;
+        const pending = (o.docs || []).filter((d) => d.kind === 'credit' && ['repay_pending', 'repay_partial'].includes(d.status)).reduce((x, d) => x + Number(d.residual), 0);
         return (
           <article key={o.id} className="card order">
-            <div className="card-top"><h3>{t.order} <span className="mono">{o.number}</span></h3><Badge tone={TONE[o.status] || 'blue'}>{t.oStatus[o.status]}</Badge></div>
-            {o.status !== 'cancelled' && o.status !== 'quote' && (
-              <ol className="steps">{ORDER_STEPS.map((s, i) => <li key={s} className={i <= idx ? 'done' : ''}><span />{t.oStatus[s]}</li>)}</ol>
-            )}
+            <div className="card-top"><h3>{o.status === 'quote' ? t.oStatus.quote : t.order} <span className="mono">{o.number}</span></h3><Badge tone={TONE[o.status] || 'blue'}>{t.oStatus[o.status]}</Badge></div>
+            {cancelled ? <ol className="steps" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>{CANCEL_STEPS.map((k, i) => <li key={k} className={i <= cIdx ? 'done' : ''}><span />{k === 'cancelled' ? t.oStatus.cancelled : k === 'credit' ? t.creditIssued : t.iStatus[k]}</li>)}</ol>
+              : o.status !== 'quote' && <ol className="steps">{ORDER_STEPS.map((k, i) => <li key={k} className={i <= idx ? 'done' : ''}><span />{t.oStatus[k]}</li>)}</ol>}
+            {pending > 0 && <Note>{fmt(t.repayNote, { amount: eur(pending, lang) })}</Note>}
             <dl className="kv">
               <dt>{t.ordered}</dt><dd>{day(o.ordered_at, lang)}</dd>
-              <dt>{t.expected}</dt><dd>{day(o.expected_delivery, lang)}</dd>
-              <dt>{t.installation}</dt><dd>{day(o.installation_date, lang)}</dd>
+              {!cancelled && <><dt>{t.expected}</dt><dd>{day(o.expected_delivery, lang)}</dd></>}
               {o.total_incl != null && <><dt>{t.total}</dt><dd>{eur(o.total_incl, lang)}</dd></>}
             </dl>
-            {(o.bel_order_lines || []).length ? <ul className="lines">{o.bel_order_lines.sort((a, b) => a.position - b.position).map((l) => <li key={l.id}><span>{l.quantity} ×</span> {l.product}{l.description ? <small> — {l.description}</small> : null}</li>)}</ul> : null}
-            {(o.bel_deliveries || []).length ? <><h4>{t.deliveries}</h4><ul className="lines">{o.bel_deliveries.map((d) => <li key={d.id}><Badge tone={TONE[d.status] || 'blue'}>{t.dStatus[d.status]}</Badge> {d.carrier || ''} {d.delivered_at ? day(d.delivered_at, lang) : d.planned_at ? day(d.planned_at, lang) : ''} {d.tracking_url ? <a href={d.tracking_url} target="_blank" rel="noopener">{t.track} ↗</a> : d.tracking_number ? <span className="mono">{d.tracking_number}</span> : null}</li>)}</ul></> : null}
+            {(o.bel_order_lines || []).length ? <ul className="lines">{o.bel_order_lines.map((l) => <li key={l.id}><span>{l.quantity} ×</span> {l.product}{l.description ? <small> — {l.description}</small> : null}</li>)}</ul> : null}
+            {(o.bel_deliveries || []).length ? <><h4>{t.deliveries}</h4><ul className="lines">{o.bel_deliveries.map((d) => <li key={d.id}><Badge tone={TONE[d.status] || 'blue'}>{t.dStatus[d.status]}</Badge> {d.carrier || ''} {d.delivered_at ? day(d.delivered_at, lang) : d.planned_at ? day(d.planned_at, lang) : ''} {d.tracking_url ? <a href={d.tracking_url} target="_blank" rel="noopener">{t.track} ↗</a> : d.tracking_number || ''}</li>)}</ul></> : null}
+            {(o.docs || []).length ? <><h4>{t.documents}</h4><ul className="doc-rows">{o.docs.map((d) => <DocRow key={d.id} d={d} />)}</ul></> : null}
+            <button className="btn ghost sm" onClick={() => odooPdf('order', o.odoo_id, o.number, t)}>{o.status === 'quote' ? t.oStatus.quote : t.order} PDF</button>
           </article>
         );
       })}
@@ -636,29 +655,169 @@ function Orders() {
 // ---------- Invoices and payments ----------
 function Invoices() {
   const { t, lang } = useT();
-  const [d, setD] = useState(null);
-  useEffect(() => { Promise.all([sb.from('bel_invoices').select('*').order('issued_at', { ascending: false }), sb.from('bel_payments').select('*').order('paid_at', { ascending: false })]).then(([i, p]) => setD({ inv: i.data || [], pay: p.data || [] })); }, []);
+  const [d, setD] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { fn('bel-odoo', { action: 'invoices' }).then((r) => setD({ inv: r.invoices, pay: r.payments })).catch((e) => { setErr(errText(t, e)); setD({ inv: [], pay: [] }); }); }, []);
   if (!d) return <p className="muted">{t.loading}</p>;
-  const openSum = d.inv.filter((i) => ['open', 'partly_paid', 'overdue'].includes(i.status)).reduce((s, i) => s + Number(i.total_incl) - Number(i.amount_paid), 0);
-  const openDoc = async (id) => { try { const r = await fn('bel-portal', { action: 'doc_url', id }); window.open(r.url, '_blank', 'noopener'); } catch (e) { alert(errText(t, e)); } };
+  const openSum = d.inv.filter((i) => i.kind === 'invoice' && ['open', 'partly_paid', 'overdue'].includes(i.status)).reduce((x, i) => x + Number(i.residual), 0);
   return (
     <>
       <PageHead title={t.menu.invoices} lead={t.invoicesLead} action={openSum > 0 ? <div className="kpi"><small>{t.toPay}</small><b>{eur(openSum, lang)}</b></div> : null} />
-      {!d.inv.length ? <Empty>{t.invoicesEmpty}</Empty> : (
+      <Note kind="error">{err}</Note>
+      {!d.inv.length ? (err ? null : <Empty>{t.invoicesEmpty}</Empty>) : (
         <div className="table-wrap"><table className="tbl">
           <thead><tr><th>{t.invoice}</th><th>{t.issued}</th><th>{t.due}</th><th className="num">{t.amount}</th><th className="num">{t.paid}</th><th></th><th></th></tr></thead>
           <tbody>{d.inv.map((i) => (
             <tr key={i.id}>
-              <td className="mono">{i.number}{i.status !== 'paid' && i.structured_ref ? <small className="ref">{t.payRef}: {i.structured_ref}</small> : null}</td>
+              <td className="mono">{i.number}{i.kind === 'credit' ? <small className="ref">{t.creditNote}</small> : i.status !== 'paid' && i.structured_ref ? <small className="ref">{t.payRef}: {i.structured_ref}</small> : null}</td>
               <td data-l={t.issued}>{day(i.issued_at, lang)}</td><td data-l={t.due}>{day(i.due_at, lang)}</td>
               <td className="num" data-l={t.amount}>{eur(i.total_incl, lang)}</td><td className="num" data-l={t.paid}>{eur(i.amount_paid, lang)}</td>
               <td><Badge tone={TONE[i.status] || 'amber'}>{t.iStatus[i.status]}</Badge></td>
-              <td>{i.document_id ? <button className="link" onClick={() => openDoc(i.document_id)}>PDF</button> : null}</td>
+              <td><button className="link" onClick={() => odooPdf('invoice', i.odoo_id, i.number, t)}>PDF</button></td>
             </tr>
           ))}</tbody>
         </table></div>
       )}
-      {d.pay.length ? <section className="block"><h2>{t.payments}</h2><div className="table-wrap"><table className="tbl"><tbody>{d.pay.map((p) => <tr key={p.id}><td>{day(p.paid_at, lang)}</td><td>{p.reference || p.method || ''}</td><td className="num">{eur(p.amount, lang)}</td></tr>)}</tbody></table></div></section> : null}
+      {d.pay.length ? <section className="block"><h2>{t.payments}</h2><div className="table-wrap"><table className="tbl"><tbody>{d.pay.map((p) => <tr key={p.id}><td>{day(p.paid_at, lang)}</td><td>{p.reference || ''}</td><td className="num">{eur(p.amount, lang)}</td></tr>)}</tbody></table></div></section> : null}
+    </>
+  );
+}
+
+// ---------- My services ----------
+function Services() {
+  const { t, lang } = useT();
+  const [list, setList] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { fn('bel-services', { action: 'list' }).then((r) => setList(r.services)).catch((e) => { setErr(errText(t, e)); setList([]); }); }, []);
+  if (!list) return <p className="muted">{t.loading}</p>;
+  return (
+    <>
+      <PageHead title={t.menu.services} lead={t.svcLead} />
+      <Note kind="error">{err}</Note>
+      {list.map((x) => (
+        <article key={x.service} className="card stack">
+          <div className="card-top"><h3>Themis</h3><span className="acts"><Badge tone="green">{t.svcActive}</Badge>{x.promo && <Badge tone="blue">{t.svcPromo}</Badge>}</span></div>
+          <p style={{ margin: 0 }}>{t.svcThemis}</p>
+          <dl className="kv">
+            <dt>{t.svcFee}</dt><dd>{x.promo ? t.svcFree : x.pending ? '—' : fmt(t.svcPrice, { excl: eur(x.price_excl, lang), incl: eur(Number(x.price_excl) * (1 + Number(x.vat_rate) / 100), lang) })}</dd>
+            {x.started_at && <><dt>{t.svcStart}</dt><dd>{day(x.started_at, lang)}</dd></>}
+            {!x.promo && !x.pending && <><dt>{t.svcTerm}</dt><dd>{fmt(t.svcTermText, { date: day(x.min_until, lang) })}</dd></>}
+          </dl>
+        </article>
+      ))}
+    </>
+  );
+}
+
+// ---------- Messages ----------
+function Thread({ msgs, mine }) {
+  const { t, lang } = useT();
+  return <div className="thread">{msgs.map((m) => { const isOut = m.direction === 'out'; return <div key={m.id} className={'msg' + (isOut === mine ? ' staff' : ' customer')}><div className="msg-h"><b>{isOut ? (mine ? (m.author_email || 'Belinus').split('@')[0] : 'Belinus') : (mine ? t.adm.customer : t.you)}</b><span>{when(m.created_at, lang)}{mine && isOut ? ' · ' + (m.mail_status === 'sent' ? t.adm.mailed : t.adm.mailFailed) : ''}</span></div><p className="pre">{m.body}</p></div>; })}</div>;
+}
+function Messages({ refresh }) {
+  const { t } = useT();
+  const [list, setList] = useState(null), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');
+  const load = useCallback(() => fn('bel-hub', { action: 'messages' }).then((r) => setList(r.messages)), []);
+  useEffect(() => { load().then(() => fn('bel-hub', { action: 'messages_read' })).then(refresh).catch((e) => { setErr(errText(t, e)); setList((l) => l || []); }); }, [load]);
+  async function send(e) { e.preventDefault(); setBusy(true); setErr(''); try { await fn('bel-hub', { action: 'message_reply', body: msg }); setMsg(''); await load(); } catch (x) { setErr(errText(t, x)); } setBusy(false); }
+  if (!list) return <p className="muted">{t.loading}</p>;
+  return (
+    <>
+      <PageHead title={t.menu.messages} lead={t.msgLead} />
+      {!list.length ? <Empty>{t.msgEmpty}</Empty> : <Thread msgs={list} mine={false} />}
+      <form className="card stack" onSubmit={send}><Field label={t.reply}><textarea required rows="4" value={msg} onChange={(e) => setMsg(e.target.value)} /></Field><Note kind="error">{err}</Note><Btn busy={busy} type="submit">{t.send}</Btn></form>
+    </>
+  );
+}
+
+// ---------- Recall notice for everyone ----------
+function RecallBanner() {
+  const { t, lang } = useT();
+  const [list, setList] = useState([]);
+  useEffect(() => { fn('bel-hub', { action: 'recall_info' }).then((r) => setList(r.recalls)).catch(() => {}); }, []);
+  return list.map((r) => <div key={r.code} className="alertbox"><h3>{r.title[lang] || r.title.nl}</h3><p>{r.summary[lang] || r.summary.nl}</p><p style={{ margin: 0 }}>{r.instructions[lang] || r.instructions.nl} <a href="#/recall">{t.menu.recall} →</a></p></div>);
+}
+
+// ---------- Super admin ----------
+function SuperOnly({ me, children }) { const { t } = useT(); return me.role === 'super' ? children : <Note kind="error">{t.errors.forbidden}</Note>; }
+function Dashboard({ me }) {
+  const { t, lang } = useT();
+  const A = t.adm;
+  const [d, setD] = useState(null), [o, setO] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { if (me.role !== 'super') return; fn('bel-hub', { action: 'dashboard' }).then(setD).catch((e) => setErr(errText(t, e))); fn('bel-odoo', { action: 'summary' }).then(setO).catch(() => setO(false)); }, []);
+  if (me.role !== 'super') return <Note kind="error">{t.errors.forbidden}</Note>;
+  if (!d) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  const Tile = ({ v, l, to, bad }) => <a className="tile dash-tile" href={to}><b style={bad ? { color: 'var(--bad)' } : null}>{v}</b><span>{l}</span></a>;
+  return (
+    <>
+      <PageHead title={t.menu.dashboard} lead={A.dashLead} />
+      <h2>{A.secCustomers}</h2>
+      <div className="tiles"><Tile v={d.customers.total} l={A.registered} to="#/customers" /><Tile v={d.customers.new7} l={A.new7} to="#/customers" /><Tile v={d.customers.active30} l={A.active30} to="#/customers" /><Tile v={d.customers.unread} l={A.unread} to="#/customers?f=unread" bad={d.customers.unread > 0} /></div>
+      <h2>{A.secSupport}</h2>
+      <div className="tiles"><Tile v={d.tickets.open} l={A.openTickets} to="#/desk" /><Tile v={d.tickets.safety} l={A.safety} to="#/desk?q=safety" bad={d.tickets.safety > 0} /><Tile v={d.tickets.overdue} l={A.overdue} to="#/desk" bad={d.tickets.overdue > 0} /><Tile v={d.tickets.unassigned} l={A.unassigned} to="#/desk?q=unassigned" /></div>
+      <h2>{t.menu.recall}</h2>
+      <div className="tiles"><Tile v={d.recall.total} l={A.recallTotal} to="#/customers?f=recall" /><Tile v={d.recall.waiting} l={A.recallWaiting} to="#/customers?f=recall" bad={d.recall.waiting > 0} /><Tile v={d.recall.opened} l={A.recallOpened} to="#/customers?f=recall" /><Tile v={d.recall.signed + d.recall.done} l={A.recallSigned} to="#/customers?f=recall" /></div>
+      {o ? <><h2>Odoo · Belinus Energy BV</h2><div className="tiles"><Tile v={eur(o.open_amount, lang)} l={fmt(A.openInv, { n: o.open_invoices })} to="#/dashboard" /><Tile v={eur(o.repay_amount, lang)} l={fmt(A.repay, { n: o.repay_count })} to="#/dashboard" bad={o.repay_count > 0} /><Tile v={o.orders_to_deliver} l={A.toDeliver} to="#/dashboard" /></div></> : o === false ? <Note>{t.errors['odoo-unavailable']}</Note> : null}
+      <h2>{A.latest}</h2>
+      {!d.latest.length ? <Empty>{A.noCustomers}</Empty> : <div className="list">{d.latest.map((p) => <a key={p.id} className="row-link" href={'#/customers/' + p.id}><span className="grow">{p.name}<small>{p.email} · {day(p.created_at, lang)}</small></span>{p.recall && <Badge tone="red">{t.rStatus[p.recall]}</Badge>}<span className="chev">›</span></a>)}</div>}
+    </>
+  );
+}
+const CUST_F = ['all', 'recall', 'unread'];
+function Customers({ route, me }) {
+  if (me.role !== 'super') return <SuperOnly me={me} />;
+  return route.parts[1] ? <CustomerDetail key={route.parts[1]} id={route.parts[1]} /> : <CustomerList route={route} />;
+}
+function CustomerList({ route }) {
+  const { t, lang } = useT();
+  const A = t.adm;
+  const f = CUST_F.includes(route.q.get('f')) ? route.q.get('f') : 'all';
+  const [list, setList] = useState(null), [find, setFind] = useState(''), [open, setOpen] = useState(false), [aud, setAud] = useState('all'), [body, setBody] = useState(''), [busy, setBusy] = useState(false), [note, setNote] = useState(''), [err, setErr] = useState('');
+  useEffect(() => { fn('bel-hub', { action: 'customers' }).then((r) => setList(r.customers)).catch((e) => { setErr(errText(t, e)); setList([]); }); }, []);
+  async function broadcast(e) { e.preventDefault(); setBusy(true); setErr(''); setNote(''); try { const r = await fn('bel-hub', { action: 'broadcast', audience: aud, body }); setNote(fmt(A.sentCount, { sent: r.sent, failed: r.failed })); setBody(''); } catch (x) { setErr(errText(t, x)); } setBusy(false); }
+  if (!list) return <p className="muted">{t.loading}</p>;
+  const n = find.trim().toLowerCase();
+  const rows = list.filter((p) => (f === 'all' || (f === 'recall' ? p.recall : p.unread > 0)) && (!n || `${p.name} ${p.email} ${p.company_name || ''} ${p.city || ''}`.toLowerCase().includes(n)));
+  return (
+    <>
+      <PageHead title={t.menu.customers} lead={fmt(A.custLead, { n: list.length })} action={<button className="btn ghost" onClick={() => setOpen(!open)}>{A.toAll}</button>} />
+      {open && <form className="card stack" onSubmit={broadcast}><Field label={A.audience}><select value={aud} onChange={(e) => setAud(e.target.value)}><option value="all">{A.audAll}</option><option value="recall">{A.audRecall}</option></select></Field><Field label={A.message} hint={A.mailHint}><textarea required rows="5" value={body} onChange={(e) => setBody(e.target.value)} /></Field><Btn busy={busy} type="submit">{t.send}</Btn></form>}
+      <Note kind="error">{err}</Note><Note kind="ok">{note}</Note>
+      <div className="seg desk-seg" role="tablist">{CUST_F.map((k) => <a key={k} role="tab" aria-selected={k === f} className={'seg-b' + (k === f ? ' on' : '')} href={'#/customers?f=' + k}>{A.filter[k]}</a>)}</div>
+      <div className="desk-find"><input type="search" aria-label={A.search} placeholder={A.search} value={find} onChange={(e) => setFind(e.target.value)} /></div>
+      {!rows.length ? <Empty>{A.noCustomers}</Empty> : <div className="table-wrap"><table className="tbl"><thead><tr><th>{A.name}</th><th>{A.city}</th><th>{A.lastLogin}</th><th className="num">{t.menu.products}</th><th className="num">{A.openTickets}</th><th>{t.menu.recall}</th></tr></thead>
+        <tbody>{rows.map((p) => <tr key={p.id} className="click" onClick={() => go('customers/' + p.id)}><td>{p.name}{p.unread ? <> <Badge tone="blue">{p.unread}</Badge></> : null}<small className="ref">{p.email}{p.company_name ? ' · ' + p.company_name : ''}</small></td><td data-l={A.city}>{p.city || '—'}</td><td data-l={A.lastLogin}>{p.last_login_at ? when(p.last_login_at, lang) : '—'}</td><td className="num" data-l={t.menu.products}>{p.systems}</td><td className="num" data-l={A.openTickets}>{p.open_tickets}</td><td>{p.recall ? <Badge tone={TONE[p.recall] || 'red'}>{t.rStatus[p.recall]}</Badge> : <span className="muted">{A.noRecall}</span>}</td></tr>)}</tbody></table></div>}
+    </>
+  );
+}
+function CustomerDetail({ id }) {
+  const { t, lang } = useT();
+  const A = t.adm;
+  const [d, setD] = useState(null), [msg, setMsg] = useState(''), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [note, setNote] = useState('');
+  const load = useCallback(() => fn('bel-hub', { action: 'customer', id }).then(setD).catch((e) => setErr(errText(t, e))), [id]);
+  useEffect(() => { load(); }, [load]);
+  async function act(key, body, done) { setBusy(key); setErr(''); setNote(''); try { await fn('bel-hub', { id, ...body }); await load(); if (done) done(); } catch (x) { setErr(errText(t, x)); } setBusy(''); }
+  if (!d) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  const c = d.customer;
+  return (
+    <>
+      <a href="#/customers" className="back">‹ {t.back}</a>
+      <PageHead title={c.name} lead={c.email} />
+      <Note kind="error">{err}</Note><Note kind="ok">{note}</Note>
+      <div className="desk-grid">
+        <div>
+          <div className="card stack"><h2 style={{ margin: 0 }}>{t.menu.messages}</h2>{d.messages.length ? <Thread msgs={d.messages} mine={true} /> : <p className="muted" style={{ margin: 0 }}>{A.noMessages}</p>}
+            <Field label={A.message} hint={A.mailHint}><textarea rows="4" value={msg} onChange={(e) => setMsg(e.target.value)} /></Field>
+            <Btn busy={busy === 'msg'} disabled={!msg.trim() || !!busy} onClick={() => act('msg', { action: 'message_send', body: msg }, () => setMsg(''))}>{t.send}</Btn></div>
+          <div className="card stack"><h2 style={{ margin: 0 }}>{t.menu.support}</h2>{d.tickets.length ? <div className="list">{d.tickets.map((x) => <a key={x.id} className={'row-link' + (x.safety && x.status !== 'closed' ? ' urgent' : '')} href={'#/desk/' + x.id}><span className="mono">#{x.number}</span><span className="grow">{x.subject}<small>{when(x.last_message_at, lang)}</small></span><Badge tone={STATUS_TONE[x.status]}>{t.desk.status[x.status]}</Badge></a>)}</div> : <p className="muted" style={{ margin: 0 }}>{A.noTickets}</p>}</div>
+        </div>
+        <aside className="desk-side">
+          <div className="card stack"><h3>{t.desk.customer}</h3><dl className="kv"><dt>{t.desk.phone}</dt><dd>{c.mobile ? <a href={'tel:' + c.mobile}>{c.mobile}</a> : '—'}</dd><dt>{t.desk.city}</dt><dd>{c.city || '—'}</dd><dt>{t.desk.language}</dt><dd>{String(c.lang).toUpperCase()}</dd><dt>{A.registeredOn}</dt><dd>{day(c.created_at, lang)}</dd><dt>{A.lastLogin}</dt><dd>{c.last_login_at ? when(c.last_login_at, lang) : '—'}</dd></dl></div>
+          <div className="card stack"><h3>{t.menu.recall}</h3>
+            {d.notices.map((n) => <div key={n.id} className="desk-assign"><span>{n.bel_recalls?.code}</span><span className="acts"><Badge tone={TONE[n.status] || 'red'}>{t.rStatus[n.status]}</Badge>{['sent', 'opened'].includes(n.status) ? <button className="link" onClick={() => { if (confirm(A.removeAsk)) act('rm', { action: 'recall_remove', notice_id: n.id }); }}>{A.remove}</button> : null}</span></div>)}
+            {!d.notices.length && <><p className="muted" style={{ margin: 0 }}>{A.noRecall}</p>{d.recalls.length ? <Btn kind="ghost" busy={busy === 'rec'} disabled={!!busy} onClick={() => { if (confirm(A.assignAsk)) act('rec', { action: 'recall_assign' }, () => setNote(A.assigned)); }}>{A.assign}</Btn> : null}</>}
+          </div>
+          <div className="card stack"><h3>{t.menu.products}</h3>{d.systems.length ? <ul className="lines">{d.systems.map((y) => <li key={y.id}>{y.product}{y.serial ? <small> — {y.serial}</small> : null}</li>)}</ul> : <p className="muted" style={{ margin: 0 }}>{t.none}</p>}</div>
+        </aside>
+      </div>
     </>
   );
 }
@@ -676,7 +835,7 @@ function TicketList() {
   useEffect(() => { fn('bel-support', { action: 'list' }).then((r) => setList(r.tickets)).catch(() => setList([])); }, []);
   return (
     <>
-      <PageHead title={t.menu.support} lead={t.supportLead} action={<div className="acts"><a className="btn danger" href="#/support/new?safety=1">{t.safetyReport}</a><a className="btn" href="#/support/new">{t.newRequest}</a></div>} />
+      <RecallBanner /><PageHead title={t.menu.support} lead={t.supportLead} action={<div className="acts"><a className="btn danger" href="#/support/new?safety=1">{t.safetyReport}</a><a className="btn" href="#/support/new">{t.newRequest}</a></div>} />
       {!list ? <p className="muted">{t.loading}</p> : !list.length ? <Empty>{t.none}</Empty> : (
         <div className="list">{list.map((x) => (
           <a key={x.id} href={'#/support/' + x.id} className={'row-link' + (x.safety && x.status !== 'closed' ? ' urgent' : '')}>
@@ -1085,13 +1244,15 @@ function App() {
     setState({ phase: 'in', me });
   }, []);
   const loadCounts = useCallback(async () => {
-    const [{ count: rc }, { count: ic }] = await Promise.all([
+    const [{ count: rc }, inv, msg] = await Promise.all([
       sb.from('bel_recall_notices').select('id', { count: 'exact', head: true }).is('signed_at', null),
-      sb.from('bel_invoices').select('id', { count: 'exact', head: true }).in('status', ['open', 'overdue', 'partly_paid']),
+      fn('bel-odoo', { action: 'invoices' }).catch(() => ({ invoices: [] })),
+      fn('bel-hub', { action: 'messages' }).catch(() => ({ messages: [] })),
     ]);
-    let desk = 0;
+    let desk = 0, customers = 0;
     if (isStaffUser(state.me)) { try { desk = (await fn('bel-support', { action: 'admin_list', queue: 'open' })).tickets.length; } catch (e) {} }
-    setCounts({ recall: rc || 0, invoices: ic || 0, desk });
+    if (state.me && state.me.role === 'super') { try { customers = (await fn('bel-hub', { action: 'customers' })).customers.reduce((x, p) => x + p.unread, 0); } catch (e) {} }
+    setCounts({ recall: rc || 0, invoices: inv.invoices.filter((i) => i.kind === 'invoice' && ['open', 'partly_paid', 'overdue'].includes(i.status)).length, desk, customers, messages: msg.messages.filter((m) => m.direction === 'out' && !m.read_at).length });
   }, [state.me]);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { loadMe(); }, [loadMe]);
@@ -1115,8 +1276,8 @@ function App() {
   else if (state.phase === 'mfa') body = <SecondFactor status={state.status} onDone={(r) => { if (r.remind) setRemind(true); loadMe(); }} />;
   else {
     const me = state.me;
-    if (['login', 'signup', 'forgot', ''].includes(page)) { go(isStaffUser(me) ? 'desk' : counts.recall ? 'recall' : 'products'); }
-    const P = { products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, desk: Desk, assistant: Assistant, account: Account }[page] || Products;
+    if (['login', 'signup', 'forgot', ''].includes(page)) { go(me.role === 'super' ? 'dashboard' : isStaffUser(me) ? 'desk' : counts.recall ? 'recall' : 'products'); }
+    const P = { products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, desk: Desk, assistant: Assistant, account: Account, services: Services, messages: Messages, dashboard: Dashboard, customers: Customers }[page] || Products;
     body = <Shell me={me} route={route} counts={counts}><P me={me} route={route} refresh={loadCounts} reloadMe={loadMe} /></Shell>;
   }
   return <LangCtx.Provider value={{ t, lang, setLang }}>{body}{remind && state.phase === 'in' && <Remind onClose={() => setRemind(false)} />}</LangCtx.Provider>;
