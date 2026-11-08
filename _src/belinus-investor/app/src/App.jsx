@@ -1,12 +1,16 @@
 // Shell in the Clavoris platform layout (sidebar with sections, account at the foot, fold rail; phones: top bar and tab bar) with the Belinus brand.
 const I = {
   trend: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',
+  support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4',
   home: 'M3 11l9-8 9 8M5 10v10h14V10', keuze: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9', afspraak: 'M7 3v4M17 3v4M3 9h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z',
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', flag: 'M4 22V4s2-1 5-1 5 2 8 2 3-1 3-1v11s-1 1-3 1-5-2-8-2-5 1-5 1', clock: 'M12 7v5l3 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20', cog: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12l2-1-2-4-2 1-2-1V5h-4v2l-2 1-2-1-2 4 2 1v2l-2 1 2 4 2-1 2 1v2h4v-2l2-1 2 1 2-4-2-1z', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16',
 };
 const Ic = ({ n }) => <svg className="ic" viewBox="0 0 24 24"><path d={I[n]} /></svg>;
 function Shell({ page, investor, role, email, name, children }) {
   const [menu, setMenu] = useState(false), [q, setQ] = useState('');
+  const [support, setSupport] = useState(false);
+  useEffect(() => { if (!AS) fn('bel-switch', { action: 'targets' }).then((r) => setSupport(!!r.support)).catch(() => {}); }, []);
+  const toSupport = async (e) => { e.preventDefault(); try { const r = await fn('bel-switch', { action: 'create', to: 'support' }); location.href = r.url; } catch (x) {} };
   const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
   const secs = [];
   if (investor) secs.push(['Mijn investering', [['', 'Mijn investering', 'trend'], ['keuze', 'Uw keuze', 'keuze'], ['afspraak', 'Maak een afspraak', 'afspraak']]]);
@@ -20,7 +24,7 @@ function Shell({ page, investor, role, email, name, children }) {
     <aside className="sb-side">
       <a className="sb-brand" href="#/"><img src="assets/logo-belinus-blue.png" alt="belinus" /><img className="sb-b" src="assets/favicon-180.png" alt="belinus" /><span className="sb-lbl">{t('Investeerdersportaal')}</span><span className="sb-co"><i />EVChargeking</span></a>
       <label className="sb-search"><span className="sr">{t('Zoeken')}</span><Ic n="search" /><input type="search" placeholder={t('Zoeken')} value={q} onChange={(e) => setQ(e.target.value)} /></label>
-      <nav className="sb-nav">{secs.map(([h, rows]) => <div key={h}><p className="sb-h">{t(h)}</p>{rows.filter(filt).map((r) => <a key={r[0]} className={'nav-row' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]} title={t(r[1])}><Ic n={r[2]} /><span>{t(r[1])}</span></a>)}</div>)}</nav>
+      <nav className="sb-nav">{secs.map(([h, rows]) => <div key={h}><p className="sb-h">{t(h)}</p>{rows.filter(filt).map((r) => <a key={r[0]} className={'nav-row' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]} title={t(r[1])}><Ic n={r[2]} /><span>{t(r[1])}</span></a>)}</div>)}{support && <div><p className="sb-h">{t('Andere portalen')}</p><a className="nav-row" href="#/" onClick={toSupport} title={t('Supportportaal')}><Ic n="support" /><span>{t('Supportportaal')}</span></a></div>}</nav>
       <div className="sb-foot">{menu && <div className="sb-menu"><a href="#/account" onClick={() => setMenu(false)}>{t('Mijn account')}</a><button onClick={out}>{t('Afmelden')}</button></div>}<button className="sb-acct" onClick={() => setMenu(!menu)}><span className="av">{initials}</span><div><b>{name || email}</b><small>{role ? (role === 'belinus' ? 'Beheerder Belinus' : 'Beheerder EVChargeking') : t('Investeerder')}</small></div></button><ThemeToggle /></div>
       <button className="sb-edge" onClick={toggleRail} aria-label="Menu in- of uitklappen"><svg viewBox="0 0 24 24"><path d="M14 7l-5 5 5 5" /></svg></button>
     </aside>
@@ -32,6 +36,25 @@ function Shell({ page, investor, role, email, name, children }) {
 }
 // The language saved on the account decides (standard NL); it is changed on the account page.
 function syncLang(d) { if (d.investor && d.investor.lang && d.investor.lang !== LANG) setLang(d.investor.lang); }
+// Arrival from the other portal: one-time code -> session, no second sign-in.
+function SwitchIn({ route }) {
+  const [err, setErr] = useState(false), once = useRef(false);
+  useEffect(() => {
+    if (once.current) return; once.current = true;
+    const code = route.q.get('code');
+    history.replaceState(null, '', location.pathname + '#/switch');
+    (async () => {
+      try {
+        const r = await fn('bel-switch', { action: 'redeem', code });
+        if (!r.session) throw new Error('expired');
+        const { error: sErr } = await sb.auth.setSession(r.session); if (sErr) throw sErr;
+        history.replaceState(null, '', location.pathname + '#/');
+        location.reload();
+      } catch (e) { setErr(true); }
+    })();
+  }, []);
+  return <div className="boot">{err ? <p>{t('Deze overstap is verlopen. Meld u opnieuw aan.')} <a href="#/" onClick={() => setTimeout(() => location.reload(), 0)}>{t('Aanmelden')}</a></p> : <span className="spin" />}</div>;
+}
 function App() {
   const route = useRoute();
   const [st, setSt] = useState({ phase: 'boot' });
@@ -48,6 +71,7 @@ function App() {
   useEffect(() => { try { if (localStorage.getItem('inv_rail')) document.documentElement.classList.add('rail'); } catch (e) {} load(); }, [load]);
   useEffect(() => { if (st.phase !== 'in') return; let last = Date.now(); const bump = () => { last = Date.now(); }; ['click', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true })); const iv = setInterval(() => { if (Date.now() - last > 30 * 60000) sb.auth.signOut({ scope: 'local' }).then(() => location.reload()); }, 60000); return () => { clearInterval(iv); ['click', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, bump)); }; }, [st.phase]);
   const page = route.parts[0] || '';
+  if (page === 'switch') return <SwitchIn route={route} />;
   if (page === 'wachtwoord') return <SetPassword route={route} onIn={load} />;
   if (st.phase === 'boot') return <div className="boot"><span className="spin" /></div>;
   if (st.phase === 'out') return page === 'start' ? <Start route={route} /> : <Login onIn={load} />;

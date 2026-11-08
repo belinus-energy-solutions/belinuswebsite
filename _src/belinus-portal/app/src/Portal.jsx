@@ -239,17 +239,40 @@ function SecondFactor({ status, onDone }) {
   );
 }
 
+// Arrival from the other portal: one-time code -> session, no second sign-in.
+function SwitchIn({ route }) {
+  const { t } = useT();
+  const [err, setErr] = useState(false), once = useRef(false);
+  useEffect(() => {
+    if (once.current) return; once.current = true;
+    const code = route.q.get('code');
+    history.replaceState(null, '', location.pathname + '#/switch');
+    (async () => {
+      try {
+        const r = await fn('bel-switch', { action: 'redeem', code });
+        if (!r.session) throw new Error('expired');
+        const { error: sErr } = await sb.auth.setSession(r.session); if (sErr) throw sErr;
+        history.replaceState(null, '', location.pathname + '#/');
+        location.reload();
+      } catch (e) { setErr(true); }
+    })();
+  }, []);
+  return <AuthFrame>{err ? <><Note kind="error">{t.switchFail}</Note><a className="btn btn-primary" href="#/login" onClick={() => setTimeout(() => location.reload(), 0)}>{t.signIn}</a></> : <p className="muted">{t.loading}</p>}</AuthFrame>;
+}
+
 // ---------- signed-in shell ----------
 const MENU = ['products', 'library', 'recall', 'orders', 'invoices', 'support', 'assistant'];
 const ICON = {
   products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', library: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
-  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
 const Icon = ({ n }) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICON[n]} /></svg>;
 
 function Shell({ me, route, children, counts }) {
   const { t } = useT();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false), [investor, setInvestor] = useState(false), [switching, setSwitching] = useState(false);
+  useEffect(() => { fn('bel-switch', { action: 'targets' }).then((r) => setInvestor(!!r.investor)).catch(() => {}); }, []);
+  async function toInvestor() { setSwitching(true); try { const r = await fn('bel-switch', { action: 'create', to: 'investor' }); location.href = r.url; } catch (e) { setSwitching(false); } }
   const cur = route.parts[0] || 'products';
   const initials = ((me.first_name || me.email)[0] + (me.last_name || '')[0] || '').toUpperCase();
   return (
@@ -266,6 +289,7 @@ function Shell({ me, route, children, counts }) {
           </a>
         ))}
         <div className="side-foot">
+          {investor && <button className="nav" disabled={switching} onClick={(e) => { e.stopPropagation(); toInvestor(); }}><Icon n="invest" /><span>{t.switchInvestor}</span></button>}
           <a href="#/account" className={'nav' + (cur === 'account' ? ' on' : '')}><Icon n="account" /><span>{t.menu.account}</span></a>
           <button className="nav" onClick={() => sb.auth.signOut().then(() => { go('login'); location.reload(); })}><span className="nav-out">↩</span><span>{t.signOut}</span></button>
         </div>
@@ -1048,7 +1072,8 @@ function App() {
 
   const page = route.parts[0] || '';
   let body;
-  if (page === 'reset') body = <Reset route={route} onSignedIn={loadMe} />;
+  if (page === 'switch') body = <SwitchIn route={route} />;
+  else if (page === 'reset') body = <Reset route={route} onSignedIn={loadMe} />;
   else if (state.phase === 'boot') body = <div className="boot"><Logo /></div>;
   else if (state.phase === 'out') body = page === 'signup' ? <Signup /> : page === 'forgot' ? <Forgot /> : <Login route={route} onSignedIn={loadMe} />;
   else if (state.phase === 'mfa') body = <SecondFactor status={state.status} onDone={(r) => { if (r.remind) setRemind(true); loadMe(); }} />;
