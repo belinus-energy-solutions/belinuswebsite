@@ -39,7 +39,12 @@ function Field({ label, hint, children }) { return <label className="field"><spa
 function Evc({ light }) { const [bad, setBad] = useState(false); return bad ? <span className="evc-txt" style={{ color: light ? '#fff' : 'inherit' }}>EVChargeking</span> : <img src={light ? 'assets/logo-evchargeking-white.png' : 'assets/logo-evchargeking.png'} alt="EVChargeking" onError={() => setBad(true)} />; }
 function Logos({ light }) { return <div className="logos"><Evc light={light} /><img src={light ? 'assets/logo-belinus-white.png' : 'assets/logo-belinus.png'} alt="belinus" /></div>; }
 function AuthFrame({ children }) {
-  return <div className="auth"><div className="auth-panel"><div><img className="auth-belinus" src="assets/logo-belinus-blue.png" alt="belinus" /></div><div><h1>{t('Investeerdersportaal')}<img className="auth-evc" src="assets/logo-evchargeking-white.png" alt="EVChargeking" /></h1><p>{t('EVChargeking – nu deel van de Belinus-groep')}</p></div><div /></div><div className="auth-form"><div><LangSwitch />{children}</div></div></div>;
+  return <div className="auth"><div className="auth-panel"><div><img className="auth-belinus" src="assets/logo-belinus-blue.png" alt="belinus" /></div><div><h1>{t('Investeerdersportaal')}<img className="auth-evc" src="assets/logo-evchargeking-white.png" alt="EVChargeking" /></h1><p>a belinus group company</p></div><div /></div><div className="auth-form"><div><LangSwitch />{children}</div></div></div>;
+}
+function PwInput(props) {
+  const [show, setShow] = useState(false);
+  const label = t(show ? 'Wachtwoord verbergen' : 'Wachtwoord tonen');
+  return <div className="pw-wrap"><input {...props} type={show ? 'text' : 'password'} /><button type="button" className="pw-eye" aria-label={label} title={label} aria-pressed={show} onClick={() => setShow(!show)}><svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />{show && <path d="M4 4l16 16" />}</svg></button></div>;
 }
 function Login({ onIn }) {
   const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');
@@ -48,10 +53,9 @@ function Login({ onIn }) {
     if (error) { setErr(t('E-mailadres of wachtwoord niet herkend. Is dit uw eerste bezoek? Stel dan eerst uw wachtwoord in.')); setBusy(false); return; }
     await onIn(); setBusy(false); }
   return <AuthFrame><h2>{t('Aanmelden')}</h2>
-    <a className="btn ghost" style={{ width: '100%', marginBottom: 18 }} href="#/start">{t('Eerste keer? Stel uw wachtwoord in')}</a>
     <form className="stack" onSubmit={submit}>
       <Field label={t('E-mailadres')}><input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-      <Field label={t('Wachtwoord')}><input type="password" autoComplete="current-password" required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
+      <Field label={t('Wachtwoord')}><PwInput autoComplete="current-password" required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
       <Note kind="error">{err}</Note><Btn busy={busy} type="submit">{t('Aanmelden')}</Btn></form>
     <div className="auth-links"><a href="#/start?vergeten=1">{t('Wachtwoord vergeten?')}</a></div></AuthFrame>;
 }
