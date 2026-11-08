@@ -13,7 +13,15 @@ const errText = (e) => t(ERR[e && e.message] || ERR.generic);
 let AS = ''; try { AS = sessionStorage.getItem('inv_as') || ''; } catch (e) {}
 function viewAs(id) { try { sessionStorage.setItem('inv_as', id); } catch (e) {} location.hash = '#/'; location.reload(); }
 function stopAs() { try { sessionStorage.removeItem('inv_as'); } catch (e) {} location.hash = '#/investeerders'; location.reload(); }
-const SESSION_LOST = { done: false };
+// The stored session no longer exists on the server (ended elsewhere): forget it in this tab only and show the sign-in
+// screen. Clears the stored tokens directly, because a sign-out call fails for a session the server no longer knows.
+let SESSION_DROPPED = false;
+function dropSession() {
+  if (SESSION_DROPPED) return; SESSION_DROPPED = true;
+  try { for (const k of Object.keys(sessionStorage)) if (k.startsWith('sb-')) sessionStorage.removeItem(k); } catch (e) {}
+  sb.auth.signOut({ scope: 'local' }).catch(() => {});
+  location.hash = '#/'; setTimeout(() => location.reload(), 50);
+}
 async function fn(name, body) {
   if (name === 'bel-inv' && AS) body = { ...(body || {}), as: AS };
   const { data: s } = await sb.auth.getSession();
@@ -21,7 +29,7 @@ async function fn(name, body) {
   const res = await fetch(`${CFG.url}/functions/v1/${name}`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body || {}) });
   const j = await res.json().catch(() => ({}));
   // Session ended elsewhere (signed out on another tab or device): back to the sign-in screen instead of an error.
-  if (token && res.status === 401 && j.error === 'unauthorized' && !SESSION_LOST.done) { SESSION_LOST.done = true; await sb.auth.signOut({ scope: 'local' }); location.reload(); }
+  if (token && res.status === 401 && j.error === 'unauthorized') dropSession();
   if (!res.ok || j.error) { const e = new Error(j.error || 'generic'); e.status = res.status; throw e; }
   return j;
 }

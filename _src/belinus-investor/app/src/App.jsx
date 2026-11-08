@@ -40,7 +40,7 @@ function App() {
     const { data: s } = await sb.auth.getSession();
     if (!s?.session) { setSt({ phase: 'out' }); return; }
     let m;
-    try { m = await fn('bel-inv', { action: 'mfa_status' }); } catch (e) { await sb.auth.signOut({ scope: 'local' }); setSt({ phase: 'out', denied: e.status === 403 }); return; }
+    try { m = await fn('bel-inv', { action: 'mfa_status' }); } catch (e) { try { for (const k of Object.keys(sessionStorage)) if (k.startsWith('sb-')) sessionStorage.removeItem(k); } catch (x) {} sb.auth.signOut({ scope: 'local' }).catch(() => {}); setSt({ phase: 'out', denied: e.status === 403 }); return; }
     if (!m.verified) { setSt({ phase: 'mfa', status: m }); return; }
     setSt({ phase: 'in', email: s.session.user.email });
     await loadData();
