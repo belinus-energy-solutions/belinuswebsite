@@ -1,0 +1,108 @@
+// Shared helpers for the EVChargeking investor area (bel-inv, bel-inv-auth, bel-inv-admin).
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+export const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+const CODE = /^[a-z0-9][a-z0-9_.:-]{0,80}$/i;
+export function json(o: any, status = 200): Response {
+  if (o && typeof o.error === "string" && !CODE.test(o.error)) { console.error("inv error withheld", o.error.slice(0, 500)); o = { error: "server-error" }; }
+  return new Response(JSON.stringify(o), { status, headers: { ...cors, "content-type": "application/json" } });
+}
+export const adminClient = (): SupabaseClient => createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+export const APP_URL = (Deno.env.get("INV_APP_URL") || "https://investor.belinus.com").replace(/\/$/, "");
+export const str = (v: unknown, n: number) => String(v ?? "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, " ").trim().slice(0, n);
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+export const clientIp = (r: Request) => (r.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+export async function sha256(s: string): Promise<string> { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))).map((b) => b.toString(16).padStart(2, "0")).join(""); }
+export function randomCode(n = 32): string { return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(n)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+export async function audit(a: SupabaseClient, actor: { id: string; email: string } | null, event_type: string, target: string, detail: Record<string, unknown> = {}) {
+  await a.from("bel_audit").insert({ actor: actor?.id ?? null, actor_email: actor?.email ?? null, event_type: "inv-" + event_type, target, detail }).then(() => {}, () => {});
+}
+export async function settings(a: SupabaseClient): Promise<Record<string, any>> { const { data } = await a.from("inv_settings").select("key, value"); return Object.fromEntries((data || []).map((r: any) => [r.key, r.value])); }
+export function nlDate(d: string | Date, withTime = false): string {
+  return new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", weekday: withTime ? "long" : undefined, day: "numeric", month: "long", year: "numeric", ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}) }).format(new Date(d));
+}
+export function addWorkingDays(n: number): string { const d = new Date(); while (n > 0) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) n--; } return d.toISOString().slice(0, 10); }
+
+// ---- callers ----
+export async function currentUser(a: SupabaseClient, req: Request) {
+  const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return null;
+  const { data } = await a.auth.getUser(jwt);
+  return data?.user ? { id: data.user.id, email: String(data.user.email || "").toLowerCase(), jwt } : null;
+}
+export function claims(jwt: string): Record<string, any> { try { const b = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"); return JSON.parse(atob(b + "===".slice((b.length + 3) % 4))); } catch { return {}; } }
+export async function access(a: SupabaseClient, u: { id: string; jwt: string }): Promise<{ role: string | null; mfa: boolean }> {
+  const { data } = await a.from("inv_admins").select("role").eq("user_id", u.id).maybeSingle();
+  const c = claims(u.jwt);
+  const { data: ok, error } = await a.rpc("bel_mfa_ok_for", { p_user: u.id, p_session: c.session_id || null, p_aal: c.aal || null, p_amr: c.amr || [] });
+  if (error) console.error("mfa check", error.message);
+  return { role: data?.role || null, mfa: ok === true };
+}
+
+// ---- mail: Mailgun EU, else Brevo; both with an optional calendar attachment ----
+export function mailConfigured(): boolean { return !!(Deno.env.get("MAILGUN_API_KEY") && Deno.env.get("MAILGUN_DOMAIN")) || !!Deno.env.get("BREVO_API_KEY"); }
+const FROM_ADDR = Deno.env.get("INV_MAIL_FROM") || "investors@belinus.com", FROM_NAME = "EVChargeking via Belinus", REPLY = Deno.env.get("INV_MAIL_REPLY_TO") || "info@evchargeking.com";
+const FONT = "'Arial Nova','Helvetica Neue',Helvetica,Arial,sans-serif";
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function html(text: string, cta?: { url: string; label: string }): string {
+  const parts = text.replace(/\r/g, "").split(/\n{2,}/).map((p) => {
+    if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">Werkt de knop niet? Kopieer dit adres in uw browser:<br>${esc(cta.url)}</p>`;
+    return `<p style="margin:0 0 18px;font-family:${FONT};font-size:15px;line-height:1.6;color:#222830">${esc(p).replace(/\n/g, "<br>")}</p>`;
+  });
+  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"></head><body style="margin:0;background:#F5F6F7"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px;overflow:hidden">`
+    + `<tr><td style="padding:22px 36px;border-bottom:3px solid #2EB9EA"><table role="presentation" width="100%"><tr><td align="left"><img src="https://belinus.com/investor/assets/logo-evchargeking.png" height="30" alt="EVChargeking" style="height:30px;border:0"></td><td align="right"><img src="https://belinus.com/investor/assets/logo-belinus.png" height="24" alt="belinus" style="height:24px;border:0"></td></tr></table></td></tr>`
+    + `<tr><td style="padding:30px 36px 14px">${parts.join("")}</td></tr>`
+    + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · nu deel van de Belinus-groep<br>Vragen? Antwoord op deze e-mail of maak een afspraak via ${APP_URL}/afspraak</td></tr></table></td></tr></table></body></html>`;
+}
+export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string }): Promise<boolean> {
+  const log = (provider: string, status: string) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status }).then(() => {}, () => {});
+  const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
+  const body = m.text + "\n\n--\nEVChargeking (Some BV), nu deel van de Belinus-groep";
+  try {
+    if (key && domain) {
+      const f = new FormData();
+      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta));
+      f.set("h:Reply-To", REPLY); f.set("o:tracking", "no"); f.set("v:kind", m.kind);
+      if (m.ics) f.append("attachment", new File([m.ics], "afspraak.ics", { type: "text/calendar" }));
+      const r = await fetch(`${(Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "")}/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", headers: { Authorization: "Basic " + btoa("api:" + key) }, body: f });
+      if (!r.ok) throw new Error("mailgun " + r.status + " " + (await r.text()).slice(0, 200));
+      await log("mailgun", "sent"); return true;
+    }
+    if (brevo) {
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: FROM_ADDR }, to: [{ email: m.to }], replyTo: { email: REPLY }, subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta), tags: [m.kind], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
+      if (!r.ok) throw new Error("brevo " + r.status + " " + (await r.text()).slice(0, 200));
+      await log("brevo", "sent"); return true;
+    }
+    await log("none", "no-provider"); return false;
+  } catch (e) { console.error("inv mail", m.kind, (e as Error).message); await log(key ? "mailgun" : "brevo", "failed"); return false; }
+}
+
+export async function sendAccessLink(a: SupabaseClient, inv: { id: string; email: string; first_name?: string | null; status: string }): Promise<boolean> {
+  const code = randomCode();
+  await a.from("inv_links").delete().eq("investor_id", inv.id);
+  await a.from("inv_links").insert({ code_hash: await sha256(code), investor_id: inv.id, expires_at: new Date(Date.now() + 24 * 3600_000).toISOString() });
+  const url = `${APP_URL}/#/wachtwoord?code=${encodeURIComponent(code)}`;
+  const first = inv.status === "invited";
+  return await sendMail(a, { to: inv.email, kind: "access-link", subject: first ? "Stel uw wachtwoord in voor het Investeerdersportaal EVChargeking" : "Nieuw wachtwoord voor het Investeerdersportaal EVChargeking", cta: { url, label: "Wachtwoord instellen" },
+    text: `Beste${inv.first_name ? " " + inv.first_name : ""},\n\nMet onderstaande knop stelt u uw wachtwoord in voor het Investeerdersportaal EVChargeking. De link is 24 uur geldig en kan één keer gebruikt worden.\n\n${url}\n\nHebt u dit niet gevraagd? Dan kunt u deze e-mail negeren.\n\nMet vriendelijke groeten,\nEVChargeking en Belinus` });
+}
+
+// ---- choice (investor or admin on behalf) ----
+export const CHOICE_TEXT: Record<string, string> = {
+  A: "A – Ik ga akkoord met de verlenging.",
+  B: "B – Ik ga akkoord dat de interesten binnen de drie maanden worden betaald, maar ik wil een voorstel om mijn investering en interesten volledig terugbetaald te krijgen binnen de looptijd van mijn contract.",
+  C: "C – Ik ga niet akkoord.",
+};
+export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: string; wish?: string; reason?: string; by_admin?: string; note?: string; ip?: string }) {
+  const { error } = await a.from("inv_choices").upsert({ investor_id: inv.id, choice: c.choice, wish: c.choice === "B" ? c.wish || null : null, reason: c.choice === "C" ? c.reason || null : null, confirmed_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+  await a.from("inv_choice_log").insert({ investor_id: inv.id, choice: c.choice, wish: c.wish || null, reason: c.reason || null, by_admin: c.by_admin || null, note: c.note || null, ip: c.ip || null });
+  for (const kind of ["B", "C"]) {
+    if (kind === c.choice) await a.from("inv_followups").upsert({ investor_id: inv.id, kind, status: "open", due_date: addWorkingDays(kind === "B" ? 10 : 5) }, { onConflict: "investor_id,kind" });
+    else await a.from("inv_followups").update({ status: "cancelled" }).eq("investor_id", inv.id).eq("kind", kind);
+  }
+  const next = c.choice === "A" ? "Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze."
+    : c.choice === "B" ? "EVChargeking bezorgt u een persoonlijk terugbetalingsvoorstel in het portaal. Daarna ontvangt u een e-mail van Winwinner om het addendum te ondertekenen."
+    : "We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing.";
+  await sendMail(a, { to: inv.email, kind: "choice", subject: "Bevestiging van uw keuze – EVChargeking", text: `Beste${inv.first_name ? " " + inv.first_name : ""},\n\nWe hebben uw keuze goed ontvangen:\n\n${CHOICE_TEXT[c.choice]}\n\n${next}\n\nU kunt uw keuze nog wijzigen in het portaal tot aan de uiterste datum: ${APP_URL}\n\nMet vriendelijke groeten,\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
+}
