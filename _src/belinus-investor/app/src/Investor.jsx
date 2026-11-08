@@ -251,14 +251,13 @@ function Account({ d, reload, email }) {
 
 // Messages from EVChargeking / Belinus. The investor answers here only; the e-mail notice cannot be answered.
 function Berichten({ d, reload }) {
-  const [txt, setTxt] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [ok, setOk] = useState('');
-  const msgs = d.messages || [], end = useRef(null);
-  useEffect(() => { if (msgs.some((m) => m.direction === 'out' && !m.read_at) && !d.as) fn('bel-inv', { action: 'messages_read' }).then(reload).catch(() => {}); end.current?.scrollIntoView({ block: 'nearest' }); }, [msgs.length]);
-  async function send() { if (!txt.trim()) return; setBusy(true); setErr(''); setOk(''); try { await fn('bel-inv', { action: 'message_reply', body: txt }); setTxt(''); setOk(t('Uw bericht is verstuurd. We antwoorden zo snel mogelijk.')); await reload(); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  const [err, setErr] = useState(''), [ok, setOk] = useState('');
+  const msgs = d.messages || [];
+  useEffect(() => { if (msgs.some((m) => m.direction === 'out' && !m.read_at) && !d.as) fn('bel-inv', { action: 'messages_read' }).then(reload).catch(() => {}); }, [msgs.length]);
+  async function send(txt) { setErr(''); setOk(''); try { await fn('bel-inv', { action: 'message_reply', body: txt }); setOk(t('Uw bericht is verstuurd. We antwoorden zo snel mogelijk.')); await reload(); } catch (x) { setErr(errText(x)); throw x; } }
   return <>
     <div className="page-head"><div><h1 className="page-title">{t('Berichten')}</h1><p className="page-sub">{t('Berichten van EVChargeking en Belinus. U kunt hier antwoorden.')}</p></div></div>
-    <div className="card stack"><div className="thread">{!msgs.length && <p className="hint" style={{ margin: 0 }}>{t('U hebt nog geen berichten.')}</p>}{msgs.map((m) => <div key={m.id} className={'bubble ' + (m.direction === 'out' ? 'in' : 'out')}><span className="hint">{m.direction === 'out' ? 'EVChargeking' : t('U')} · {whenNl(m.created_at)}</span><p>{m.body}</p></div>)}<div ref={end} /></div>
-      <Field label={t('Uw antwoord')}><textarea rows={4} maxLength="8000" value={txt} onChange={(e) => setTxt(e.target.value)} /></Field><Note kind="ok">{ok}</Note><Note kind="error">{err}</Note><div><Btn busy={busy} disabled={!txt.trim()} onClick={send}>{t('Versturen')}</Btn></div></div></>;
+    <div className="card stack"><Thread msgs={msgs} mine={(m) => m.direction === 'in'} nameIn={t('U')} /><Note kind="ok">{ok}</Note><Note kind="error">{err}</Note><Composer placeholder={t('Uw antwoord…')} onSend={send} /></div></>;
 }
 
 // Six separate boxes for a 6-digit code (as in Clavoris): typing moves to the next box, Backspace goes back, arrows move,
@@ -275,4 +274,22 @@ function OtpBoxes({ value, onChange, autoFocus, autoSubmit, label }) {
   };
   const onPaste = (i, e) => { const d = (e.clipboardData?.getData('text') || '').replace(/\D/g, ''); if (!d) return; e.preventDefault(); set((v.slice(0, i) + d).slice(0, 6), i + d.length, e.target.form); };
   return <div className="otp" role="group" aria-label={label || 'Code'}>{cells.map((c, i) => <input key={i} ref={(el) => (refs.current[i] = el)} className={'otp-box' + (c ? ' on' : '')} inputMode="numeric" pattern="[0-9]*" autoComplete={i === 0 ? 'one-time-code' : 'off'} maxLength={i === 0 ? 6 : 1} aria-label={(label || 'Code') + ' ' + (i + 1)} value={c} onChange={(e) => onInput(i, e)} onKeyDown={(e) => onKey(i, e)} onPaste={(e) => onPaste(i, e)} onFocus={(e) => e.target.select()} required={i === 0} />)}</div>;
+}
+
+// One conversation, chat-style. `mine` decides which side is "ours": admins see EVChargeking on the right, the investor
+// sees their own messages on the right. Long URLs wrap; long messages fold; the full original e-mail can be opened (admins).
+function Thread({ msgs, mine, nameIn, showRaw }) {
+  const end = useRef(null), [open, setOpen] = useState({});
+  useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [msgs.length]);
+  if (!msgs.length) return <p className="hint" style={{ margin: 0 }}>{t('Nog geen berichten.')}</p>;
+  return <div className="thread">{msgs.map((m) => { const right = mine(m), long = m.body.length > 700 && !open[m.id];
+    return <div key={m.id} className={'msg' + (right ? ' right' : '')}><div className="msg-head"><b>{m.direction === 'out' ? 'EVChargeking' + (showRaw && m.author_email ? ' · ' + m.author_email.split('@')[0] : '') : nameIn}</b><span>{whenNl(m.created_at)}</span>{m.direction === 'in' && <span className="msg-tag">{m.channel === 'email' ? t('via e-mail') : t('via portaal')}</span>}{showRaw && m.direction === 'out' && <span className="msg-tag">{m.mail_status === 'sent' ? (m.read_at ? t('gelezen') : t('per e-mail gemeld')) : t('e-mail mislukt')}</span>}</div>
+      <div className="msg-body">{long ? m.body.slice(0, 600) + '…' : m.body}</div>
+      {(long || (showRaw && m.raw_body)) && <div className="msg-foot">{long && <button className="link" onClick={() => setOpen({ ...open, [m.id]: true })}>{t('Meer tonen')}</button>}{showRaw && m.raw_body && <button className="link" onClick={() => setOpen({ ...open, ['r' + m.id]: !open['r' + m.id] })}>{open['r' + m.id] ? t('Verberg volledige e-mail') : t('Toon volledige e-mail')}</button>}</div>}
+      {showRaw && open['r' + m.id] && <pre className="msg-raw">{m.raw_body}</pre>}</div>; })}<div ref={end} /></div>;
+}
+function Composer({ placeholder, onSend, label }) {
+  const [txt, setTxt] = useState(''), [busy, setBusy] = useState(false);
+  async function go() { if (!txt.trim() || busy) return; setBusy(true); try { await onSend(txt); setTxt(''); } catch (e) {} setBusy(false); }
+  return <div className="composer"><textarea rows={3} maxLength="8000" placeholder={placeholder} value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); go(); } }} /><div className="composer-row"><span className="hint">{t('Ctrl + Enter om te versturen')}</span><Btn busy={busy} disabled={!txt.trim()} onClick={go}>{label || t('Versturen')}</Btn></div></div>;
 }

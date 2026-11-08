@@ -14,11 +14,26 @@ async function validSignature(ts: string, token: string, sig: string): Promise<b
   return mac === sig.toLowerCase();
 }
 const addrOf = (s: string) => ((s.match(/<([^>]+)>/) || [])[1] || s).trim().toLowerCase();
-// Fallback when Mailgun's stripped-text is empty: cut at the first quote header or quoted line.
-function strip(t: string): string {
-  const lines = t.replace(/\r/g, "").split("\n"), out: string[] = [];
-  for (const l of lines) { if (/^>/.test(l) || /^(Op |Le |On ).{5,200}(schreef|a écrit|wrote)/i.test(l) || /^-{2,}\s*(Original|Oorspronkelijk|Message)/i.test(l) || /^(From|Van|De):\s/i.test(l)) break; out.push(l); }
-  return out.join("\n").trim();
+// Keep only what the investor actually wrote: cut at the quoted original, the signature and mobile footers.
+// The full mail is kept in raw_body so nothing is lost.
+const CUT = [
+  /^>/, /^-{2,}\s*$/, /^_{5,}/, /^-{2,}\s*(Original|Oorspronkelijk|Message|Bericht)/i,
+  /^(Op|Le|On|Am|El) .{5,200}(schreef|a écrit|wrote|schrieb|escribió)/i, /^(From|Van|De|Von|Envoyé|Sent|Verzonden):\s/i,
+  /^\[(photo|image|foto|logo|cid:|facebook|instagram|linkedin|twitter|x)\b/i, /^(Sent|Verzonden|Envoyé|Gesendet|Enviado) (from|vanaf|vanuit|de|depuis|von|desde)\b/i,
+  /^(Get|Download) Outlook for/i, /^Outlook voor (iOS|Android)/i,
+];
+const CLOSING = /^(met (vriendelijke|beste) groet(en)?|vriendelijke groet(en)?|mvg|groeten|grtn|cordialement|bien à vous|kind regards|best regards|regards|cheers)[,.!]?$/i;
+function clean(t: string, name: string): string {
+  const lines = t.replace(/\r/g, "").replace(/ /g, " ").split("\n"), out: string[] = [];
+  const n = name.trim().toLowerCase();
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].trim();
+    if (CUT.some((r) => r.test(l))) break;
+    if (CLOSING.test(l)) { out.push(lines[i]); const nx = (lines[i + 1] || "").trim(); if (nx && nx.length < 60) out.push(lines[i + 1]); break; }
+    if (n && l.toLowerCase() === n && out.join("").trim()) break;
+    out.push(lines[i]);
+  }
+  return out.join("\n").replace(/<https?:\/\/[^>]+>/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 Deno.serve(async (req) => {
@@ -34,10 +49,11 @@ Deno.serve(async (req) => {
   const { data: inv } = await a.from("inv_investors").select("id, email, first_name, last_name, company_name, is_test").eq("id", orig.investor_id).single();
   const from = addrOf(g("sender") || g("from"));
   if (from !== inv.email.toLowerCase()) { console.error("inbound: sender mismatch"); await audit(a, null, "message-inbound-rejected", inv.email, { from }); return ok(); }
-  const body = str(g("stripped-text") || strip(g("body-plain")), 8000);
+  const who0 = [inv.first_name, inv.last_name].filter(Boolean).join(" ");
+  const raw = g("body-plain"), body = str(clean(g("stripped-text") || raw, who0) || clean(raw, who0), 8000);
   if (!body) return ok();
   const mid = g("Message-Id") || g("message-id") || null;
-  const { error } = await a.from("inv_messages").insert({ investor_id: inv.id, direction: "in", body, author_email: inv.email, channel: "email", in_reply_to: orig.id, source_message_id: mid });
+  const { error } = await a.from("inv_messages").insert({ investor_id: inv.id, direction: "in", body, author_email: inv.email, channel: "email", in_reply_to: orig.id, source_message_id: mid, raw_body: str(raw, 60000) || null });
   if (error) { if (!/duplicate/i.test(error.message)) console.error("inbound insert", error.message); return ok(); }
   const s = await settings(a);
   const who = inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email;
