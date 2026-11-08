@@ -1,4 +1,4 @@
-/* Investor area: Clavoris platform layout in the belinus.com look (Belinus Main design system). Dark is the standard, as on belinus.com; light via the toggle. */
+/* Investor area: Clavoris platform layout in the belinus.com look (Belinus Main design system). Light is the standard for everyone (set in the page head); dark via the toggle. */
 @font-face { font-family: 'Arial Nova'; src: url('fonts/ArialNova-Light.woff2') format('woff2'); font-weight: 300; font-display: swap; }
 @font-face { font-family: 'Arial Nova'; src: url('fonts/ArialNova.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Arial Nova'; src: url('fonts/ArialNova-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }

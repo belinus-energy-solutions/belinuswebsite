@@ -20,8 +20,8 @@ tmp.unlink()
 css = (ROOT / "src" / "investor.css").read_text()
 (OUT / "index.html").write_text(f"""<!doctype html>
 <html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Investeerdersportaal EVChargeking</title><meta name="robots" content="noindex"><meta name="theme-color" content="#000000">
-<link rel="icon" href="assets/favicon-32.png"><script>try{{if(localStorage.getItem("belinus_theme")==="light")document.documentElement.dataset.theme="light"}}catch(e){{}}</script><style>{css}</style></head>
+<title>Investeerdersportaal EVChargeking</title><meta name="robots" content="noindex"><meta name="theme-color" content="#F5F6F7">
+<link rel="icon" href="assets/favicon-32.png"><script>var t;try{{t=localStorage.getItem("inv_theme")}}catch(e){{}}if(t!=="dark")document.documentElement.dataset.theme="light"</script><style>{css}</style></head>
 <body><div id="root"></div><noscript>Schakel JavaScript in om het investeerdersportaal te gebruiken.</noscript>
 <script>window.BELINUS_INV = {json.dumps(CFG)};</script>
 <script src="vendor/react-18.3.1.min.js"></script><script src="vendor/react-dom-18.3.1.min.js"></script><script src="vendor/supabase-2.78.0.js"></script>

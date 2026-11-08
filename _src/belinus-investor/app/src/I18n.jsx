@@ -16,7 +16,7 @@ function LangSwitch() { return <div className="lang-switch" role="group" aria-la
 function ThemeToggle() {
   const [theme, set] = React.useState(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
   const next = theme === 'light' ? 'dark' : 'light';
-  const flip = () => { if (next === 'light') document.documentElement.dataset.theme = 'light'; else delete document.documentElement.dataset.theme; try { localStorage.setItem('belinus_theme', next); } catch (e) {} set(next); };
+  const flip = () => { if (next === 'light') document.documentElement.dataset.theme = 'light'; else delete document.documentElement.dataset.theme; try { localStorage.setItem('inv_theme', next); } catch (e) {} set(next); };
   const label = t(next === 'light' ? 'Licht thema' : 'Donker thema');
   return <button type="button" className="theme-btn" onClick={flip} aria-label={label} title={label}><svg className="ic" viewBox="0 0 24 24" aria-hidden="true">{next === 'light' ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></> : <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />}</svg></button>;
 }
