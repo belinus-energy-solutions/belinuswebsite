@@ -1,4 +1,5 @@
-// bel-pdf — customer download of an order, invoice or credit note in the Belinus template (Nextcloud, template Belinus Energy/document).
+// bel-pdf — customer download of an order, invoice or credit note in the Belinus template. The PDF service (Bunny container) renders them once
+// and stores them on Nextcloud; this function checks ownership and asks the service for the stored file, signing the request with ODOO_API_KEY.
 // Only documents that belong to the signed-in customer in Odoo, and only the template version: Odoo's own layout never reaches customers.
 //   { kind: "order" | "invoice", id } -> application/pdf, or 404 { error: "pdf-unavailable" }
 // Secret: ODOO_API_KEY. Deploy: --no-verify-jwt.
@@ -7,6 +8,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...cors, "content-type": "application/json" } });
 const ODOO = (Deno.env.get("ODOO_URL") || "https://van-beirs-consult-bv1.odoo.com").replace(/\/$/, ""), DB = Deno.env.get("ODOO_DB") || "van-beirs-consult-bv1", UID = Number(Deno.env.get("ODOO_UID") || 2), COMPANY = Number(Deno.env.get("ODOO_COMPANY_ID") || 3), KEY = Deno.env.get("ODOO_API_KEY") || "";
+const PDF_SERVICE = (Deno.env.get("PDF_SERVICE_URL") || "https://mc-o3dciawlm0.bunny.run").replace(/\/$/, "");
+async function sign(action: string): Promise<string> {
+  const ts = Math.floor(Date.now() / 1000), enc = new TextEncoder();
+  const k = await crypto.subtle.importKey("raw", enc.encode(KEY), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(`belinus-docs|${action}|${ts}`)));
+  return `${ts}.${[...mac].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
 const claims = (jwt: string): Record<string, any> => { try { const b = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"); return JSON.parse(atob(b + "===".slice((b.length + 3) % 4))); } catch { return {}; } };
 async function rpc(model: string, method: string, args: unknown[], kw: Record<string, unknown> = {}): Promise<any> {
   const r = await (await fetch(`${ODOO}/jsonrpc`, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(15000), body: JSON.stringify({ jsonrpc: "2.0", method: "call", id: 1, params: { service: "object", method: "execute_kw", args: [DB, UID, KEY, model, method, args, { ...kw, context: { allowed_company_ids: [COMPANY] } }] } }) })).json();
@@ -40,10 +48,8 @@ Deno.serve(async (req) => {
       ? await rpc("account.move", "search_count", [[["id", "=", id], ["company_id", "=", COMPANY], ["commercial_partner_id", "in", cids], ["move_type", "in", ["out_invoice", "out_refund"]], ["state", "=", "posted"]]])
       : await rpc("sale.order", "search_count", [[["id", "=", id], ["company_id", "=", COMPANY], ["partner_id", "child_of", cids], ["state", "in", ["sent", "sale", "cancel"]]]]);
     if (!n) return json({ error: "not-found" }, 404);
-    const { data: v } = await a.from("bel_pdf_versions").select("share_url").eq("kind", kind).eq("odoo_id", id).maybeSingle();
-    if (!v) return json({ error: "pdf-unavailable" }, 404);
-    const pdf = await fetch(v.share_url.replace(/\/$/, "") + "/download", { signal: AbortSignal.timeout(30000) });
-    if (!pdf.ok) { console.error("bel-pdf nextcloud", kind, id, pdf.status); return json({ error: "pdf-unavailable" }, 502); }
+    const pdf = await fetch(`${PDF_SERVICE}/api/belinus-docs/pdf`, { method: "POST", headers: { "content-type": "application/json", "x-belinus-sig": await sign(`${kind}:${id}`) }, body: JSON.stringify({ kind, id }), signal: AbortSignal.timeout(60000) });
+    if (!pdf.ok) { console.error("bel-pdf service", kind, id, pdf.status); return json({ error: "pdf-unavailable" }, pdf.status === 404 ? 404 : 502); }
     return new Response(await pdf.arrayBuffer(), { headers: { ...cors, "content-type": "application/pdf" } });
   } catch (e) { console.error("bel-pdf", kind, id, (e as Error).message); return json({ error: "odoo-unavailable" }, 502); }
 });
