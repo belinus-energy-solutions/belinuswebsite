@@ -177,3 +177,7 @@ a.seg-b { text-decoration: none; } .desk-seg { margin-bottom: 14px; }
 .ph-shield { fill:#2EB9EA; } .ph-check { fill:none; stroke:#fff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
 .ph-code { font:700 13px/1 'Arial Nova',Arial,sans-serif; letter-spacing:1.5px; fill:#0A0C0F; } .ph-bar { fill:#2EB9EA; opacity:.35; }
 .totp-nudge .check { display:flex; gap:8px; align-items:center; font-size:14px; }
+/* Recall case files: always fits the page, no sideways scrolling. */
+.rc-wrap { width:100%; } .rc-table { table-layout:fixed; width:100%; min-width:0 !important; } .rc-table th, .rc-table td { white-space:normal; overflow-wrap:anywhere; vertical-align:top; } .rc-table small.ref { display:block; white-space:normal; } .rc-table .acts { display:flex; flex-wrap:wrap; gap:8px; align-items:center; } .rc-table .acts .btn { padding-left:12px; padding-right:12px; }
+.rc-table th:nth-child(1) { width:26%; } .rc-table th:nth-child(2) { width:17%; } .rc-table th:nth-child(3) { width:10%; } .rc-table th:nth-child(4) { width:22%; } .rc-table th:nth-child(5) { width:11%; } .rc-table th:nth-child(6) { width:14%; }
+@media (max-width:980px) { .rc-table thead { display:none; } .rc-table, .rc-table tbody, .rc-table tr, .rc-table td { display:block; width:100%; box-sizing:border-box; } .rc-table tr { padding:14px 0; border-bottom:1px solid var(--line); } .rc-table td { border:0; padding:4px 0; } }

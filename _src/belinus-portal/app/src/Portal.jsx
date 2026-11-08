@@ -655,7 +655,7 @@ function RecallCases() {
     <div className="card stack">
       <h2 style={{ margin: 0 }}>{R.dossiers} · {R.confirmed} {done.length}/{d.cases.length} · {done.reduce((s, c) => s + c.modules, 0)}/{d.cases.reduce((s, c) => s + c.modules, 0)} modules</h2>
       <Note kind="error">{err}</Note><Note kind="ok">{note}</Note>
-      <div className="table-wrap"><table className="tbl"><thead><tr><th>{R.customer}</th><th>{R.sys}</th><th>{R.inst}</th><th>{R.disc}</th><th>{R.portal}</th><th></th></tr></thead><tbody>
+      <div className="rc-wrap"><table className="tbl rc-table"><thead><tr><th>{R.customer}</th><th>{R.sys}</th><th>{R.inst}</th><th>{R.disc}</th><th>{R.portal}</th><th></th></tr></thead><tbody>
         {d.cases.map((c) => { const cu = d.customers.find((x) => x.odoo_partner_id === c.odoo_partner_id) || {}, [tone, label] = portalState(cu, R), n = d.notices.find((x) => x.id === c.notice_id); return (
           <tr key={c.id}><td>{c.contact_name}<small className="ref">{c.portal_email} · {c.street}, {c.postal_code} {c.city}{c.company_name ? ' · ' + c.company_name : ''}</small></td>
             <td>{c.product} {String(c.capacity_kwh).replace('.', ',')} kWh<small className="ref">{c.modules} modules · {c.model} · {c.invoice_number}</small></td>
