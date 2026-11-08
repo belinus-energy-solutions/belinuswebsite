@@ -3,7 +3,7 @@
 //   { action: "start", email }            e-mails a one-time link (24 h) to set a password (first access or forgotten)
 //   { action: "check", code }             -> { ok, email } while the link is valid
 //   { action: "set_password", code, password } -> { ok, email }; the page then signs in with the password
-import { adminClient, audit, clientIp, cors, EMAIL, json, mailConfigured, sendAccessLink, sha256, str } from "../_shared/inv.ts";
+import { adminClient, audit, clientIp, cors, EMAIL, json, mailConfigured, pickLang, sendAccessLink, sha256, str } from "../_shared/inv.ts";
 
 // At least 12 characters, at least 3 of the 4 character types, no more than 2 identical characters in a row (Steve, 8 November 2026).
 function strong(p: string): boolean {
@@ -40,8 +40,8 @@ Deno.serve(async (req) => {
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
     if (ip && !(await allow("inv-ip:" + (await sha256(ip)), 0, 30))) return json({ ok: true });
     if (!(await allow("inv-mail:" + (await sha256(email)), 60, 5))) return json({ ok: true });
-    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status").eq("email", email).maybeSingle();
-    if (inv && inv.status !== "suspended") { await sendAccessLink(a, inv); await audit(a, null, "link-sent", email, { ip }); }
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, lang").eq("email", email).maybeSingle();
+    if (inv && inv.status !== "suspended") { await sendAccessLink(a, inv, body.lang); await audit(a, null, "link-sent", email, { ip }); }
     return json({ ok: true });
   }
 
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     if (!l) return json({ error: "expired" }, 400);
     const { data: claimed } = await a.from("inv_links").update({ used_at: new Date().toISOString() }).eq("code_hash", l.code_hash).is("used_at", null).select("code_hash").maybeSingle();
     if (!claimed) return json({ error: "expired" }, 400);
-    const { data: inv } = await a.from("inv_investors").select("id, email, user_id, status, first_name, last_name").eq("id", l.investor_id).single();
+    const { data: inv } = await a.from("inv_investors").select("id, email, user_id, status, first_name, last_name, lang").eq("id", l.investor_id).single();
     if (inv.status === "suspended") return json({ error: "expired" }, 400);
     let uid: string | null = inv.user_id;
     if (!uid) { const { data } = await a.rpc("inv_auth_user_id", { p_email: inv.email }); uid = data || null; }
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       if (error || !data?.user) { console.error("inv create user", error?.message); return json({ error: "server-error" }, 500); }
       uid = data.user.id;
     }
-    await a.from("inv_investors").update({ user_id: uid, status: "active", activated_at: new Date().toISOString() }).eq("id", inv.id);
+    await a.from("inv_investors").update({ user_id: uid, status: "active", activated_at: new Date().toISOString(), lang: inv.lang || pickLang(body.lang) }).eq("id", inv.id);
     { const { data: st } = await a.from("inv_settings").select("value").eq("key", "admin_emails").maybeSingle(); const role = st?.value?.[inv.email]; if (role) await a.from("inv_admins").upsert({ user_id: uid, role }); }
     await audit(a, { id: uid!, email: inv.email }, "password-set", inv.email, { ip });
     return json({ ok: true, email: inv.email });

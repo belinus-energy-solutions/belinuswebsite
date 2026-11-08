@@ -1,5 +1,5 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
-import { access, adminClient, applyChoice, audit, cors, currentUser, json, nlDate, sendAccessLink, sendMail, settings, str } from "../_shared/inv.ts";
+import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, nlDate, pickLang, sendAccessLink, sendMail, settings, str } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -40,13 +40,13 @@ Deno.serve(async (req) => {
     const choice = String(body.choice || ""), note = str(body.note, 1000), reason = str(body.reason, 2000), wish = str(body.wish, 2000);
     if (!["A", "B", "C"].includes(choice) || !note) return json({ error: "bad-input" }, 400);
     if (choice === "C" && !reason) return json({ error: "reason-required" }, 400);
-    const { data: inv } = await a.from("inv_investors").select("id, email, first_name").eq("id", id).single();
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang").eq("id", id).single();
     await applyChoice(a, inv, { choice, reason, wish, note, by_admin: u.id });
     await audit(a, u, "choice-by-admin", inv.email, { choice, note });
     return json({ ok: true });
   }
   if (action === "resend_invite") {
-    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status").eq("id", id).single();
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, lang").eq("id", id).single();
     const sent = await sendAccessLink(a, inv);
     await audit(a, u, "invite-resent", inv.email);
     return sent ? json({ ok: true }) : json({ error: "mail-failed" }, 503);
@@ -61,14 +61,14 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
   if (action === "bookings") {
-    const { data } = await a.from("inv_bookings").select("*, inv_investors(email, first_name, last_name, company_name, phone, tranche, invested, inv_choices(choice)), inv_events(title)").order("starts_at");
+    const { data } = await a.from("inv_bookings").select("*, inv_investors(email, first_name, last_name, company_name, phone, tranche, invested, inv_choices(choice, lang)), inv_events(title)").order("starts_at");
     return json({ ok: true, bookings: data });
   }
   if (action === "booking_update") {
     const status = String(body.status || "");
     if (!["cancelled", "held", "no_show", "confirmed"].includes(status)) return json({ error: "bad-input" }, 400);
-    const { data: b } = await a.from("inv_bookings").update({ status, note: str(body.note, 1000) || null, ...(status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}) }).eq("id", id).select("starts_at, kind, inv_investors(email)").single();
-    if (status === "cancelled" && body.notify) await sendMail(a, { to: (b as any).inv_investors.email, kind: "booking-cancel", subject: "Uw afspraak is geannuleerd – EVChargeking", text: `Uw afspraak van ${nlDate(b!.starts_at, true)} werd geannuleerd.\n\n${str(body.message, 1000)}\n\nEen nieuwe afspraak maken kan via https://investor.belinus.com/afspraak` });
+    const { data: b } = await a.from("inv_bookings").update({ status, note: str(body.note, 1000) || null, ...(status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}) }).eq("id", id).select("starts_at, kind, inv_investors(email, lang)").single();
+    if (status === "cancelled" && body.notify) { const L = pickLang((b as any).inv_investors.lang), W = dateIn(b!.starts_at, true, L), M = str(body.message, 1000), U = "https://investor.belinus.com/afspraak", T = { nl: ["Uw afspraak is geannuleerd – EVChargeking", `Uw afspraak van ${W} werd geannuleerd.\n\n${M}\n\nEen nieuwe afspraak maken kan via ${U}`], fr: ["Votre rendez-vous est annulé – EVChargeking", `Votre rendez-vous du ${W} a été annulé.\n\n${M}\n\nVous pouvez prendre un nouveau rendez-vous via ${U}`], en: ["Your appointment has been cancelled – EVChargeking", `Your appointment of ${W} has been cancelled.\n\n${M}\n\nYou can make a new appointment at ${U}`] }[L]; await sendMail(a, { to: (b as any).inv_investors.email, kind: "booking-cancel", lang: L, subject: T[0], text: T[1] }); }
     await audit(a, u, "booking-update", id, { status });
     return json({ ok: true });
   }

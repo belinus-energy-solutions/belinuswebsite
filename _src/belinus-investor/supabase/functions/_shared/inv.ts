@@ -23,6 +23,30 @@ export function nlDate(d: string | Date, withTime = false): string {
 }
 export function addWorkingDays(n: number): string { const d = new Date(); while (n > 0) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) n--; } return d.toISOString().slice(0, 10); }
 
+// ---- languages: every investor mail in NL, FR or EN (inv_investors.lang) ----
+export type Lang = "nl" | "fr" | "en";
+export const pickLang = (l: unknown): Lang => (l === "fr" || l === "en" ? l : "nl");
+const LOC: Record<Lang, string> = { nl: "nl-BE", fr: "fr-BE", en: "en-GB" };
+export function dateIn(d: string | Date, withTime: boolean, l: Lang): string {
+  return new Intl.DateTimeFormat(LOC[l], { timeZone: "Europe/Brussels", weekday: withTime ? "long" : undefined, day: "numeric", month: "long", year: "numeric", ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}) }).format(new Date(d));
+}
+export const hello = (first: string | null | undefined, l: Lang) => (l === "fr" ? `Bonjour${first ? " " + first : ""},` : l === "en" ? (first ? `Dear ${first},` : "Hello,") : `Beste${first ? " " + first : ""},`);
+export const KIND_L: Record<Lang, Record<string, string>> = {
+  nl: { visit: "Bezoek op een investeerdersdag", video: "Videogesprek", callback: "Terugbelverzoek" },
+  fr: { visit: "Visite lors d'une journée des investisseurs", video: "Appel vidéo", callback: "Demande de rappel" },
+  en: { visit: "Visit on an investor day", video: "Video call", callback: "Call-back request" },
+};
+const EVENT_L: Record<string, [string, string]> = {
+  "Investeerdersdag zaterdag 28 november 2026": ["Journée des investisseurs, samedi 28 novembre 2026", "Investor day, Saturday 28 November 2026"],
+  "Investeerdersdag zaterdag 5 december 2026": ["Journée des investisseurs, samedi 5 décembre 2026", "Investor day, Saturday 5 December 2026"],
+};
+export const eventTitle = (t: string, l: Lang) => (l === "nl" || !EVENT_L[t] ? t : EVENT_L[t][l === "fr" ? 0 : 1]);
+const MC: Record<Lang, { btn: string; foot: (u: string) => string; sig: string }> = {
+  nl: { btn: "Werkt de knop niet? Kopieer dit adres in uw browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · nu deel van de Belinus-groep<br>Vragen? Antwoord op deze e-mail of maak een afspraak via ${u}/afspraak`, sig: "EVChargeking (Some BV), nu deel van de Belinus-groep" },
+  fr: { btn: "Le bouton ne fonctionne pas ? Copiez cette adresse dans votre navigateur :", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · fait désormais partie du groupe Belinus<br>Des questions ? Répondez à cet e-mail ou prenez rendez-vous via ${u}/afspraak`, sig: "EVChargeking (Some BV), fait désormais partie du groupe Belinus" },
+  en: { btn: "Button not working? Copy this address into your browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · now part of the Belinus group<br>Questions? Reply to this e-mail or make an appointment at ${u}/afspraak`, sig: "EVChargeking (Some BV), now part of the Belinus group" },
+};
+
 // ---- callers ----
 export async function currentUser(a: SupabaseClient, req: Request) {
   const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
@@ -44,24 +68,25 @@ export function mailConfigured(): boolean { return !!(Deno.env.get("MAILGUN_API_
 const FROM_ADDR = Deno.env.get("INV_MAIL_FROM") || "investors@belinus.com", FROM_NAME = "EVChargeking via Belinus", REPLY = Deno.env.get("INV_MAIL_REPLY_TO") || "info@evchargeking.com";
 const FONT = "'Arial Nova','Helvetica Neue',Helvetica,Arial,sans-serif";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-function html(text: string, cta?: { url: string; label: string }): string {
+function html(text: string, cta: { url: string; label: string } | undefined, L: Lang): string {
   const parts = text.replace(/\r/g, "").split(/\n{2,}/).map((p) => {
-    if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">Werkt de knop niet? Kopieer dit adres in uw browser:<br>${esc(cta.url)}</p>`;
+    if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">${esc(MC[L].btn)}<br>${esc(cta.url)}</p>`;
     return `<p style="margin:0 0 18px;font-family:${FONT};font-size:15px;line-height:1.6;color:#222830">${esc(p).replace(/\n/g, "<br>")}</p>`;
   });
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"></head><body style="margin:0;background:#F5F6F7"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px;overflow:hidden">`
+  return `<!doctype html><html lang="${L}"><head><meta charset="utf-8"></head><body style="margin:0;background:#F5F6F7"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px;overflow:hidden">`
     + `<tr><td style="padding:22px 36px;border-bottom:3px solid #2EB9EA"><table role="presentation" width="100%"><tr><td align="left"><img src="https://belinus.com/investor/assets/logo-evchargeking.png" height="30" alt="EVChargeking" style="height:30px;border:0"></td><td align="right"><img src="https://belinus.com/investor/assets/logo-belinus.png" height="24" alt="belinus" style="height:24px;border:0"></td></tr></table></td></tr>`
     + `<tr><td style="padding:30px 36px 14px">${parts.join("")}</td></tr>`
-    + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · nu deel van de Belinus-groep<br>Vragen? Antwoord op deze e-mail of maak een afspraak via ${APP_URL}/afspraak</td></tr></table></td></tr></table></body></html>`;
+    + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">${MC[L].foot(APP_URL)}</td></tr></table></td></tr></table></body></html>`;
 }
-export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string }): Promise<boolean> {
+export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang }): Promise<boolean> {
+  const L = pickLang(m.lang);
   const log = (provider: string, status: string) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
-  const body = m.text + "\n\n--\nEVChargeking (Some BV), nu deel van de Belinus-groep";
+  const body = m.text + "\n\n--\n" + MC[L].sig;
   try {
     if (key && domain) {
       const f = new FormData();
-      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta));
+      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta, L));
       f.set("h:Reply-To", REPLY); f.set("o:tracking", "no"); f.set("v:kind", m.kind);
       if (m.ics) f.append("attachment", new File([m.ics], "afspraak.ics", { type: "text/calendar" }));
       const r = await fetch(`${(Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "")}/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", headers: { Authorization: "Basic " + btoa("api:" + key) }, body: f });
@@ -69,7 +94,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
       await log("mailgun", "sent"); return true;
     }
     if (brevo) {
-      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: FROM_ADDR }, to: [{ email: m.to }], replyTo: { email: REPLY }, subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta), tags: [m.kind], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: FROM_ADDR }, to: [{ email: m.to }], replyTo: { email: REPLY }, subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta, L), tags: [m.kind], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
       if (!r.ok) throw new Error("brevo " + r.status + " " + (await r.text()).slice(0, 200));
       await log("brevo", "sent"); return true;
     }
@@ -77,14 +102,18 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
   } catch (e) { console.error("inv mail", m.kind, (e as Error).message); await log(key ? "mailgun" : "brevo", "failed"); return false; }
 }
 
-export async function sendAccessLink(a: SupabaseClient, inv: { id: string; email: string; first_name?: string | null; status: string }): Promise<boolean> {
+const ACCESS: Record<Lang, { first: string; again: string; label: string; body: (u: string) => string; thanks: string }> = {
+  nl: { first: "Stel uw wachtwoord in voor het Investeerdersportaal EVChargeking", again: "Nieuw wachtwoord voor het Investeerdersportaal EVChargeking", label: "Wachtwoord instellen", body: (u) => `Met onderstaande knop stelt u uw wachtwoord in voor het Investeerdersportaal EVChargeking. De link is 24 uur geldig en kan één keer gebruikt worden.\n\n${u}\n\nHebt u dit niet gevraagd? Dan kunt u deze e-mail negeren.`, thanks: "Met vriendelijke groeten,\nEVChargeking en Belinus" },
+  fr: { first: "Définissez votre mot de passe pour le Portail investisseurs EVChargeking", again: "Nouveau mot de passe pour le Portail investisseurs EVChargeking", label: "Définir le mot de passe", body: (u) => `Le bouton ci-dessous vous permet de définir votre mot de passe pour le Portail investisseurs EVChargeking. Le lien est valable 24 heures et ne peut être utilisé qu'une seule fois.\n\n${u}\n\nVous n'avez rien demandé ? Vous pouvez ignorer cet e-mail.`, thanks: "Cordialement,\nEVChargeking et Belinus" },
+  en: { first: "Set your password for the EVChargeking Investor portal", again: "New password for the EVChargeking Investor portal", label: "Set password", body: (u) => `Use the button below to set your password for the EVChargeking Investor portal. The link is valid for 24 hours and can be used once.\n\n${u}\n\nDid you not request this? Then you can ignore this e-mail.`, thanks: "Kind regards,\nEVChargeking and Belinus" },
+};
+export async function sendAccessLink(a: SupabaseClient, inv: { id: string; email: string; first_name?: string | null; status: string; lang?: string | null }, lang?: unknown): Promise<boolean> {
   const code = randomCode();
   await a.from("inv_links").delete().eq("investor_id", inv.id);
   await a.from("inv_links").insert({ code_hash: await sha256(code), investor_id: inv.id, expires_at: new Date(Date.now() + 24 * 3600_000).toISOString() });
   const url = `${APP_URL}/#/wachtwoord?code=${encodeURIComponent(code)}`;
-  const first = inv.status === "invited";
-  return await sendMail(a, { to: inv.email, kind: "access-link", subject: first ? "Stel uw wachtwoord in voor het Investeerdersportaal EVChargeking" : "Nieuw wachtwoord voor het Investeerdersportaal EVChargeking", cta: { url, label: "Wachtwoord instellen" },
-    text: `Beste${inv.first_name ? " " + inv.first_name : ""},\n\nMet onderstaande knop stelt u uw wachtwoord in voor het Investeerdersportaal EVChargeking. De link is 24 uur geldig en kan één keer gebruikt worden.\n\n${url}\n\nHebt u dit niet gevraagd? Dan kunt u deze e-mail negeren.\n\nMet vriendelijke groeten,\nEVChargeking en Belinus` });
+  const L = pickLang(lang || inv.lang), T = ACCESS[L];
+  return await sendMail(a, { to: inv.email, kind: "access-link", lang: L, subject: inv.status === "invited" ? T.first : T.again, cta: { url, label: T.label }, text: `${hello(inv.first_name, L)}\n\n${T.body(url)}\n\n${T.thanks}` });
 }
 
 // ---- choice (investor or admin on behalf) ----
@@ -92,6 +121,16 @@ export const CHOICE_TEXT: Record<string, string> = {
   A: "A – Ik ga akkoord met de verlenging.",
   B: "B – Ik ga akkoord dat de interesten binnen de drie maanden worden betaald, maar ik wil een voorstel om mijn investering en interesten volledig terugbetaald te krijgen binnen de looptijd van mijn contract.",
   C: "C – Ik ga niet akkoord.",
+};
+const CHOICE_L: Record<Lang, Record<string, string>> = {
+  nl: CHOICE_TEXT,
+  fr: { A: "A – J'accepte la prolongation.", B: "B – J'accepte que les intérêts soient payés dans les trois mois, mais je souhaite une proposition de remboursement intégral de mon investissement et des intérêts dans la durée de mon contrat.", C: "C – Je ne suis pas d'accord." },
+  en: { A: "A – I agree to the extension.", B: "B – I agree that the interest will be paid within three months, but I would like a proposal to have my investment and interest fully repaid within the term of my contract.", C: "C – I do not agree." },
+};
+const CONFIRM_L: Record<Lang, { subject: string; got: string; next: Record<string, string>; change: string; thanks: string }> = {
+  nl: { subject: "Bevestiging van uw keuze – EVChargeking", got: "We hebben uw keuze goed ontvangen:", next: { A: "Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.", B: "EVChargeking bezorgt u een persoonlijk terugbetalingsvoorstel in het portaal. Daarna ontvangt u een e-mail van Winwinner om het addendum te ondertekenen.", C: "We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing." }, change: "U kunt uw keuze nog wijzigen in het portaal tot aan de uiterste datum:", thanks: "Met vriendelijke groeten," },
+  fr: { subject: "Confirmation de votre choix – EVChargeking", got: "Nous avons bien reçu votre choix :", next: { A: "Dès que tous les investisseurs auront confirmé leur choix, vous recevrez un e-mail de Winwinner pour signer l'avenant à votre contrat, qui reprend votre choix.", B: "EVChargeking vous transmettra une proposition personnelle de remboursement dans le portail. Vous recevrez ensuite un e-mail de Winwinner pour signer l'avenant.", C: "Nous vous contacterons dans les 5 jours ouvrables. Votre contrat existant reste d'application sans modification." }, change: "Vous pouvez encore modifier votre choix dans le portail jusqu'à la date limite :", thanks: "Cordialement," },
+  en: { subject: "Confirmation of your choice – EVChargeking", got: "We have received your choice:", next: { A: "As soon as all investors have confirmed their choice, you will receive an e-mail from Winwinner to sign the addendum to your contract, which records your choice.", B: "EVChargeking will send you a personal repayment proposal in the portal. You will then receive an e-mail from Winwinner to sign the addendum.", C: "We will contact you within 5 working days. Your existing agreement continues to apply unchanged." }, change: "You can still change your choice in the portal until the deadline:", thanks: "Kind regards," },
 };
 export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: string; wish?: string; reason?: string; by_admin?: string; note?: string; ip?: string }) {
   const { error } = await a.from("inv_choices").upsert({ investor_id: inv.id, choice: c.choice, wish: c.choice === "B" ? c.wish || null : null, reason: c.choice === "C" ? c.reason || null : null, confirmed_at: new Date().toISOString() });
@@ -101,8 +140,6 @@ export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: stri
     if (kind === c.choice) await a.from("inv_followups").upsert({ investor_id: inv.id, kind, status: "open", due_date: addWorkingDays(kind === "B" ? 10 : 5) }, { onConflict: "investor_id,kind" });
     else await a.from("inv_followups").update({ status: "cancelled" }).eq("investor_id", inv.id).eq("kind", kind);
   }
-  const next = c.choice === "A" ? "Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze."
-    : c.choice === "B" ? "EVChargeking bezorgt u een persoonlijk terugbetalingsvoorstel in het portaal. Daarna ontvangt u een e-mail van Winwinner om het addendum te ondertekenen."
-    : "We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing.";
-  await sendMail(a, { to: inv.email, kind: "choice", subject: "Bevestiging van uw keuze – EVChargeking", text: `Beste${inv.first_name ? " " + inv.first_name : ""},\n\nWe hebben uw keuze goed ontvangen:\n\n${CHOICE_TEXT[c.choice]}\n\n${next}\n\nU kunt uw keuze nog wijzigen in het portaal tot aan de uiterste datum: ${APP_URL}\n\nMet vriendelijke groeten,\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
+  const L = pickLang(inv.lang), T = CONFIRM_L[L];
+  await sendMail(a, { to: inv.email, kind: "choice", lang: L, subject: T.subject, text: `${hello(inv.first_name, L)}\n\n${T.got}\n\n${CHOICE_L[L][c.choice]}\n\n${T.next[c.choice]}\n\n${T.change} ${APP_URL}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
 }

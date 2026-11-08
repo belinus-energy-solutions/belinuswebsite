@@ -11,28 +11,34 @@ function Shell({ page, investor, role, email, name, children }) {
   if (investor) secs.push(['Mijn investering', [['', 'Mijn investering', 'home'], ['keuze', 'Uw keuze', 'keuze'], ['afspraak', 'Maak een afspraak', 'afspraak']]]);
   if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['opvolging', 'Opvolging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ['instellingen', 'Instellingen', 'cog']]]);
   const tabs = secs.flatMap((s) => s[1]).slice(0, 3);
-  const filt = (r) => !q || r[1].toLowerCase().includes(q.toLowerCase());
+  const filt = (r) => !q || t(r[1]).toLowerCase().includes(q.toLowerCase());
   const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); try { localStorage.setItem('inv_rail', on ? '1' : ''); } catch (e) {} };
   const out = () => sb.auth.signOut().then(() => { location.hash = ''; location.reload(); });
   useEffect(() => { if (!menu) return; const f = (e) => { if (!e.target.closest('.sb-foot')) setMenu(false); }; addEventListener('click', f); return () => removeEventListener('click', f); }, [menu]);
   return <div>
     <aside className="sb-side">
-      <a className="sb-brand" href="#/"><img src="assets/logo-belinus.png" alt="belinus" /><img className="sb-b" src="assets/favicon-180.png" alt="belinus" /><span className="sb-lbl">Investeerdersportaal</span><span className="sb-co"><i />EVChargeking</span></a>
-      <label className="sb-search"><span className="sr">Zoeken</span><Ic n="search" /><input type="search" placeholder="Zoeken" value={q} onChange={(e) => setQ(e.target.value)} /></label>
-      <nav className="sb-nav">{secs.map(([h, rows]) => <div key={h}><p className="sb-h">{h}</p>{rows.filter(filt).map((r) => <a key={r[0]} className={'nav-row' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]} title={r[1]}><Ic n={r[2]} /><span>{r[1]}</span></a>)}</div>)}</nav>
-      <div className="sb-foot">{menu && <div className="sb-menu"><a href="#/account" onClick={() => setMenu(false)}>Mijn account</a><button onClick={out}>Afmelden</button></div>}<button className="sb-acct" onClick={() => setMenu(!menu)}><span className="av">{initials}</span><div><b>{name || email}</b><small>{role ? (role === 'belinus' ? 'Beheerder Belinus' : 'Beheerder EVChargeking') : 'Investeerder'}</small></div></button></div>
+      <a className="sb-brand" href="#/"><img src="assets/logo-belinus.png" alt="belinus" /><img className="sb-b" src="assets/favicon-180.png" alt="belinus" /><span className="sb-lbl">{t('Investeerdersportaal')}</span><span className="sb-co"><i />EVChargeking</span></a>
+      <label className="sb-search"><span className="sr">{t('Zoeken')}</span><Ic n="search" /><input type="search" placeholder={t('Zoeken')} value={q} onChange={(e) => setQ(e.target.value)} /></label>
+      <nav className="sb-nav">{secs.map(([h, rows]) => <div key={h}><p className="sb-h">{t(h)}</p>{rows.filter(filt).map((r) => <a key={r[0]} className={'nav-row' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]} title={t(r[1])}><Ic n={r[2]} /><span>{t(r[1])}</span></a>)}</div>)}</nav>
+      <div className="sb-foot">{menu && <div className="sb-menu"><a href="#/account" onClick={() => setMenu(false)}>{t('Mijn account')}</a><button onClick={out}>{t('Afmelden')}</button></div>}<button className="sb-acct" onClick={() => setMenu(!menu)}><span className="av">{initials}</span><div><b>{name || email}</b><small>{role ? (role === 'belinus' ? 'Beheerder Belinus' : 'Beheerder EVChargeking') : t('Investeerder')}</small></div></button></div>
       <button className="sb-edge" onClick={toggleRail} aria-label="Menu in- of uitklappen"><svg viewBox="0 0 24 24"><path d="M14 7l-5 5 5 5" /></svg></button>
     </aside>
     <div className="sb-scrim" onClick={() => document.documentElement.classList.remove('drawer')} />
     <header className="sb-top"><div className="logos"><Evc /><img src="assets/logo-belinus.png" alt="belinus" /></div><a className="av" href="#/account" aria-label="Mijn account">{initials}</a></header>
-    <main className="main"><div className="main-in">{children}<p className="foot">EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · nu deel van de Belinus-groep · <a href="https://belinus.com/#/privacy" target="_blank" rel="noopener">Privacybeleid</a></p></div></main>
-    <nav className="sb-tabs">{tabs.map((r) => <a key={r[0]} className={'sb-tab' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]}><Ic n={r[2]} /><span>{r[1].replace('Mijn investering', 'Investering').replace('Maak een afspraak', 'Afspraak')}</span></a>)}<button className="sb-tab" onClick={() => document.documentElement.classList.add('drawer')}><Ic n="menu" /><span>Meer</span></button></nav>
+    <main className="main"><div className="main-in">{children}<p className="foot">EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · {t('nu deel van de Belinus-groep')} · <a href="https://belinus.com/#/privacy" target="_blank" rel="noopener">{t('Privacybeleid')}</a></p></div></main>
+    <nav className="sb-tabs">{tabs.map((r) => <a key={r[0]} className={'sb-tab' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]}><Ic n={r[2]} /><span>{t(r[1].replace('Mijn investering', 'Investering').replace('Maak een afspraak', 'Afspraak'))}</span></a>)}<button className="sb-tab" onClick={() => document.documentElement.classList.add('drawer')}><Ic n="menu" /><span>{t('Meer')}</span></button></nav>
   </div>;
+}
+async function syncLang(d) {
+  if (!d.investor) return;
+  let picked = false; try { picked = !!localStorage.getItem('inv_lang_picked'); localStorage.removeItem('inv_lang_picked'); } catch (e) {}
+  if (d.investor.lang && !picked) { if (d.investor.lang !== LANG) setLang(d.investor.lang); return; }
+  if (d.investor.lang !== LANG) { await fn('bel-inv', { action: 'set_lang', lang: LANG }).catch(() => {}); d.investor.lang = LANG; }
 }
 function App() {
   const route = useRoute();
   const [st, setSt] = useState({ phase: 'boot' });
-  const loadData = useCallback(async () => { const d = await fn('bel-inv', { action: 'me' }); setSt((s) => ({ ...s, phase: 'in', d })); return d; }, []);
+  const loadData = useCallback(async () => { const d = await fn('bel-inv', { action: 'me' }); await syncLang(d); setSt((s) => ({ ...s, phase: 'in', d })); return d; }, []);
   const load = useCallback(async () => {
     const { data: s } = await sb.auth.getSession();
     if (!s?.session) { setSt({ phase: 'out' }); return; }
@@ -63,4 +69,5 @@ function App() {
   else if (role) body = <AdmOverview />;
   return <Shell page={!hasInv && !P[page] && page !== 'account' ? 'beheer' : page} investor={hasInv} role={role} email={st.email} name={name}>{body}</Shell>;
 }
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+function Root() { useLang(); return <App />; }
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
