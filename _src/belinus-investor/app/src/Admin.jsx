@@ -55,7 +55,7 @@ function InvDetail({ id, onClose }) {
   async function invite() { setErr(''); setMsg(''); try { await adm('resend_invite', { id }); setMsg('Uitnodiging verstuurd.'); } catch (x) { setErr(errText(x)); } }
   return <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}><div className="modal stack">{!d ? <Wait err={err} /> : <>
     <div className="row" style={{ justifyContent: 'space-between' }}><h2 style={{ fontSize: 21 }}>{nameOf(d.investor)}</h2><button className="btn ghost sm" onClick={onClose}>Sluiten</button></div>
-    <p style={{ margin: 0 }}>{d.investor.email}{d.investor.phone ? ' · ' + d.investor.phone : ''}{d.investor.iban_masked ? ' · ' + d.investor.iban_masked : ''}</p>
+    <p style={{ margin: 0 }}>{d.investor.email}{d.investor.phone ? ' · ' + d.investor.phone : ''}{d.investor.iban ? ' · ' + d.investor.iban.replace(/(.{4})(?=.)/g, '$1 ') : ''}</p>
     <Note kind="ok">{msg}</Note><Note kind="error">{err}</Note>
     <Schedule rows={d.schedule.filter((r) => r.scenario === 'original')} />
     <div><h3 style={{ fontSize: 16, marginBottom: 8 }}>Geschiedenis van keuzes</h3>{d.log.length ? d.log.map((l) => <p key={l.id} style={{ margin: '0 0 4px', fontSize: 14 }}><b>{l.choice}</b> · {whenNl(l.created_at)}{l.by_admin ? ' · door beheerder: ' + l.note : ''}{l.reason ? ' · ' + l.reason : ''}</p>) : <p className="hint">Nog geen keuze.</p>}</div>
