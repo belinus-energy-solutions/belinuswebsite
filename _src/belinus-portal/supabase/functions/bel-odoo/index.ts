@@ -22,6 +22,8 @@ async function rpc(model: string, method: string, args: unknown[], kw: Record<st
 const read = (model: string, domain: unknown[], fields: string[], order = "id desc", limit = 200) => rpc(model, "search_read", [domain], { fields, order, limit });
 const day = (d: unknown) => (d ? String(d).slice(0, 10) : null);
 const id0 = (v: any) => (Array.isArray(v) ? v[0] : v || null);
+// Status corrections that Odoo does not show yet: invoices paid per the bank but not yet matched, recall orders installed but never validated in stock.
+let OV = new Map<string, { status: string; on_date: string | null }>();
 
 async function customerIds(email: string): Promise<number[]> {
   const rows = await read("res.partner", [["email", "=ilike", email], "|", ["company_id", "=", COMPANY], ["company_id", "=", false]], ["email", "commercial_partner_id"], "id", 50);
@@ -33,10 +35,11 @@ const orderDomain = (cids: number[]) => [["company_id", "=", COMPANY], ["partner
 function mapMove(m: any) {
   const credit = m.move_type === "out_refund", sign = credit ? -1 : 1, today = new Date().toISOString().slice(0, 10);
   const paidLike = ["paid", "in_payment"].includes(m.payment_state);
-  const status = m.payment_state === "reversed" ? "cancelled"
+  const bankPaid = OV.get("invoice:" + m.name)?.status === "paid";
+  const status = bankPaid ? "paid" : m.payment_state === "reversed" ? "cancelled"
     : credit ? (paidLike ? "repaid" : m.payment_state === "partial" ? "repay_partial" : "repay_pending")
     : paidLike ? "paid" : m.payment_state === "partial" ? "partly_paid" : m.invoice_date_due && m.invoice_date_due < today ? "overdue" : "open";
-  return { id: m.id, odoo_id: m.id, number: m.name, kind: credit ? "credit" : "invoice", issued_at: day(m.invoice_date), due_at: day(m.invoice_date_due), total_incl: sign * m.amount_total, amount_paid: sign * (m.amount_total - m.amount_residual), residual: m.amount_residual, status,
+  return { id: m.id, odoo_id: m.id, number: m.name, kind: credit ? "credit" : "invoice", issued_at: day(m.invoice_date), due_at: day(m.invoice_date_due), total_incl: sign * m.amount_total, amount_paid: bankPaid ? sign * m.amount_total : sign * (m.amount_total - m.amount_residual), residual: bankPaid ? 0 : m.amount_residual, status,
     structured_ref: m.payment_reference || null, origin: m.invoice_origin || null, reversed: id0(m.reversed_entry_id) };
 }
 const MOVE_FIELDS = ["name", "move_type", "invoice_date", "invoice_date_due", "amount_total", "amount_residual", "payment_state", "payment_reference", "invoice_origin", "reversed_entry_id"];
@@ -65,11 +68,12 @@ async function orders(cids: number[]) {
     for (const m of mapped) if (m.reversed && mine.has(m.reversed) && !mine.has(m.id)) docs.push(m);
     const credits = docs.filter((m: any) => m.kind === "credit" && m.status !== "cancelled");
     const repayment = !credits.length ? null : credits.every((c: any) => c.status === "repaid") ? "repaid" : credits.some((c: any) => c.status === "repaid" || c.status === "repay_partial") ? "repay_partial" : "repay_pending";
-    const status = o.state === "cancel" ? "cancelled" : o.state === "sent" ? "quote" : o.delivery_status === "full" ? "delivered" : o.delivery_status === "partial" ? "partly_delivered" : "confirmed";
-    return { id: o.id, odoo_id: o.id, number: o.name, ordered_at: day(o.date_order), status, total_incl: o.amount_total, expected_delivery: day(o.commitment_date || o.expected_date), installation_date: null, repayment,
+    const forced = OV.get("order:" + o.name);
+    const status = forced ? forced.status : o.state === "cancel" ? "cancelled" : o.state === "sent" ? "quote" : o.delivery_status === "full" ? "delivered" : o.delivery_status === "partial" ? "partly_delivered" : "confirmed";
+    return { id: o.id, odoo_id: o.id, number: o.name, ordered_at: day(o.date_order), status, total_incl: o.amount_total, expected_delivery: day(o.commitment_date || o.expected_date), installation_date: forced?.on_date || null, repayment,
       docs: docs.map(({ origin, reversed, ...d }: any) => d),
       bel_order_lines: lines.filter((l: any) => id0(l.order_id) === o.id).map((l: any, i: number) => { const [p, ...d] = String(l.name || "").split("\n"); return { id: l.id, position: i, product: p, description: d.join(" ").slice(0, 200) || null, quantity: l.product_uom_qty }; }),
-      bel_deliveries: picks.filter((p: any) => o.picking_ids.includes(p.id) && p.state !== "cancel").map((p: any) => ({ id: p.id, status: p.state === "done" ? "delivered" : "planned", carrier: id0(p.carrier_id) ? p.carrier_id[1] : null, tracking_number: p.carrier_tracking_ref || null, tracking_url: p.carrier_tracking_url || null, planned_at: p.scheduled_date, delivered_at: p.date_done || null })) };
+      bel_deliveries: forced ? [] : picks.filter((p: any) => o.picking_ids.includes(p.id) && p.state !== "cancel").map((p: any) => ({ id: p.id, status: p.state === "done" ? "delivered" : "planned", carrier: id0(p.carrier_id) ? p.carrier_id[1] : null, tracking_number: p.carrier_tracking_ref || null, tracking_url: p.carrier_tracking_url || null, planned_at: p.scheduled_date, delivered_at: p.date_done || null })) };
   });
 }
 
@@ -89,6 +93,8 @@ Deno.serve(async (req) => {
   const { data: me } = await a.from("bel_profiles").select("role, status").eq("id", user.id).maybeSingle();
   if (!me || me.status === "suspended") return json({ error: "forbidden" }, 403);
   if (!KEY) return json({ error: "odoo-unavailable" }, 503);
+  const { data: ov } = await a.from("bel_odoo_overrides").select("kind, number, status, on_date");
+  OV = new Map((ov || []).map((x: any) => [`${x.kind}:${x.number}`, { status: x.status, on_date: x.on_date }]));
   const action = String(body.action || "");
   try {
     if (action === "summary") {
