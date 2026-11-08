@@ -35,8 +35,8 @@ const orderDomain = (cids: number[]) => [["company_id", "=", COMPANY], ["partner
 function mapMove(m: any) {
   const credit = m.move_type === "out_refund", sign = credit ? -1 : 1, today = new Date().toISOString().slice(0, 10);
   const paidLike = ["paid", "in_payment"].includes(m.payment_state);
-  const bankPaid = OV.get("invoice:" + m.name)?.status === "paid";
-  const status = bankPaid ? "paid" : m.payment_state === "reversed" ? "cancelled"
+  const forcedPay = OV.get("invoice:" + m.name)?.status, bankPaid = forcedPay === "paid" || forcedPay === "repaid";
+  const status = bankPaid ? forcedPay : m.payment_state === "reversed" ? "cancelled"
     : credit ? (paidLike ? "repaid" : m.payment_state === "partial" ? "repay_partial" : "repay_pending")
     : paidLike ? "paid" : m.payment_state === "partial" ? "partly_paid" : m.invoice_date_due && m.invoice_date_due < today ? "overdue" : "open";
   return { id: m.id, odoo_id: m.id, number: m.name, kind: credit ? "credit" : "invoice", issued_at: day(m.invoice_date), due_at: day(m.invoice_date_due), total_incl: sign * m.amount_total, amount_paid: bankPaid ? sign * m.amount_total : sign * (m.amount_total - m.amount_residual), residual: bankPaid ? 0 : m.amount_residual, status,
@@ -101,13 +101,14 @@ Deno.serve(async (req) => {
       if (me.role !== "super") return json({ error: "forbidden" }, 403);
       const base = [["company_id", "=", COMPANY], ["state", "=", "posted"]];
       const [inv, cr, ord] = await Promise.all([
-        read("account.move", [...base, ["move_type", "=", "out_invoice"], ["payment_state", "in", ["not_paid", "partial"]]], ["amount_residual"], "id", 2000),
+        read("account.move", [...base, ["move_type", "=", "out_invoice"], ["payment_state", "in", ["not_paid", "partial"]]], ["name", "amount_residual"], "id", 2000),
         read("account.move", [...base, ["move_type", "=", "out_refund"], ["payment_state", "in", ["not_paid", "partial"]]], ["name", "partner_id", "invoice_date", "amount_total", "amount_residual"], "invoice_date desc", 2000),
         rpc("sale.order", "search_count", [[["company_id", "=", COMPANY], ["state", "=", "sale"], ["delivery_status", "in", ["pending", "started", "partial"]]]]),
       ]);
-      const sum = (r: any[]) => r.reduce((s, x) => s + x.amount_residual, 0);
-      return json({ ok: true, open_invoices: inv.length, open_amount: sum(inv), repay_count: cr.length, repay_amount: sum(cr), orders_to_deliver: ord,
-        repayments: cr.map((x: any) => ({ number: x.name, customer: x.partner_id ? x.partner_id[1] : "", date: x.invoice_date, total: x.amount_total, outstanding: x.amount_residual })) });
+      const sum = (r: any[]) => r.reduce((s, x) => s + x.amount_residual, 0), open = (r: any[]) => r.filter((x) => !OV.has("invoice:" + x.name));
+      const invOpen = open(inv), crOpen = open(cr);
+      return json({ ok: true, open_invoices: invOpen.length, open_amount: sum(invOpen), repay_count: crOpen.length, repay_amount: sum(crOpen), orders_to_deliver: ord,
+        repayments: crOpen.map((x: any) => ({ number: x.name, customer: x.partner_id ? x.partner_id[1] : "", date: x.invoice_date, total: x.amount_total, outstanding: x.amount_residual })) });
     }
     const asPartner = me.role === "super" && Number.isInteger(Number(body.as_partner)) && Number(body.as_partner) > 0 ? Number(body.as_partner) : 0; // read-only "view as customer"
     const cids = asPartner ? [asPartner] : await customerIds(user.email.toLowerCase());
