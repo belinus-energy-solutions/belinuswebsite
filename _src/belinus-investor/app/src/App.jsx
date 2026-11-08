@@ -17,7 +17,7 @@ function Shell({ page, investor, role, email, name, children }) {
   useEffect(() => { if (!menu) return; const f = (e) => { if (!e.target.closest('.sb-foot')) setMenu(false); }; addEventListener('click', f); return () => removeEventListener('click', f); }, [menu]);
   return <div>
     <aside className="sb-side">
-      <a className="sb-brand" href="#/"><img src="assets/logo-belinus.png" alt="belinus" /><span className="sb-lbl">Investeerdersportaal</span><span className="sb-co"><i />EVChargeking</span></a>
+      <a className="sb-brand" href="#/"><img src="assets/logo-belinus.png" alt="belinus" /><img className="sb-b" src="assets/favicon-180.png" alt="belinus" /><span className="sb-lbl">Investeerdersportaal</span><span className="sb-co"><i />EVChargeking</span></a>
       <label className="sb-search"><span className="sr">Zoeken</span><Ic n="search" /><input type="search" placeholder="Zoeken" value={q} onChange={(e) => setQ(e.target.value)} /></label>
       <nav className="sb-nav">{secs.map(([h, rows]) => <div key={h}><p className="sb-h">{h}</p>{rows.filter(filt).map((r) => <a key={r[0]} className={'nav-row' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]} title={r[1]}><Ic n={r[2]} /><span>{r[1]}</span></a>)}</div>)}</nav>
       <div className="sb-foot">{menu && <div className="sb-menu"><a href="#/account" onClick={() => setMenu(false)}>Mijn account</a><button onClick={out}>Afmelden</button></div>}<button className="sb-acct" onClick={() => setMenu(!menu)}><span className="av">{initials}</span><div><b>{name || email}</b><small>{role ? (role === 'belinus' ? 'Beheerder Belinus' : 'Beheerder EVChargeking') : 'Investeerder'}</small></div></button></div>
