@@ -61,7 +61,7 @@ function Start({ route }) {
   async function submit(e) { e.preventDefault(); setBusy(true); setErr(''); try { await fn('bel-inv-auth', { action: 'start', email }); setSent(true); } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <AuthFrame><h2>{forgot ? 'Wachtwoord vergeten' : 'Stel uw wachtwoord in'}</h2>
     {sent ? <Note kind="ok">Is dit het e-mailadres waarmee u investeerde? Dan ontvangt u binnen enkele minuten een e-mail met een link. De link is 24 uur geldig. Kijk ook bij uw ongewenste e-mail.</Note> :
-      <><p className="lead">Vul het e-mailadres in waarmee u via Winwinner investeerde. U ontvangt een link om uw wachtwoord in te stellen.</p>
+      <><p className="lead">Vul het e-mailadres in waarmee u via Winwinner of Bolero investeerde. U ontvangt een link om uw wachtwoord in te stellen.</p>
       <form className="stack" onSubmit={submit}><Field label="E-mailadres"><input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field><Note kind="error">{err}</Note><Btn busy={busy} type="submit">Stuur mij de link</Btn></form></>}
     <div className="auth-links"><a href="#/">← Terug naar aanmelden</a></div></AuthFrame>;
 }
@@ -71,6 +71,8 @@ function pwCheck(p) {
   const r = { ...t, length: p.length >= 12 && p.length <= 128, three: types >= 3, repeat: p.length > 0 && !/(.)\1\1/su.test(p) };
   return { ...r, ok: r.length && r.three && r.repeat };
 }
+const PLATFORMS = { winwinner: 'Winwinner', bolero: 'Bolero Crowdfunding (KBC)' };
+const platformName = (c) => PLATFORMS[c] || PLATFORMS.winwinner;
 function PwRules({ c }) {
   const R = ({ on, sub, children }) => <li className={(on ? 'on' : '') + (sub ? ' sub' : '')}><i aria-hidden="true">{on ? '✓' : '○'}</i><span>{children}<span className="sr">{on ? ' (in orde)' : ' (nog niet in orde)'}</span></span></li>;
   return <div className="pw-rules"><p>Uw wachtwoord moet bevatten:</p><ul><R on={c.length}>Minstens 12 tekens</R><R on={c.three}>Minstens 3 van de volgende:</R><R sub on={c.lower}>Kleine letters (a-z)</R><R sub on={c.upper}>Hoofdletters (A-Z)</R><R sub on={c.digit}>Cijfers (0-9)</R><R sub on={c.special}>Speciale tekens (bv. !@#$%^&*)</R><R on={c.repeat}>Niet meer dan 2 identieke tekens na elkaar</R></ul></div>;
@@ -79,12 +81,12 @@ function SetPassword({ route, onIn }) {
   const code = route.q.get('code') || '';
   const [email, setEmail] = useState(null), [bad, setBad] = useState(false), [p1, setP1] = useState(''), [p2, setP2] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');
   useEffect(() => { fn('bel-inv-auth', { action: 'check', code }).then((r) => setEmail(r.email)).catch(() => setBad(true)); }, [code]);
-  async function submit(e) { e.preventDefault(); setErr(''); if (p1 !== p2) { setErr('De twee wachtwoorden zijn niet gelijk.'); return; } if (!pwCheck(p1).ok) { setErr(ERR['weak-password']); return; } setBusy(true);
+  async function submit(e) { e.preventDefault(); setErr(''); if (p1 !== p2) return; if (!pwCheck(p1).ok) { setErr(ERR['weak-password']); return; } setBusy(true);
     try { const r = await fn('bel-inv-auth', { action: 'set_password', code, password: p1 }); const { error } = await sb.auth.signInWithPassword({ email: r.email, password: p1 }); if (error) throw new Error('generic'); go(''); await onIn(); } catch (x) { setErr(errText(x)); } setBusy(false); }
   if (bad) return <AuthFrame><h2>Link niet meer geldig</h2><Note kind="error">{ERR.expired}</Note><div className="auth-links"><a href="#/start">Vraag een nieuwe link aan</a></div></AuthFrame>;
   if (!email) return <AuthFrame><div className="boot" style={{ minHeight: 200 }}><span className="spin" /></div></AuthFrame>;
   return <AuthFrame><h2>Kies een wachtwoord</h2><p className="lead">Voor {email}.</p>
-    <form className="stack" onSubmit={submit}><Field label="Nieuw wachtwoord"><input type="password" autoComplete="new-password" required value={p1} onChange={(e) => setP1(e.target.value)} /></Field><PwRules c={pwCheck(p1)} /><Field label="Herhaal het wachtwoord"><input type="password" autoComplete="new-password" required value={p2} onChange={(e) => setP2(e.target.value)} /></Field><Note kind="error">{err}</Note><Btn busy={busy} type="submit">Wachtwoord opslaan</Btn></form></AuthFrame>;
+    <form className="stack" onSubmit={submit}><Field label="Nieuw wachtwoord"><input type="password" autoComplete="new-password" required value={p1} onChange={(e) => setP1(e.target.value)} /></Field><PwRules c={pwCheck(p1)} /><Field label="Herhaal het wachtwoord"><input type="password" autoComplete="new-password" required value={p2} aria-invalid={p2 !== '' && p1 !== p2} onChange={(e) => setP2(e.target.value)} /></Field>{p2 !== '' && p1 !== p2 && <Note kind="error">De twee wachtwoorden zijn niet gelijk.</Note>}<Note kind="error">{err}</Note><Btn busy={busy} disabled={p1 !== p2} type="submit">Wachtwoord opslaan</Btn></form></AuthFrame>;
 }
 function SecondFactor({ status, onDone }) {
   const [mode, setMode] = useState(status.totp ? 'app' : 'email'), [code, setCode] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [info, setInfo] = useState('');
@@ -121,8 +123,8 @@ function Home({ d }) {
   return <>
     <div className="page-head"><div><h1 className="page-title">Mijn investering</h1><p className="page-sub">{d.investor.company_name || [d.investor.first_name, d.investor.last_name].filter(Boolean).join(' ')} · {d.tranche.name}</p></div>{choiceChip(d)}</div>
     {!d.choice && !d.closed && <div className="note warn" style={{ marginBottom: 18 }}><b>Uw keuze wordt gevraagd vóór 14 november 2026.</b> <a href="#/keuze">Maak uw keuze</a></div>}
-    <div className="tiles"><div className="tile"><b>{eur(d.investor.invested)}</b><span>Geïnvesteerd bedrag{d.investor.invested_on ? ' op ' + dayNl(d.investor.invested_on) : ''}</span></div><div className="tile"><b>{pct(d.tranche.gross_rate)}</b><span>Bruto rentevoet</span></div><div className="tile"><b>{d.tranche.term_years} jaar</b><span>{d.tranche.structure}</span></div><div className="tile"><b style={{ fontSize: 19, lineHeight: '36px' }}>{dayNl(end)}</b><span>Oorspronkelijke einddatum</span></div></div>
-    <div className="card"><h2>Uw betaalplanning</h2><p className="hint">De oorspronkelijke planning blijft geldig tot een addendum ondertekend is. Op de interesten wordt 30% roerende voorheffing ingehouden.</p><Schedule rows={d.original} /></div>
+    <div className="tiles"><div className="tile"><b>{eur(d.investor.invested)}</b><span>Geïnvesteerd bedrag{d.investor.invested_on ? ' op ' + dayNl(d.investor.invested_on) : ''}</span></div><div className="tile"><b style={{ fontSize: 19, lineHeight: '36px' }}>{platformName(d.tranche.platform)}</b><span>Platform van uw investering</span></div><div className="tile"><b>{pct(d.tranche.gross_rate)}</b><span>Bruto rentevoet</span></div><div className="tile"><b>{d.tranche.term_years} jaar</b><span>{d.tranche.structure}</span></div><div className="tile"><b style={{ fontSize: 19, lineHeight: '36px' }}>{dayNl(end)}</b><span>Oorspronkelijke einddatum</span></div></div>
+    <div className="card"><h2>Uw betaalplanning</h2><p className="hint">De oorspronkelijke planning blijft geldig tot een addendum ondertekend is. {d.original.some((r) => Number(r.withholding) > 0) ? 'Op de interesten wordt 30% roerende voorheffing ingehouden.' : ''}</p><Schedule rows={d.original} /></div>
     {d.gift && <div className="card"><h2>{d.gift.title}</h2><p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{d.gift.text}</p></div>}
     <div className="card"><h2>Afspraken</h2>{next.length ? next.map((b) => <p key={b.id} style={{ marginBottom: 6 }}><b>{KIND[b.kind]}</b> · {whenNl(b.starts_at)}</p>) : <p>U hebt nog geen afspraak.</p>}<div className="row" style={{ marginTop: 10 }}><a className="btn ghost sm" href="#/afspraak">Maak een afspraak</a><a className="btn ghost sm" href="mailto:info@evchargeking.com">info@evchargeking.com</a></div></div>
   </>;
