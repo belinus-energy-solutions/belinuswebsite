@@ -340,6 +340,37 @@ function Products({ me, route }) {
   if (route && route.parts[1] === 'register') return <RegisterSystem key={location.hash} route={route} />;
   return <ProductsList me={me} />;
 }
+async function odooFile(id, name, t) {
+  try {
+    const { data: x } = await sb.auth.getSession();
+    const res = await fetch(`${CFG.url}/functions/v1/bel-services`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, authorization: 'Bearer ' + x?.session?.access_token }, body: JSON.stringify({ action: 'attachment', id }) });
+    if (!res.ok) throw new Error('pdf-unavailable');
+    const url = URL.createObjectURL(await res.blob());
+    const l = document.createElement('a'); l.href = url; l.download = name; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch (e) { alert(errText(t, e)); }
+}
+function OdooProducts({ hasSystems }) {
+  const { t, lang } = useT();
+  const [p, setP] = useState(null), [d, setD] = useState(null), [err, setErr] = useState('');
+  useEffect(() => {
+    fn('bel-services', { action: 'products' }).then((r) => setP(r.products)).catch((e) => { setErr(errText(t, e)); setP([]); });
+    fn('bel-services', { action: 'documents' }).then(setD).catch(() => setD({ orders: [], invoices: [], files: [] }));
+  }, []);
+  if (!p) return <p className="muted">{t.loading}</p>;
+  const docs = d ? d.orders.length + d.invoices.length + d.files.length : 0;
+  return (
+    <>
+      <Note kind="error">{err}</Note>
+      {!p.length && !hasSystems && !err && <Empty>{t.productsEmpty} <a href="#/products/register">{t.registerBtn} →</a> · <a href="#/library">{t.menu.library} →</a></Empty>}
+      {p.length ? <section className="block" style={{ marginTop: 0 }}><h2 className="site-h">{t.boughtTitle}</h2><div className="cards">{p.map((x) => <article key={x.id} className="card sys"><h3>{x.product}{x.quantity > 1 ? ' × ' + x.quantity : ''}</h3><dl className="kv"><dt>{t.order}</dt><dd className="mono">{x.order}</dd><dt>{t.ordered}</dt><dd>{day(x.ordered_at, lang)}</dd></dl><a className="btn ghost sm" href="#/support/new">{t.askSupport}</a></article>)}</div></section> : null}
+      {docs ? <section className="block"><h2>{t.documents}</h2><ul className="doc-rows card">
+        {d.orders.map((o) => <li key={'o' + o.id} className="doc-row"><span className="grow">{o.state === 'sent' ? t.oStatus.quote : t.order} <span className="mono">{o.number}</span> · {day(o.date, lang)}</span><button className="link" onClick={() => odooPdf('order', o.id, o.number, t)}>PDF</button></li>)}
+        {d.invoices.map((i) => <li key={'i' + i.id} className="doc-row"><span className="grow">{i.credit ? t.creditNote : t.invoice} <span className="mono">{i.number}</span> · {day(i.date, lang)}</span><button className="link" onClick={() => odooPdf('invoice', i.id, i.number, t)}>PDF</button></li>)}
+        {d.files.map((f) => <li key={'f' + f.id} className="doc-row"><span className="grow">{f.name}{f.ref ? <small className="muted"> · {f.ref}</small> : null} · {day(f.date, lang)}</span><button className="link" onClick={() => odooFile(f.id, f.name, t)}>{t.download}</button></li>)}
+      </ul></section> : null}
+    </>
+  );
+}
 function ProductsList({ me }) {
   const { t, lang } = useT();
   const [data, setData] = useState(null);
@@ -355,7 +386,7 @@ function ProductsList({ me }) {
   return (
     <>
       <PageHead title={t.menu.products} lead={t.productsLead} action={<a className="btn ghost sm" href="#/products/register">{t.registerBtn}</a>} />
-      {!data.systems.length && <Empty>{t.productsEmpty} <a href="#/products/register">{t.registerBtn} →</a> · <a href="#/library">{t.menu.library} →</a></Empty>}
+      <OdooProducts hasSystems={!!data.systems.length} />
       {data.sites.map((s) => {
         const sys = data.systems.filter((y) => y.site_id === s.id);
         if (!sys.length) return null;
@@ -539,6 +570,7 @@ function Recall({ route, me, refresh }) {
   const [list, setList] = useState(null);
   useEffect(() => { if (!id) sb.from('bel_recall_notices').select('id, status, signed_at, created_at, system_id, bel_recalls(code, title, risk)').order('created_at', { ascending: false }).then(({ data }) => setList(data || [])); }, [id]);
   if (id) return <RecallNotice id={id} me={me} refresh={refresh} />;
+  if (me.role === 'super') return <RecallAdmin />;
   if (!list) return <p className="muted">{t.loading}</p>;
   return (
     <>
@@ -555,6 +587,44 @@ function Recall({ route, me, refresh }) {
           ))}
         </div>
       )}
+    </>
+  );
+}
+function RecallAdmin() {
+  const { t, lang } = useT();
+  const A = t.adm;
+  const [d, setD] = useState(null);
+  useEffect(() => { (async () => {
+    const [{ data: recalls }, { data: notices }] = await Promise.all([sb.from('bel_recalls').select('*').neq('status', 'draft').order('starts_at', { ascending: false }), sb.from('bel_recall_notices').select('*').order('created_at')]);
+    const owners = [...new Set((notices || []).map((n) => n.owner_id))], sysIds = (notices || []).map((n) => n.system_id).filter(Boolean);
+    const [{ data: people }, { data: systems }] = await Promise.all([owners.length ? sb.from('bel_profiles').select('id, full_name, first_name, last_name, email, mobile, city').in('id', owners) : { data: [] }, sysIds.length ? sb.from('bel_systems').select('id, product, model, serial').in('id', sysIds) : { data: [] }]);
+    setD({ recalls: recalls || [], notices: notices || [], people: people || [], systems: systems || [] });
+  })(); }, []);
+  if (!d) return <p className="muted">{t.loading}</p>;
+  const pick = (o) => (o && (o[lang] || o.nl)) || '';
+  return (
+    <>
+      <PageHead title={t.menu.recall} lead={A.recallAdminLead} action={<a className="btn ghost sm" href="#/customers">{A.assignFrom}</a>} />
+      {d.recalls.map((r) => {
+        const list = d.notices.filter((n) => n.recall_id === r.id);
+        const by = (...s) => list.filter((n) => s.includes(n.status)).length;
+        return (
+          <section key={r.id}>
+            <article className="card stack">
+              <div className="card-top"><h2 style={{ margin: 0 }}>{pick(r.title)}</h2><Badge tone={r.status === 'active' ? 'red' : 'green'}>{r.status === 'active' ? A.recallActive : A.recallClosed}</Badge></div>
+              <dl className="kv"><dt>{A.code}</dt><dd className="mono">{r.code}</dd><dt>{A.recallStart}</dt><dd>{day(r.starts_at, lang)}</dd><dt>{t.recallDoc}</dt><dd>{r.document_path ? A.yes : A.noDoc}</dd></dl>
+              <p style={{ margin: 0 }}>{pick(r.summary)}</p>
+              <p style={{ margin: 0 }}><b>{t.recallInstructions}:</b> {pick(r.instructions)}</p>
+            </article>
+            <div className="tiles"><div className="tile"><b>{list.length}</b><span>{A.recallTotal}</span></div><div className="tile"><b>{by('sent')}</b><span>{A.recallWaiting}</span></div><div className="tile"><b>{by('opened')}</b><span>{A.recallOpened}</span></div><div className="tile"><b>{by('signed', 'appointment', 'replaced', 'closed')}</b><span>{A.recallSigned}</span></div></div>
+            {!list.length ? <Empty>{A.recallNone} <a href="#/customers">{t.menu.customers} →</a></Empty> : <div className="table-wrap"><table className="tbl"><thead><tr><th>{A.name}</th><th>{t.menu.products}</th><th>{A.statusL}</th><th>{A.openedOn}</th><th>{A.signedOn}</th><th>{A.choiceL}</th><th>{A.datesL}</th></tr></thead><tbody>
+              {list.map((n) => { const p = d.people.find((x) => x.id === n.owner_id) || {}, y = d.systems.find((x) => x.id === n.system_id); return (
+                <tr key={n.id} className="click" onClick={() => go('customers/' + n.owner_id)}><td>{p.full_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email}<small className="ref">{p.email}{p.mobile ? ' · ' + p.mobile : ''}</small></td><td data-l={t.menu.products}>{y ? `${y.product}${y.serial ? ' · ' + y.serial : ''}` : '—'}</td><td><Badge tone={TONE[n.status] || 'red'}>{t.rStatus[n.status]}</Badge></td><td data-l={A.openedOn}>{n.opened_at ? when(n.opened_at, lang) : '—'}</td><td data-l={A.signedOn}>{n.signed_at ? `${when(n.signed_at, lang)} · ${n.signed_name || ''}` : '—'}</td><td data-l={A.choiceL}>{n.choice ? t.choice[n.choice] : '—'}</td><td data-l={A.datesL}>{n.appointment_at ? when(n.appointment_at, lang) : Array.isArray(n.preferred_dates) && n.preferred_dates.length ? n.preferred_dates.join(', ') : '—'}</td></tr>
+              ); })}
+            </tbody></table></div>}
+          </section>
+        );
+      })}
     </>
   );
 }
