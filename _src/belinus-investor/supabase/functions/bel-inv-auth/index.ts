@@ -5,6 +5,12 @@
 //   { action: "set_password", code, password } -> { ok, email }; the page then signs in with the password
 import { adminClient, audit, clientIp, cors, EMAIL, json, mailConfigured, sendAccessLink, sha256, str } from "../_shared/inv.ts";
 
+// At least 12 characters, at least 3 of the 4 character types, no more than 2 identical characters in a row (Steve, 8 November 2026).
+function strong(p: string): boolean {
+  const types = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
+  return p.length >= 12 && p.length <= 128 && types >= 3 && !/(.)\1\1/su.test(p);
+}
+
 async function leaked(p: string): Promise<boolean> {
   try {
     const h = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-1", new TextEncoder().encode(p))), (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
@@ -48,7 +54,7 @@ Deno.serve(async (req) => {
 
   if (action === "set_password") {
     const password = String(body.password || "");
-    if (password.length < 10 || password.length > 128) return json({ error: "weak-password" }, 400);
+    if (!strong(password)) return json({ error: "weak-password" }, 400);
     if (await leaked(password)) return json({ error: "leaked-password" }, 400);
     const l = await linkOf(String(body.code || "").slice(0, 100));
     if (!l) return json({ error: "expired" }, 400);

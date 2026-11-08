@@ -4,7 +4,7 @@ const CFG = window.BELINUS_INV;
 const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
 const ERR = {
   'bad-email': 'Vul een geldig e-mailadres in.', 'mail-not-configured': 'Het versturen van e-mails is nog niet actief.', 'mail-failed': 'De e-mail kon niet verstuurd worden. Probeer het later opnieuw.',
-  expired: 'Deze link of code is verlopen of al gebruikt. Vraag een nieuwe aan.', 'weak-password': 'Kies een wachtwoord van minstens 10 tekens.', 'leaked-password': 'Dit wachtwoord komt voor in gekende datalekken. Kies een ander wachtwoord.',
+  expired: 'Deze link of code is verlopen of al gebruikt. Vraag een nieuwe aan.', 'weak-password': 'Dit wachtwoord voldoet niet aan alle voorwaarden.', 'leaked-password': 'Dit wachtwoord komt voor in gekende datalekken. Kies een ander wachtwoord.',
   'wrong-code': 'Deze code klopt niet.', 'bad-code': 'Vul de 6 cijfers van de code in.', 'too-many-attempts': 'Te veel pogingen. Vraag een nieuwe code aan.', wait: 'Wacht even voor u een nieuwe code vraagt.', 'too-many': 'Te veel aanvragen. Probeer het over een uur opnieuw.',
   closed: 'De uiterste datum is verstreken. Uw keuze kan niet meer gewijzigd worden.', 'reason-required': 'Vermeld kort waarom u niet akkoord gaat.', 'confirm-required': 'Bevestig uw keuze met het vinkje.',
   'already-booked': 'U hebt al een open afspraak van dit type. Annuleer die eerst.', 'event-full': 'Deze investeerdersdag is volzet of heeft te weinig plaatsen.', 'slot-taken': 'Dit moment is net ingenomen. Kies een ander moment.', 'phone-required': 'Vul uw telefoonnummer in.', 'too-late': 'Deze afspraak kan niet meer geannuleerd worden. Neem contact op met info@evchargeking.com.', forbidden: 'U hebt geen toegang.', 'bad-input': 'Controleer de ingevulde gegevens.', generic: 'Er ging iets mis. Probeer het opnieuw.',
@@ -65,16 +65,26 @@ function Start({ route }) {
       <form className="stack" onSubmit={submit}><Field label="E-mailadres"><input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field><Note kind="error">{err}</Note><Btn busy={busy} type="submit">Stuur mij de link</Btn></form></>}
     <div className="auth-links"><a href="#/">← Terug naar aanmelden</a></div></AuthFrame>;
 }
+function pwCheck(p) {
+  const t = { lower: /[a-z]/.test(p), upper: /[A-Z]/.test(p), digit: /[0-9]/.test(p), special: /[^A-Za-z0-9]/.test(p) };
+  const types = Object.values(t).filter(Boolean).length;
+  const r = { ...t, length: p.length >= 12 && p.length <= 128, three: types >= 3, repeat: p.length > 0 && !/(.)\1\1/su.test(p) };
+  return { ...r, ok: r.length && r.three && r.repeat };
+}
+function PwRules({ c }) {
+  const R = ({ on, sub, children }) => <li className={(on ? 'on' : '') + (sub ? ' sub' : '')}><i aria-hidden="true">{on ? '✓' : '○'}</i><span>{children}<span className="sr">{on ? ' (in orde)' : ' (nog niet in orde)'}</span></span></li>;
+  return <div className="pw-rules"><p>Uw wachtwoord moet bevatten:</p><ul><R on={c.length}>Minstens 12 tekens</R><R on={c.three}>Minstens 3 van de volgende:</R><R sub on={c.lower}>Kleine letters (a-z)</R><R sub on={c.upper}>Hoofdletters (A-Z)</R><R sub on={c.digit}>Cijfers (0-9)</R><R sub on={c.special}>Speciale tekens (bv. !@#$%^&*)</R><R on={c.repeat}>Niet meer dan 2 identieke tekens na elkaar</R></ul></div>;
+}
 function SetPassword({ route, onIn }) {
   const code = route.q.get('code') || '';
   const [email, setEmail] = useState(null), [bad, setBad] = useState(false), [p1, setP1] = useState(''), [p2, setP2] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');
   useEffect(() => { fn('bel-inv-auth', { action: 'check', code }).then((r) => setEmail(r.email)).catch(() => setBad(true)); }, [code]);
-  async function submit(e) { e.preventDefault(); setErr(''); if (p1 !== p2) { setErr('De twee wachtwoorden zijn niet gelijk.'); return; } if (p1.length < 10) { setErr(ERR['weak-password']); return; } setBusy(true);
+  async function submit(e) { e.preventDefault(); setErr(''); if (p1 !== p2) { setErr('De twee wachtwoorden zijn niet gelijk.'); return; } if (!pwCheck(p1).ok) { setErr(ERR['weak-password']); return; } setBusy(true);
     try { const r = await fn('bel-inv-auth', { action: 'set_password', code, password: p1 }); const { error } = await sb.auth.signInWithPassword({ email: r.email, password: p1 }); if (error) throw new Error('generic'); go(''); await onIn(); } catch (x) { setErr(errText(x)); } setBusy(false); }
   if (bad) return <AuthFrame><h2>Link niet meer geldig</h2><Note kind="error">{ERR.expired}</Note><div className="auth-links"><a href="#/start">Vraag een nieuwe link aan</a></div></AuthFrame>;
   if (!email) return <AuthFrame><div className="boot" style={{ minHeight: 200 }}><span className="spin" /></div></AuthFrame>;
-  return <AuthFrame><h2>Kies een wachtwoord</h2><p className="lead">Voor {email}. Minstens 10 tekens.</p>
-    <form className="stack" onSubmit={submit}><Field label="Nieuw wachtwoord"><input type="password" autoComplete="new-password" required value={p1} onChange={(e) => setP1(e.target.value)} /></Field><Field label="Herhaal het wachtwoord"><input type="password" autoComplete="new-password" required value={p2} onChange={(e) => setP2(e.target.value)} /></Field><Note kind="error">{err}</Note><Btn busy={busy} type="submit">Wachtwoord opslaan</Btn></form></AuthFrame>;
+  return <AuthFrame><h2>Kies een wachtwoord</h2><p className="lead">Voor {email}.</p>
+    <form className="stack" onSubmit={submit}><Field label="Nieuw wachtwoord"><input type="password" autoComplete="new-password" required value={p1} onChange={(e) => setP1(e.target.value)} /></Field><PwRules c={pwCheck(p1)} /><Field label="Herhaal het wachtwoord"><input type="password" autoComplete="new-password" required value={p2} onChange={(e) => setP2(e.target.value)} /></Field><Note kind="error">{err}</Note><Btn busy={busy} type="submit">Wachtwoord opslaan</Btn></form></AuthFrame>;
 }
 function SecondFactor({ status, onDone }) {
   const [mode, setMode] = useState(status.totp ? 'app' : 'email'), [code, setCode] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [info, setInfo] = useState('');
