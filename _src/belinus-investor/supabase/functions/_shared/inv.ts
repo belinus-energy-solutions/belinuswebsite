@@ -240,3 +240,16 @@ Steve Van Beirs
 CEO, Belinus`;
   return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, subject: `EVChargeking wordt deel van de Belinus-groep – uw keuze uiterlijk op ${D}`, cta: { url, label: "Activeer uw account en maak uw keuze" }, text });
 }
+
+// ---- messages (Steve, 8 November 2026): admins write to an investor; the investor reads and answers only in the portal.
+// The e-mail carries the full text and a sign-in button, and cannot be answered.
+export async function mailMessage(a: SupabaseClient, inv: { email: string; first_name?: string | null; lang?: string | null }, body: string): Promise<boolean> {
+  const L = pickLang(inv.lang);
+  const T = {
+    nl: ["Nieuw bericht van EVChargeking", "U hebt een nieuw bericht in het investeerdersportaal:", "Antwoorden kan alleen in het portaal. Meld u aan met uw e-mailadres en wachtwoord.", "Meld u aan om te antwoorden"],
+    fr: ["Nouveau message d'EVChargeking", "Vous avez un nouveau message dans le portail investisseurs :", "Vous pouvez répondre uniquement dans le portail. Connectez-vous avec votre adresse e-mail et votre mot de passe.", "Connectez-vous pour répondre"],
+    en: ["New message from EVChargeking", "You have a new message in the investor portal:", "You can only reply in the portal. Sign in with your e-mail address and password.", "Sign in to reply"],
+  }[L];
+  const url = `${APP_URL}/#/berichten`;
+  return await sendMail(a, { to: inv.email, kind: "message", lang: L, noreply: true, subject: T[0], cta: { url, label: T[3] }, text: `${hello(inv.first_name, L)}\n\n${T[1]}\n\n${body}\n\n${T[2]}\n\n${url}` });
+}

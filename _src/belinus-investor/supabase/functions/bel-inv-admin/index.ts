@@ -1,5 +1,5 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
-import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str } from "../_shared/inv.ts";
+import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -31,7 +31,9 @@ Deno.serve(async (req) => {
     ]);
     const byC = new Map((ch || []).map((c: any) => [c.investor_id, c]));
     const sent = await invitedMap(a);
-    return json({ ok: true, role: acc.role, investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });
+    const { data: unread } = await a.from("inv_messages").select("investor_id").eq("direction", "in").is("read_at", null);
+    const un = new Map<string, number>(); for (const r of unread || []) un.set(r.investor_id, (un.get(r.investor_id) || 0) + 1);
+    return json({ ok: true, role: acc.role, unread: Object.fromEntries(un), investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });
   }
   if (action === "detail") {
     const [{ data: inv }, { data: sch }, { data: log }, { data: bk }] = await Promise.all([
@@ -41,6 +43,51 @@ Deno.serve(async (req) => {
       a.from("inv_bookings").select("*").eq("investor_id", id).order("starts_at"),
     ]);
     return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk });
+  }
+  // Full investor page: loan, choices, appointments with their notes (admins only), messages and the mails sent.
+  if (action === "investor_page") {
+    const [{ data: inv }, { data: sch }, { data: log }, { data: bk }, { data: notes }, { data: msgs }, { data: ch }, { data: tr }] = await Promise.all([
+      a.from("inv_investors").select("id, email, first_name, last_name, company_name, phone, tranche, invested, invested_on, status, is_test, is_demo, activated_at, last_login_at, lang").eq("id", id).single(),
+      a.from("inv_schedule").select("*").eq("investor_id", id).order("period"),
+      a.from("inv_choice_log").select("*").eq("investor_id", id).order("created_at", { ascending: false }),
+      a.from("inv_bookings").select("*, inv_events(title)").eq("investor_id", id).order("starts_at", { ascending: false }),
+      a.from("inv_notes").select("*").eq("investor_id", id).order("created_at", { ascending: false }),
+      a.from("inv_messages").select("*").eq("investor_id", id).order("created_at"),
+      a.from("inv_choices").select("*").eq("investor_id", id).maybeSingle(),
+      a.from("inv_tranches").select("*").order("code"),
+    ]);
+    if (!inv) return json({ error: "not-found" }, 404);
+    const { data: mails } = await a.from("inv_mail_log").select("subject, kind, status, created_at").eq("recipient", inv.email).order("created_at", { ascending: false }).limit(50);
+    await a.from("inv_messages").update({ read_at: new Date().toISOString() }).eq("investor_id", id).eq("direction", "in").is("read_at", null);
+    return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk, notes, messages: msgs, choice: ch, tranches: tr, mails });
+  }
+  if (action === "note_add") {
+    const body0 = str(body.body, 8000), bid = body.booking_id ? String(body.booking_id) : null;
+    if (!body0) return json({ error: "bad-input" }, 400);
+    let invId = id;
+    if (bid) { const { data: b } = await a.from("inv_bookings").select("investor_id").eq("id", bid).maybeSingle(); if (!b) return json({ error: "not-found" }, 404); invId = b.investor_id; }
+    const { data, error } = await a.from("inv_notes").insert({ investor_id: invId, booking_id: bid, body: body0, author: u.id, author_email: u.email }).select("*").single();
+    if (error) { console.error("inv note", error.message); return json({ error: "server-error" }, 500); }
+    await audit(a, u, "note-add", invId, { booking: bid });
+    return json({ ok: true, note: data });
+  }
+  if (action === "note_update" || action === "note_delete") {
+    const { data: n } = await a.from("inv_notes").select("id, author").eq("id", id).maybeSingle();
+    if (!n) return json({ error: "not-found" }, 404);
+    if (n.author !== u.id && acc.role !== "belinus") return json({ error: "forbidden" }, 403);
+    if (action === "note_delete") await a.from("inv_notes").delete().eq("id", id);
+    else { const b0 = str(body.body, 8000); if (!b0) return json({ error: "bad-input" }, 400); await a.from("inv_notes").update({ body: b0, updated_at: new Date().toISOString() }).eq("id", id); }
+    await audit(a, u, action.replace("_", "-"), id);
+    return json({ ok: true });
+  }
+  if (action === "message_send") {
+    const b0 = str(body.body, 8000);
+    if (!b0) return json({ error: "bad-input" }, 400);
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang").eq("id", id).single();
+    const sent = await mailMessage(a, inv, b0);
+    const { data: m } = await a.from("inv_messages").insert({ investor_id: inv.id, direction: "out", body: b0, author: u.id, author_email: u.email, mail_status: sent ? "sent" : "failed" }).select("*").single();
+    await audit(a, u, "message-sent", inv.email, { mail: sent });
+    return json({ ok: true, message: m, mail: sent });
   }
   if (action === "record_choice") {
     const choice = String(body.choice || ""), note = str(body.note, 1000), reason = str(body.reason, 2000), wish = str(body.wish, 2000);
@@ -93,7 +140,8 @@ Deno.serve(async (req) => {
   if (action === "bookings") {
     const { data, error } = await a.from("inv_bookings").select("*, inv_investors(email, first_name, last_name, company_name, phone, tranche, invested, inv_choices(choice)), inv_events(title)").order("starts_at");
     if (error) { console.error("inv bookings", error.message); return json({ error: "server-error" }, 500); }
-    return json({ ok: true, bookings: data || [] });
+    const { data: notes } = await a.from("inv_notes").select("*").not("booking_id", "is", null).order("created_at");
+    return json({ ok: true, bookings: data || [], notes: notes || [] });
   }
   if (action === "booking_update") {
     const status = String(body.status || "");

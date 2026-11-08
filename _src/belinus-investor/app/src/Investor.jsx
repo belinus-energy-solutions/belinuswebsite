@@ -248,3 +248,15 @@ function Account({ d, reload, email }) {
     <div className="card stack"><h2>{t('Wachtwoord')}</h2><div><Btn kind="ghost" onClick={newPw}>{t('Stuur mij een link om te wijzigen')}</Btn></div></div>
   </>;
 }
+
+// Messages from EVChargeking / Belinus. The investor answers here only; the e-mail notice cannot be answered.
+function Berichten({ d, reload }) {
+  const [txt, setTxt] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [ok, setOk] = useState('');
+  const msgs = d.messages || [], end = useRef(null);
+  useEffect(() => { if (msgs.some((m) => m.direction === 'out' && !m.read_at) && !d.as) fn('bel-inv', { action: 'messages_read' }).then(reload).catch(() => {}); end.current?.scrollIntoView({ block: 'nearest' }); }, [msgs.length]);
+  async function send() { if (!txt.trim()) return; setBusy(true); setErr(''); setOk(''); try { await fn('bel-inv', { action: 'message_reply', body: txt }); setTxt(''); setOk(t('Uw bericht is verstuurd. We antwoorden zo snel mogelijk.')); await reload(); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  return <>
+    <div className="page-head"><div><h1 className="page-title">{t('Berichten')}</h1><p className="page-sub">{t('Berichten van EVChargeking en Belinus. U kunt hier antwoorden.')}</p></div></div>
+    <div className="card stack"><div className="thread">{!msgs.length && <p className="hint" style={{ margin: 0 }}>{t('U hebt nog geen berichten.')}</p>}{msgs.map((m) => <div key={m.id} className={'bubble ' + (m.direction === 'out' ? 'in' : 'out')}><span className="hint">{m.direction === 'out' ? 'EVChargeking' : t('U')} · {whenNl(m.created_at)}</span><p>{m.body}</p></div>)}<div ref={end} /></div>
+      <Field label={t('Uw antwoord')}><textarea rows={4} maxLength="8000" value={txt} onChange={(e) => setTxt(e.target.value)} /></Field><Note kind="ok">{ok}</Note><Note kind="error">{err}</Note><div><Btn busy={busy} disabled={!txt.trim()} onClick={send}>{t('Versturen')}</Btn></div></div></>;
+}
