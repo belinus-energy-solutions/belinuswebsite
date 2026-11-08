@@ -9,7 +9,7 @@ function Shell({ page, investor, role, email, name, children }) {
   const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
   const secs = [];
   if (investor) secs.push(['Mijn investering', [['', 'Mijn investering', 'home'], ['keuze', 'Uw keuze', 'keuze'], ['afspraak', 'Maak een afspraak', 'afspraak']]]);
-  if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['opvolging', 'Opvolging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ...(role === 'belinus' ? [['instellingen', 'Instellingen', 'cog']] : [])]]);
+  if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['opvolging', 'Opvolging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ['instellingen', 'Instellingen', 'cog']]]);
   const tabs = secs.flatMap((s) => s[1]).slice(0, 3);
   const filt = (r) => !q || r[1].toLowerCase().includes(q.toLowerCase());
   const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); try { localStorage.setItem('inv_rail', on ? '1' : ''); } catch (e) {} };
