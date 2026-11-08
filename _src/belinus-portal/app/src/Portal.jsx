@@ -662,7 +662,7 @@ function RecallCases() {
             <td>{day(c.installed_at, lang)}</td>
             <td><Badge tone={c.disconnect_status === 'confirmed' ? 'green' : 'red'}>{c.disconnect_status === 'confirmed' ? R.confirmed : R.pending}</Badge>{c.disconnected_at ? <small className="ref">{day(c.disconnected_at, lang)}</small> : null}<small className="ref">{c.disconnect_note}</small></td>
             <td><Badge tone={tone}>{label}</Badge>{n ? <small className="ref">{t.rStatus[n.status]}{n.choice ? ' · ' + t.choice[n.choice] : ''}</small> : null}</td>
-            <td><span className="acts">{c.disconnect_status === 'confirmed' ? <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'pending' })}>{R.undo}</button> : <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'confirmed' })}>{R.mark}</button>}{' '}<Btn kind="ghost" busy={busy === 'i' + c.id} disabled={!!busy} onClick={() => { if (confirm(fmt(R.ask, { e: c.portal_email }))) run('i' + c.id, { action: 'invite', partner_id: c.odoo_partner_id }, R.sent); }}>{cu.invited_at ? R.reinvite : R.invite}</Btn></span></td></tr>
+            <td><span className="acts"><button className="link" onClick={() => recallLetter({ case_id: c.id }, t)}>{R.letter}</button>{' '}{c.disconnect_status === 'confirmed' ? <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'pending' })}>{R.undo}</button> : <button className="link" disabled={!!busy} onClick={() => run('c' + c.id, { action: 'case_update', id: c.id, disconnect_status: 'confirmed' })}>{R.mark}</button>}{' '}<Btn kind="ghost" busy={busy === 'i' + c.id} disabled={!!busy} onClick={() => { if (confirm(fmt(R.ask, { e: c.portal_email }))) run('i' + c.id, { action: 'invite', partner_id: c.odoo_partner_id }, R.sent); }}>{cu.invited_at ? R.reinvite : R.invite}</Btn></span></td></tr>
         ); })}
       </tbody></table></div>
     </div>
@@ -715,6 +715,7 @@ function RecallNotice({ id, me, refresh }) {
       {n.system && <p className="muted">{t.kind[n.system.kind]} · {n.system.product} {n.system.model || ''} · {t.serial} <span className="mono">{n.system.serial || '—'}</span></p>}
       {n.instructions && <div className="alertbox"><h3>{t.recallInstructions}</h3><p className="pre">{n.instructions}</p></div>}
       {n.summary && <p className="pre">{n.summary}</p>}
+      <p><button className="btn ghost sm" onClick={() => recallLetter({ notice_id: n.id }, t)}>{t.recallDoc} ↓</button></p>
       {n.offer && <div className="card stack"><h3 style={{ margin: 0 }}>{t.recallOffer}</h3><p className="pre" style={{ margin: 0 }}>{n.offer}</p></div>}
       {n.pdf && <div className="pdf-wrap"><iframe title={t.recallDoc} src={n.pdf} /><a className="btn ghost sm" href={n.pdf} target="_blank" rel="noopener">{t.recallDoc} ↗</a></div>}
       {n.signed_at ? (
@@ -739,6 +740,15 @@ function RecallNotice({ id, me, refresh }) {
 
 // ---------- Orders and deliveries ----------
 const ORDER_STEPS = ['confirmed', 'in_production', 'ready', 'delivered', 'installed'];
+async function recallLetter(body, t) {
+  try {
+    const { data: x } = await sb.auth.getSession();
+    const res = await fetch(`${CFG.url}/functions/v1/bel-recall-letter`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.key, authorization: 'Bearer ' + x?.session?.access_token }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('pdf-unavailable');
+    const url = URL.createObjectURL(await res.blob());
+    const l = document.createElement('a'); l.href = url; l.download = 'Terugroepingsbericht-Belinus.pdf'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch (e) { alert(errText(t, e)); }
+}
 async function odooPdf(kind, id, name, t) {
   try {
     const { data: x } = await sb.auth.getSession();
