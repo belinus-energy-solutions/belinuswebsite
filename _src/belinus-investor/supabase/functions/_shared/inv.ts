@@ -42,9 +42,9 @@ const EVENT_L: Record<string, [string, string]> = {
 };
 export const eventTitle = (t: string, l: Lang) => (l === "nl" || !EVENT_L[t] ? t : EVENT_L[t][l === "fr" ? 0 : 1]);
 const MC: Record<Lang, { btn: string; foot: (u: string) => string; sig: string }> = {
-  nl: { btn: "Werkt de knop niet? Kopieer dit adres in uw browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · nu deel van de Belinus-groep<br>Vragen? Antwoord op deze e-mail of maak een afspraak via ${u}/afspraak`, sig: "EVChargeking (Some BV), nu deel van de Belinus-groep" },
-  fr: { btn: "Le bouton ne fonctionne pas ? Copiez cette adresse dans votre navigateur :", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · fait désormais partie du groupe Belinus<br>Des questions ? Répondez à cet e-mail ou prenez rendez-vous via ${u}/afspraak`, sig: "EVChargeking (Some BV), fait désormais partie du groupe Belinus" },
-  en: { btn: "Button not working? Copy this address into your browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · now part of the Belinus group<br>Questions? Reply to this e-mail or make an appointment at ${u}/afspraak`, sig: "EVChargeking (Some BV), now part of the Belinus group" },
+  nl: { btn: "Werkt de knop niet? Kopieer dit adres in uw browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Vragen? Antwoord op deze e-mail of maak een afspraak via ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
+  fr: { btn: "Le bouton ne fonctionne pas ? Copiez cette adresse dans votre navigateur :", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Des questions ? Répondez à cet e-mail ou prenez rendez-vous via ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
+  en: { btn: "Button not working? Copy this address into your browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Questions? Reply to this e-mail or make an appointment at ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
 };
 
 // ---- callers ----

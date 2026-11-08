@@ -25,7 +25,7 @@ function Shell({ page, investor, role, email, name, children }) {
     </aside>
     <div className="sb-scrim" onClick={() => document.documentElement.classList.remove('drawer')} />
     <header className="sb-top"><div className="logos"><img src="assets/logo-belinus-blue.png" alt="belinus" /></div><div className="acts"><ThemeToggle /><a className="av" href="#/account" aria-label="Mijn account">{initials}</a></div></header>
-    <main className="main"><div className="main-in"><p className="eyebrow">{t('Investeerdersportaal')} · EVChargeking</p>{children}<p className="foot">EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · {t('nu deel van de Belinus-groep')} · <a href="https://belinus.com/#/privacy" target="_blank" rel="noopener">{t('Privacybeleid')}</a></p></div></main>
+    <main className="main"><div className="main-in"><p className="eyebrow">{t('Investeerdersportaal')} · EVChargeking</p>{children}<p className="foot">EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company · <a href="https://belinus.com/#/privacy" target="_blank" rel="noopener">{t('Privacybeleid')}</a></p></div></main>
     <nav className="sb-tabs">{tabs.map((r) => <a key={r[0]} className={'sb-tab' + (page === r[0] ? ' on' : '')} href={'#/' + r[0]}><Ic n={r[2]} /><span>{t(r[1].replace('Mijn investering', 'Investering').replace('Maak een afspraak', 'Afspraak'))}</span></a>)}<button className="sb-tab" onClick={() => document.documentElement.classList.add('drawer')}><Ic n="menu" /><span>{t('Meer')}</span></button></nav>
   </div>;
 }
