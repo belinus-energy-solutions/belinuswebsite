@@ -1,4 +1,4 @@
-// bel-inv-admin — Belinus (role belinus) and EVChargeking (role evc) administrators of the investor area. Second factor required.
+// bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { access, adminClient, applyChoice, audit, cors, currentUser, json, nlDate, sendAccessLink, sendMail, settings, str } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
@@ -15,7 +15,6 @@ Deno.serve(async (req) => {
   const acc = await access(a, u);
   if (!acc.role) return json({ error: "forbidden" }, 403);
   if (!acc.mfa) return json({ error: "mfa-required" }, 401);
-  const belinus = acc.role === "belinus";
   const id = String(body.id || "");
 
   if (action === "dashboard") {
@@ -99,7 +98,7 @@ Deno.serve(async (req) => {
   }
   if (action === "settings_save") {
     const key = String(body.key || "");
-    if (!(SETTINGS_ALL.includes(key) || (belinus && SETTINGS_BELINUS.includes(key)))) return json({ error: "forbidden" }, 403);
+    if (!SETTINGS_ALL.includes(key) && !SETTINGS_BELINUS.includes(key)) return json({ error: "forbidden" }, 403);
     if (key === "booking" && !(Number(body.value?.slot_minutes) >= 10 && Number(body.value?.slot_minutes) <= 30)) return json({ error: "bad-input" }, 400);
     await a.from("inv_settings").upsert({ key, value: body.value ?? null, updated_at: new Date().toISOString() });
     await audit(a, u, "setting", key, { value: body.value });
