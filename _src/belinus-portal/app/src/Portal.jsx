@@ -1225,7 +1225,7 @@ function Security({ me }) {
   const [factor, setFactor] = useState(undefined), [enroll, setEnroll] = useState(null), [code, setCode] = useState('');
   const [pw, setPw] = useState({ cur: '', n1: '', n2: '', code: '' }), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [msg, setMsg] = useState('');
   const loadF = () => sb.auth.mfa.listFactors().then(({ data }) => setFactor((data?.totp || []).find((f) => f.status === 'verified') || null));
-  useEffect(() => { loadF(); }, []);
+  useEffect(() => { loadF().then(() => { if (/[?&]totp=1/.test(location.hash)) { history.replaceState(null, '', '#/account'); sb.auth.mfa.listFactors().then(({ data }) => { if (!(data?.totp || []).some((f) => f.status === 'verified')) startEnroll(); }); } }); }, []);
   async function startEnroll() {
     setErr(''); setBusy('totp');
     const { data: all } = await sb.auth.mfa.listFactors();
@@ -1280,13 +1280,30 @@ function Security({ me }) {
   );
 }
 
+// Authenticator suggestion, same design as the investor portal (Steve, 8 November 2026). The 6-month choice is kept on the
+// shared sign-in account (user_metadata.bel_totp_snooze_until), so it counts for both portals.
+const TOTP_SNOOZE_DAYS = 182;
 function Remind({ onClose }) {
   const { t } = useT();
-  const answer = (never) => { fn('bel-mfa', { action: 'remind', never }).catch(() => {}); onClose(); };
+  const [show, setShow] = useState(false), [later, setLater] = useState(false);
+  useEffect(() => { (async () => {
+    const { data: f } = await sb.auth.mfa.listFactors(); if ((f?.totp || []).some((x) => x.status === 'verified')) { onClose(); return; }
+    const { data: u } = await sb.auth.getUser(); const until = u?.user?.user_metadata?.bel_totp_snooze_until;
+    if (until && new Date(until) > new Date()) { onClose(); return; }
+    setShow(true);
+  })().catch(() => onClose()); }, []);
+  if (!show) return null;
+  async function close(setup) {
+    if (later) await sb.auth.updateUser({ data: { bel_totp_snooze_until: new Date(Date.now() + TOTP_SNOOZE_DAYS * 86400000).toISOString() } }).catch(() => {});
+    fn('bel-mfa', { action: 'remind', never: false }).catch(() => {});
+    onClose(); if (setup) location.hash = '#/account?totp=1';
+  }
   return (
-    <div className="modal-bg"><div className="modal">
-      <h3>{t.remindTitle}</h3><p>{t.remindText}</p>
-      <div className="acts"><button className="btn" onClick={() => { answer(false); go('account'); }}>{t.activateNow}</button><button className="btn ghost" onClick={() => answer(false)}>{t.later}</button><button className="link" onClick={() => answer(true)}>{t.never}</button></div>
+    <div className="modal-bg" role="dialog" aria-modal="true" aria-labelledby="totp-h"><div className="modal totp-nudge">
+      <svg className="totp-phone" viewBox="0 0 120 170" aria-hidden="true"><rect x="22" y="6" width="76" height="158" rx="14" className="ph-body" /><rect x="29" y="22" width="62" height="118" rx="4" className="ph-screen" /><rect x="50" y="12" width="20" height="4" rx="2" className="ph-dot" /><circle cx="60" cy="152" r="5" className="ph-dot" /><path d="M60 40l16 6v12c0 10-7 18-16 21-9-3-16-11-16-21V46z" className="ph-shield" /><path d="M53 58l5 5 9-10" className="ph-check" /><text x="60" y="108" textAnchor="middle" className="ph-code">482 913</text><rect x="38" y="118" width="44" height="4" rx="2" className="ph-bar" /></svg>
+      <h3 id="totp-h">{t.remindTitle}</h3><p>{t.remindText}</p>
+      <label className="check"><input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} /><span>{t.remindSnooze}</span></label>
+      <div className="acts"><button className="btn" onClick={() => close(true)}>{t.activateNow}</button><button className="btn ghost" onClick={() => close(false)}>{t.close || t.cancel}</button></div>
     </div></div>
   );
 }

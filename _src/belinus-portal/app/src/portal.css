@@ -169,3 +169,11 @@ a.seg-b { text-decoration: none; } .desk-seg { margin-bottom: 14px; }
 .otp-box.on { border-color:var(--blue, #2EB9EA); }
 .otp-box:focus { outline:none; border-color:var(--blue, #2EB9EA); box-shadow:0 0 0 3px rgba(46,185,234,.25); }
 @media (max-width:420px) { .otp { gap:6px; } .otp-box { width:42px; height:52px; font-size:22px; } }
+
+.totp-nudge { max-width:440px; display:flex; flex-direction:column; gap:14px; }
+.totp-nudge h3, .totp-nudge p { margin:0; }
+.totp-phone { width:96px; height:136px; align-self:center; }
+.ph-body { fill:#0A0C0F; } .ph-screen { fill:#F2FAFE; } .ph-dot { fill:#3A4048; }
+.ph-shield { fill:#2EB9EA; } .ph-check { fill:none; stroke:#fff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
+.ph-code { font:700 13px/1 'Arial Nova',Arial,sans-serif; letter-spacing:1.5px; fill:#0A0C0F; } .ph-bar { fill:#2EB9EA; opacity:.35; }
+.totp-nudge .check { display:flex; gap:8px; align-items:center; font-size:14px; }
