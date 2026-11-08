@@ -45,30 +45,40 @@ function errText(t, e) { const k = (e && (e.message || e)) || 'generic'; return 
 // ---------- small UI ----------
 function Logo({ light }) { return <img className="logo" src={light ? 'assets/logo-belinus-white.png' : 'assets/logo-belinus.png'} alt="belinus" />; }
 function Field({ label, children, hint }) { return <label className="field"><span className="field-l">{label}</span>{children}{hint && <span className="field-h">{hint}</span>}</label>; }
-function Btn({ kind = 'primary', busy, children, ...p }) { return <button className={'btn btn-' + kind} disabled={busy || p.disabled} {...p}>{busy ? <span className="spin" /> : children}</button>; }
-function Note({ kind = 'info', children }) { return children ? <div className={'note note-' + kind} role={kind === 'error' ? 'alert' : 'status'}>{children}</div> : null; }
-function Badge({ tone = 'grey', children }) { return <span className={'badge badge-' + tone}>{children}</span>; }
+function Btn({ kind = 'primary', busy, children, ...p }) { return <button className={'btn' + (kind === 'primary' ? '' : ' ' + kind)} disabled={busy || p.disabled} {...p}>{busy ? <span className="spin" /> : children}</button>; }
+function Note({ kind = 'info', children }) { return children ? <div className={'note' + (kind === 'info' ? '' : ' ' + kind)} role={kind === 'error' ? 'alert' : 'status'}>{children}</div> : null; }
+function Badge({ tone = 'grey', children }) { return <span className={'chip ' + ({ green: 'ok', amber: 'warn', red: 'bad', blue: 'info' }[tone] || '')}>{children}</span>; }
 function Empty({ children }) { return <div className="empty">{children}</div>; }
-function PageHead({ title, lead, action }) { return <div className="page-head"><div><h1>{title}</h1>{lead && <p className="lead">{lead}</p>}</div>{action}</div>; }
+function PageHead({ title, lead, action }) { return <div className="page-head"><div><h1 className="page-title">{title}</h1>{lead && <p className="page-sub">{lead}</p>}</div>{action}</div>; }
 const TONE = { pending: 'amber', active: 'green', delivered: 'green', installed: 'green', paid: 'green', signed: 'green', replaced: 'green', answered: 'blue', open: 'amber', opened: 'amber', sent: 'red', recalled: 'red', overdue: 'red', service: 'amber', closed: 'grey', cancelled: 'grey' };
 
 // ---------- auth screens ----------
 function AuthFrame({ children }) {
-  const { t, lang, setLang } = useT();
+  const { t } = useT();
   return (
     <div className="auth">
-      <div className="auth-side">
-        <Logo light />
-        <div className="auth-side-txt"><p className="eyebrow">{t.portal}</p><h2>{lang === 'fr' ? 'Votre installation, votre support, au même endroit.' : lang === 'en' ? 'Your installation and your support, in one place.' : 'Uw installatie en uw support, op één plek.'}</h2></div>
-        <LangSwitch dark />
-      </div>
-      <div className="auth-main"><div className="auth-box">{children}</div></div>
+      <div className="auth-panel"><div><img className="auth-belinus" src="assets/logo-belinus-blue.png" alt="belinus" /></div><div><h1>{t.portal}</h1><p>{t.portalTag}</p></div><div /></div>
+      <div className="auth-form"><div><div className="tools"><LangSwitch /><ThemeToggle /></div><div className="auth-box">{children}</div></div></div>
     </div>
   );
 }
-function LangSwitch({ dark }) {
+function PwInput(props) {
+  const { t } = useT();
+  const [show, setShow] = useState(false);
+  const label = show ? t.hidePw : t.showPw;
+  return <div className="pw-wrap"><input {...props} type={show ? 'text' : 'password'} /><button type="button" className="pw-eye" aria-label={label} title={label} aria-pressed={show} onClick={() => setShow(!show)}><svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />{show && <path d="M4 4l16 16" />}</svg></button></div>;
+}
+function LangSwitch() {
   const { lang, setLang } = useT();
-  return <div className={'langs' + (dark ? ' dark' : '')}>{LANGS.map((l) => <button key={l} className={l === lang ? 'on' : ''} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}</div>;
+  return <div className="lang-switch" role="group" aria-label="Language">{LANGS.map((l) => <button key={l} type="button" className={l === lang ? 'on' : ''} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}</div>;
+}
+function ThemeToggle() {
+  const { t } = useT();
+  const [theme, set] = useState(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+  const next = theme === 'light' ? 'dark' : 'light';
+  const flip = () => { if (next === 'light') document.documentElement.dataset.theme = 'light'; else delete document.documentElement.dataset.theme; safeSet('inv_theme', next); set(next); };
+  const label = next === 'light' ? t.themeLight : t.themeDark;
+  return <button type="button" className="theme-btn" onClick={flip} aria-label={label} title={label}><svg className="ic" viewBox="0 0 24 24" aria-hidden="true">{next === 'light' ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></> : <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />}</svg></button>;
 }
 
 function Login({ onSignedIn, route }) {
@@ -88,7 +98,7 @@ function Login({ onSignedIn, route }) {
       <h1>{t.signIn}</h1>
       <form onSubmit={submit} className="stack">
         <Field label={t.email}><input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-        <Field label={t.password}><input type="password" autoComplete="current-password" required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
+        <Field label={t.password}><PwInput autoComplete="current-password" required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
         <Note kind="error">{err}</Note>
         <Btn busy={busy} type="submit">{t.signIn}</Btn>
       </form>
@@ -119,14 +129,14 @@ function Signup() {
   return (
     <AuthFrame>
       <h1>{t.createAccount}</h1>
-      {done ? <><Note kind="ok">{t.signupDone}</Note><a className="btn btn-primary" href={'#/login?email=' + encodeURIComponent(f.email)}>{t.signIn}</a></> : (
+      {done ? <><Note kind="ok">{t.signupDone}</Note><a className="btn" href={'#/login?email=' + encodeURIComponent(f.email)}>{t.signIn}</a></> : (
         <form onSubmit={submit} className="stack">
           <div className="row2">
             <Field label={t.firstName}><input required autoComplete="given-name" value={f.first_name} onChange={set('first_name')} /></Field>
             <Field label={t.lastName}><input required autoComplete="family-name" value={f.last_name} onChange={set('last_name')} /></Field>
           </div>
           <Field label={t.email}><input type="email" required autoComplete="email" value={f.email} onChange={set('email')} /></Field>
-          <label className="field"><span className="field-l">{t.password}</span><input type="password" required autoComplete="new-password" value={f.password} onChange={set('password')} /><PwRules pw={f.password} /></label>
+          <label className="field"><span className="field-l">{t.password}</span><PwInput required autoComplete="new-password" value={f.password} onChange={set('password')} /><PwRules pw={f.password} /></label>
           <input className="trap" tabIndex="-1" autoComplete="off" value={f.website} onChange={set('website')} aria-hidden="true" />
           <label className="check"><input type="checkbox" checked={f.accept} onChange={set('accept')} /> <span>{t.acceptTerms} <a href="https://belinus.com/#/legal" target="_blank" rel="noopener">↗</a></span></label>
           <Note kind="error">{err}</Note>
@@ -179,11 +189,11 @@ function Reset({ route, onSignedIn }) {
     <AuthFrame>
       <h1>{t.newPassword}</h1>
       {stage === 'ready' && <><p>{t.resetContinue}</p><Btn busy={busy} onClick={redeem}>{t.continue}</Btn></>}
-      {stage === 'expired' && <><Note kind="error">{err}</Note><a className="btn btn-primary" href="#/forgot">{t.sendReset}</a></>}
+      {stage === 'expired' && <><Note kind="error">{err}</Note><a className="btn" href="#/forgot">{t.sendReset}</a></>}
       {stage === 'form' && (
         <form onSubmit={submit} className="stack">
-          <label className="field"><span className="field-l">{t.newPassword}</span><input type="password" required autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /><PwRules pw={pw} /></label>
-          <Field label={t.repeatPassword}><input type="password" required autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></Field>
+          <label className="field"><span className="field-l">{t.newPassword}</span><PwInput required autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /><PwRules pw={pw} /></label>
+          <Field label={t.repeatPassword}><PwInput required autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></Field>
           <Note kind="error">{err}</Note>
           <Btn busy={busy} type="submit">{t.setPassword}</Btn>
         </form>
@@ -233,7 +243,7 @@ function SecondFactor({ status, onDone }) {
       <div className="auth-links">
         {mode === 'email' && <button className="link" onClick={send}>{t.resend}</button>}
         {status.totp && <button className="link" onClick={() => { setMode(mode === 'app' ? 'email' : 'app'); setCode(''); setErr(''); }}>{mode === 'app' ? t.useEmail : t.useApp}</button>}
-        <button className="link" onClick={() => sb.auth.signOut().then(() => location.reload())}>{t.signOut}</button>
+        <button className="link" onClick={() => sb.auth.signOut({ scope: 'local' }).then(() => location.reload())}>{t.signOut}</button>
       </div>
     </AuthFrame>
   );
@@ -257,44 +267,58 @@ function SwitchIn({ route }) {
       } catch (e) { setErr(true); }
     })();
   }, []);
-  return <AuthFrame>{err ? <><Note kind="error">{t.switchFail}</Note><a className="btn btn-primary" href="#/login" onClick={() => setTimeout(() => location.reload(), 0)}>{t.signIn}</a></> : <p className="muted">{t.loading}</p>}</AuthFrame>;
+  return <AuthFrame>{err ? <><Note kind="error">{t.switchFail}</Note><a className="btn" href="#/login" onClick={() => setTimeout(() => location.reload(), 0)}>{t.signIn}</a></> : <p className="muted">{t.loading}</p>}</AuthFrame>;
 }
 
 // ---------- signed-in shell ----------
 const MENU = ['products', 'library', 'recall', 'orders', 'invoices', 'support', 'assistant'];
 const ICON = {
   products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', library: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
-  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
-const Icon = ({ n }) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICON[n]} /></svg>;
+const Icon = ({ n }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON[n]} /></svg>;
 
 function Shell({ me, route, children, counts }) {
   const { t } = useT();
-  const [open, setOpen] = useState(false), [investor, setInvestor] = useState(false), [switching, setSwitching] = useState(false);
+  const [menu, setMenu] = useState(false), [q, setQ] = useState(''), [investor, setInvestor] = useState(false), [switching, setSwitching] = useState(false);
   useEffect(() => { fn('bel-switch', { action: 'targets' }).then((r) => setInvestor(!!r.investor)).catch(() => {}); }, []);
-  async function toInvestor() { setSwitching(true); try { const r = await fn('bel-switch', { action: 'create', to: 'investor' }); location.href = r.url; } catch (e) { setSwitching(false); } }
+  useEffect(() => { if (safeGet('inv_rail')) document.documentElement.classList.add('rail'); }, []);
+  useEffect(() => { if (!menu) return; const f = (e) => { if (!e.target.closest('.sb-foot')) setMenu(false); }; addEventListener('click', f); return () => removeEventListener('click', f); }, [menu]);
+  async function toInvestor(e) { e.preventDefault(); if (switching) return; setSwitching(true); try { const r = await fn('bel-switch', { action: 'create', to: 'investor' }); location.href = r.url; } catch (x) { setSwitching(false); } }
   const cur = route.parts[0] || 'products';
-  const initials = ((me.first_name || me.email)[0] + (me.last_name || '')[0] || '').toUpperCase();
+  const staff = isStaffUser(me);
+  const name = me.full_name || [me.first_name, me.last_name].filter(Boolean).join(' ') || me.email;
+  const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
+  const secs = [];
+  if (staff) secs.push([t.secManage, ['desk']]);
+  secs.push([t.secInstall, ['products', 'library', 'recall']], [t.secOrders, ['orders', 'invoices']], [t.secHelp, ['support', 'assistant']]);
+  const filt = (m) => !q || t.menu[m].toLowerCase().includes(q.toLowerCase());
+  const tabs = staff ? ['desk', 'products', 'support'] : ['products', 'support', 'assistant'];
+  const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); safeSet('inv_rail', on ? '1' : ''); };
+  const closeDrawer = () => document.documentElement.classList.remove('drawer');
+  const out = () => sb.auth.signOut({ scope: 'local' }).then(() => { go('login'); location.reload(); });
   return (
-    <div className="shell">
-      <header className="topbar">
-        <button className="burger" aria-label="Menu" onClick={() => setOpen(!open)}><span /><span /><span /></button>
-        <a href="#/products" className="brand"><Logo light /><span className="brand-sub">{t.portal}</span></a>
-        <div className="top-right"><LangSwitch dark /><a href="#/account" className={'avatar' + (cur === 'account' ? ' on' : '')} title={t.menu.account}>{initials}</a></div>
-      </header>
-      <nav className={'side' + (open ? ' open' : '')} onClick={() => setOpen(false)}>
-        {(isStaffUser(me) ? ['desk', ...MENU] : MENU).map((m) => (
-          <a key={m} href={'#/' + m} className={'nav' + (cur === m ? ' on' : '') + (m === 'recall' && counts.recall ? ' alert' : '')}>
-            <Icon n={m} /><span>{t.menu[m]}</span>{counts[m] ? <b className="count">{counts[m]}</b> : null}
-          </a>
-        ))}
-        <div className="side-foot">
-          {investor && <button className="nav" disabled={switching} onClick={(e) => { e.stopPropagation(); toInvestor(); }}><Icon n="invest" /><span>{t.switchInvestor}</span></button>}
-          <a href="#/account" className={'nav' + (cur === 'account' ? ' on' : '')}><Icon n="account" /><span>{t.menu.account}</span></a>
-          <button className="nav" onClick={() => sb.auth.signOut().then(() => { go('login'); location.reload(); })}><span className="nav-out">↩</span><span>{t.signOut}</span></button>
+    <div>
+      <aside className="sb-side">
+        <a className="sb-brand" href="#/products"><img src="assets/logo-belinus-blue.png" alt="belinus" /><img className="sb-b" src="assets/favicon-180.png" alt="belinus" /><span className="sb-lbl">{t.portal}</span></a>
+        <label className="sb-search"><span className="sr">{t.search}</span><Icon n="search" /><input type="search" placeholder={t.search} value={q} onChange={(e) => setQ(e.target.value)} /></label>
+        <nav className="sb-nav" onClick={closeDrawer}>
+          {secs.map(([h, rows]) => { const vis = rows.filter(filt); return vis.length ? <div key={h}><p className="sb-h">{h}</p>{vis.map((m) => (
+            <a key={m} href={'#/' + m} title={t.menu[m]} className={'nav-row' + (cur === m ? ' on' : '') + (m === 'recall' && counts.recall ? ' alert' : '')}><Icon n={m} /><span>{t.menu[m]}</span>{counts[m] ? <b className="count">{counts[m]}</b> : null}</a>
+          ))}</div> : null; })}
+          {investor && <div><p className="sb-h">{t.secOther}</p><a className="nav-row" href="#/" onClick={toInvestor} title={t.switchInvestor}><Icon n="invest" /><span>{t.switchInvestor}</span></a></div>}
+        </nav>
+        <div className="sb-foot">
+          {menu && <div className="sb-menu"><a href="#/account" onClick={() => { setMenu(false); closeDrawer(); }}>{t.menu.account}</a><button onClick={out}>{t.signOut}</button></div>}
+          <button className="sb-acct" onClick={() => setMenu(!menu)}><span className="av">{initials}</span><div><b>{name}</b><small>{staff ? t.roleStaff : t.roleCustomer}</small></div></button>
+          <ThemeToggle />
         </div>
-      </nav>
-      <main className="main">{children}</main>
+        <button className="sb-edge" onClick={toggleRail} aria-label={t.foldMenu}><svg viewBox="0 0 24 24"><path d="M14 7l-5 5 5 5" /></svg></button>
+      </aside>
+      <div className="sb-scrim" onClick={closeDrawer} />
+      <header className="sb-top"><div className="logos"><img src="assets/logo-belinus-blue.png" alt="belinus" /></div><div className="acts"><ThemeToggle /><a className="av" href="#/account" aria-label={t.menu.account}>{initials}</a></div></header>
+      <main className="main"><div className="main-in"><p className="eyebrow">{t.portal}</p>{children}<p className="foot">Belinus Energy BV · a belinus group company · <a href="https://belinus.com/#/privacy" target="_blank" rel="noopener">{t.privacy}</a></p></div></main>
+      <nav className="sb-tabs">{tabs.map((m) => <a key={m} className={'sb-tab' + (cur === m ? ' on' : '')} href={'#/' + m}><Icon n={m} /><span>{t.menu[m]}</span></a>)}<button className="sb-tab" onClick={() => document.documentElement.classList.add('drawer')}><Icon n="menu" /><span>{t.more}</span></button></nav>
     </div>
   );
 }
@@ -318,7 +342,7 @@ function ProductsList({ me }) {
   if (!data) return <p className="muted">{t.loading}</p>;
   return (
     <>
-      <PageHead title={t.menu.products} lead={t.productsLead} action={<a className="btn btn-ghost sm" href="#/products/register">{t.registerBtn}</a>} />
+      <PageHead title={t.menu.products} lead={t.productsLead} action={<a className="btn ghost sm" href="#/products/register">{t.registerBtn}</a>} />
       {!data.systems.length && <Empty>{t.productsEmpty} <a href="#/products/register">{t.registerBtn} →</a> · <a href="#/library">{t.menu.library} →</a></Empty>}
       {data.sites.map((s) => {
         const sys = data.systems.filter((y) => y.site_id === s.id);
@@ -341,7 +365,7 @@ function ProductsList({ me }) {
                   </dl>
                   {y.warranty_product_years ? <p className="warr">{t.warranty}: {y.warranty_product_years} {t.years} {t.product}{y.warranty_performance_years ? ` · ${y.warranty_performance_years} ${t.years} ${t.performance}` : ''}</p> : null}
                   <DocList docs={data.docs.filter((d) => d.system_id === y.id)} />
-                  <a className="btn btn-ghost sm" href={'#/support/new?system=' + y.id + '&cat=' + y.kind}>{t.askSupport}</a>
+                  <a className="btn ghost sm" href={'#/support/new?system=' + y.id + '&cat=' + y.kind}>{t.askSupport}</a>
                 </article>
               ))}
             </div>
@@ -361,7 +385,7 @@ function Library() {
   const kinds = ['solar', 'inverter', 'battery', 'ev_charger', 'ems'];
   return (
     <>
-      <PageHead title={t.menu.library} lead={t.libraryLead} action={<a className="btn btn-ghost sm" href="#/products/register">{t.registerBtn}</a>} />
+      <PageHead title={t.menu.library} lead={t.libraryLead} action={<a className="btn ghost sm" href="#/products/register">{t.registerBtn}</a>} />
       <section className="block">
         <h2>{t.libCurrent}</h2>
         <div className="card">
@@ -433,7 +457,7 @@ function RegisterSystem({ route }) {
     } catch (x) { setErr(errText(t, x)); }
     setBusy(false);
   }
-  if (done) return (<><PageHead title={t.registerTitle} /><div className="card stack"><p>{t.regDone}</p><a className="btn btn-primary" href="#/products">{t.menu.products} →</a></div></>);
+  if (done) return (<><PageHead title={t.registerTitle} /><div className="card stack"><p>{t.regDone}</p><a className="btn" href="#/products">{t.menu.products} →</a></div></>);
   const groups = [['cur', t.libCurrent, CATALOG.current], ['disc', t.libDiscontinued, disc], ['oth', t.regEarlier, CATALOG.other]];
   return (
     <>
@@ -474,7 +498,7 @@ function RegisterSystem({ route }) {
             {items.length > 1 && <button type="button" className="link" onClick={() => setItems(items.filter((_, j) => j !== i))}>{t.regRemove}</button>}
           </div>
         ))}
-        {items.length < 12 && <button type="button" className="btn btn-ghost sm" onClick={() => setItems([...items, blank()])}>+ {t.regAddItem}</button>}
+        {items.length < 12 && <button type="button" className="btn ghost sm" onClick={() => setItems([...items, blank()])}>+ {t.regAddItem}</button>}
         <Field label={t.regInstaller}><input maxLength="160" value={installer} onChange={(e) => setInstaller(e.target.value)} /></Field>
         <Field label={t.regNote}><textarea rows="3" maxLength="1000" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
         <p className="muted small">{t.regPendingInfo}</p>
@@ -543,7 +567,7 @@ function RecallNotice({ id, me, refresh }) {
       {n.system && <p className="muted">{t.kind[n.system.kind]} · {n.system.product} {n.system.model || ''} · {t.serial} <span className="mono">{n.system.serial || '—'}</span></p>}
       {n.instructions && <div className="alertbox"><h3>{t.recallInstructions}</h3><p className="pre">{n.instructions}</p></div>}
       {n.summary && <p className="pre">{n.summary}</p>}
-      {n.pdf && <div className="pdf-wrap"><iframe title={t.recallDoc} src={n.pdf} /><a className="btn btn-ghost sm" href={n.pdf} target="_blank" rel="noopener">{t.recallDoc} ↗</a></div>}
+      {n.pdf && <div className="pdf-wrap"><iframe title={t.recallDoc} src={n.pdf} /><a className="btn ghost sm" href={n.pdf} target="_blank" rel="noopener">{t.recallDoc} ↗</a></div>}
       {n.signed_at ? (
         <div className="signed"><Badge tone="green">{t.rStatus[n.status]}</Badge> {fmt(t.signedOn, { date: when(n.signed_at, lang), name: n.signed_name })}{n.choice ? <> · {t.choice[n.choice]}</> : null}</div>
       ) : (
@@ -640,7 +664,7 @@ function TicketList() {
   useEffect(() => { fn('bel-support', { action: 'list' }).then((r) => setList(r.tickets)).catch(() => setList([])); }, []);
   return (
     <>
-      <PageHead title={t.menu.support} lead={t.supportLead} action={<div className="acts"><a className="btn btn-danger" href="#/support/new?safety=1">{t.safetyReport}</a><a className="btn btn-primary" href="#/support/new">{t.newRequest}</a></div>} />
+      <PageHead title={t.menu.support} lead={t.supportLead} action={<div className="acts"><a className="btn danger" href="#/support/new?safety=1">{t.safetyReport}</a><a className="btn" href="#/support/new">{t.newRequest}</a></div>} />
       {!list ? <p className="muted">{t.loading}</p> : !list.length ? <Empty>{t.none}</Empty> : (
         <div className="list">{list.map((x) => (
           <a key={x.id} href={'#/support/' + x.id} className={'row-link' + (x.safety && x.status !== 'closed' ? ' urgent' : '')}>
@@ -715,7 +739,7 @@ function Ticket({ id }) {
     <>
       <a href="#/support" className="back">‹ {t.back}</a>
       <PageHead title={k.subject} lead={<><span className="mono">#{k.number}</span> · {t.cat[k.category]}{k.system ? ` · ${k.system.product}${k.system.serial ? ' ' + k.system.serial : ''}` : ''} · <Badge tone={TONE[k.status]}>{t.tStatus[k.status]}</Badge></>}
-        action={k.status === 'closed' ? <button className="btn btn-ghost" onClick={() => fn('bel-support', { action: 'reopen', id }).then(load)}>{t.reopen}</button> : <button className="btn btn-ghost" onClick={() => fn('bel-support', { action: 'close', id }).then(load)}>{t.close}</button>} />
+        action={k.status === 'closed' ? <button className="btn ghost" onClick={() => fn('bel-support', { action: 'reopen', id }).then(load)}>{t.reopen}</button> : <button className="btn ghost" onClick={() => fn('bel-support', { action: 'close', id }).then(load)}>{t.close}</button>} />
       <div className="thread">{d.messages.map((m) => (
         <div key={m.id} className={'msg' + (m.staff ? ' staff' : ' mine')}>
           <div className="msg-h"><b>{m.author}</b><span>{when(m.created_at, lang)}</span></div>
@@ -760,7 +784,7 @@ function DeskList({ route }) {
   return (
     <>
       <PageHead title={d.title} lead={d.lead} />
-      <div className="desk-tabs" role="tablist">{QUEUES.map((q) => <a key={q} role="tab" aria-selected={q === queue} className={'desk-tab' + (q === queue ? ' on' : '')} href={'#/desk?q=' + q}>{d.queue[q]}</a>)}</div>
+      <div className="seg desk-seg" role="tablist">{QUEUES.map((q) => <a key={q} role="tab" aria-selected={q === queue} className={'seg-b' + (q === queue ? ' on' : '')} href={'#/desk?q=' + q}>{d.queue[q]}</a>)}</div>
       <div className="desk-find"><input type="search" aria-label={d.search} placeholder={d.search} value={find} onChange={(e) => setFind(e.target.value)} /></div>
       <Note kind="error">{err}</Note>
       {!list ? <p className="muted">{t.loading}</p> : !rows.length ? <Empty>{d.empty}</Empty> : (
@@ -892,7 +916,7 @@ function Assistant() {
     : ['Hoe werkt de garantie van 35 jaar op Gaia?', 'Waarom is natrium-ion veiliger dan lithium?', 'Wat doe ik als mijn batterij een alarm geeft?'];
   return (
     <>
-      <PageHead title={t.menu.assistant} lead={t.assistantLead} action={<button className="btn btn-ghost" onClick={() => { setCur(null); setMsgs([]); setInfo(''); }}>{t.newChat}</button>} />
+      <PageHead title={t.menu.assistant} lead={t.assistantLead} action={<button className="btn ghost" onClick={() => { setCur(null); setMsgs([]); setInfo(''); }}>{t.newChat}</button>} />
       <div className="chat-wrap">
         {chats.length ? <aside className="chat-list">{chats.map((c) => <button key={c.id} className={c.id === cur ? 'on' : ''} onClick={() => open(c.id)}>{c.title}<small>{when(c.updated_at, lang)}</small></button>)}</aside> : null}
         <section className="chat">
@@ -990,24 +1014,24 @@ function Security({ me }) {
       <h2>{t.security}</h2>
       <div className="sec-row">
         <p>{factor ? t.totpOn : t.totpOff}</p>
-        {factor === undefined ? null : factor ? <button className="btn btn-ghost sm" onClick={removeTotp} disabled={busy === 'totp'}>{t.totpRemove}</button> : !enroll && <Btn busy={busy === 'totp'} onClick={startEnroll}>{t.totpActivate}</Btn>}
+        {factor === undefined ? null : factor ? <button className="btn ghost sm" onClick={removeTotp} disabled={busy === 'totp'}>{t.totpRemove}</button> : !enroll && <Btn busy={busy === 'totp'} onClick={startEnroll}>{t.totpActivate}</Btn>}
       </div>
       {enroll && (
         <form className="enroll" onSubmit={confirmEnroll}>
           <img src={enroll.totp.qr_code} alt="QR" width="180" height="180" />
           <div className="stack"><p>{t.totpScan}</p><p className="mono small">{enroll.totp.secret}</p>
             <Field label={t.code}><input className="code-in" inputMode="numeric" maxLength="6" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} required /></Field>
-            <div className="acts"><Btn busy={busy === 'totp'} type="submit">{t.verify}</Btn><button type="button" className="btn btn-ghost" onClick={() => setEnroll(null)}>{t.cancel}</button></div></div>
+            <div className="acts"><Btn busy={busy === 'totp'} type="submit">{t.verify}</Btn><button type="button" className="btn ghost" onClick={() => setEnroll(null)}>{t.cancel}</button></div></div>
         </form>
       )}
       <form className="stack" onSubmit={changePw}>
         <h3>{t.changePassword}</h3>
         <div className="row3">
-          <Field label={t.currentPassword}><input type="password" autoComplete="current-password" value={pw.cur} onChange={(e) => setPw({ ...pw, cur: e.target.value })} required /></Field>
-          <label className="field"><span className="field-l">{t.newPassword}</span><input type="password" autoComplete="new-password" value={pw.n1} onChange={(e) => setPw({ ...pw, n1: e.target.value })} required /><PwRules pw={pw.n1} /></label>
-          <Field label={t.repeatPassword}><input type="password" autoComplete="new-password" value={pw.n2} onChange={(e) => setPw({ ...pw, n2: e.target.value })} required /></Field>
+          <Field label={t.currentPassword}><PwInput autoComplete="current-password" value={pw.cur} onChange={(e) => setPw({ ...pw, cur: e.target.value })} required /></Field>
+          <label className="field"><span className="field-l">{t.newPassword}</span><PwInput autoComplete="new-password" value={pw.n1} onChange={(e) => setPw({ ...pw, n1: e.target.value })} required /><PwRules pw={pw.n1} /></label>
+          <Field label={t.repeatPassword}><PwInput autoComplete="new-password" value={pw.n2} onChange={(e) => setPw({ ...pw, n2: e.target.value })} required /></Field>
         </div>
-        {!factor && <div className="row-code"><Field label={t.code}><input className="code-in" inputMode="numeric" maxLength="6" value={pw.code} onChange={(e) => setPw({ ...pw, code: e.target.value.replace(/\D/g, '') })} /></Field><button type="button" className="btn btn-ghost" onClick={sendCode}>{t.sendCode}</button></div>}
+        {!factor && <div className="row-code"><Field label={t.code}><input className="code-in" inputMode="numeric" maxLength="6" value={pw.code} onChange={(e) => setPw({ ...pw, code: e.target.value.replace(/\D/g, '') })} /></Field><button type="button" className="btn ghost" onClick={sendCode}>{t.sendCode}</button></div>}
         <Note kind="error">{err}</Note><Note kind="ok">{msg}</Note>
         <Btn busy={busy === 'pw'} type="submit">{t.changePassword}</Btn>
       </form>
@@ -1021,7 +1045,7 @@ function Remind({ onClose }) {
   return (
     <div className="modal-bg"><div className="modal">
       <h3>{t.remindTitle}</h3><p>{t.remindText}</p>
-      <div className="acts"><button className="btn btn-primary" onClick={() => { answer(false); go('account'); }}>{t.activateNow}</button><button className="btn btn-ghost" onClick={() => answer(false)}>{t.later}</button><button className="link" onClick={() => answer(true)}>{t.never}</button></div>
+      <div className="acts"><button className="btn" onClick={() => { answer(false); go('account'); }}>{t.activateNow}</button><button className="btn ghost" onClick={() => answer(false)}>{t.later}</button><button className="link" onClick={() => answer(true)}>{t.never}</button></div>
     </div></div>
   );
 }
@@ -1040,11 +1064,11 @@ function App() {
     const { data: s } = await sb.auth.getSession();
     if (!s?.session) { setState({ phase: 'out' }); return; }
     let st;
-    try { st = await fn('bel-mfa', { action: 'status' }); } catch (e) { await sb.auth.signOut(); setState({ phase: 'out' }); return; }
+    try { st = await fn('bel-mfa', { action: 'status' }); } catch (e) { await sb.auth.signOut({ scope: 'local' }); setState({ phase: 'out' }); return; }
     if (st.remind) setRemind(true);
     if (!st.verified) { setState({ phase: 'mfa', status: st }); return; }
     const { data: me } = await sb.from('bel_profiles').select('*').eq('id', s.session.user.id).maybeSingle();
-    if (!me) { await sb.auth.signOut(); setState({ phase: 'out' }); return; }
+    if (!me) { await sb.auth.signOut({ scope: 'local' }); setState({ phase: 'out' }); return; }
     if (me.lang && LANGS.includes(me.lang) && !safeGet('bel_lang')) setLangS(me.lang);
     setState({ phase: 'in', me });
   }, []);
@@ -1066,7 +1090,7 @@ function App() {
     let last = Date.now();
     const bump = () => { last = Date.now(); };
     ['click', 'keydown', 'scroll', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true }));
-    const iv = setInterval(() => { if (Date.now() - last > 30 * 60 * 1000) sb.auth.signOut().then(() => location.reload()); }, 60000);
+    const iv = setInterval(() => { if (Date.now() - last > 30 * 60 * 1000) sb.auth.signOut({ scope: 'local' }).then(() => location.reload()); }, 60000);
     return () => { clearInterval(iv); ['click', 'keydown', 'scroll', 'touchstart'].forEach((e) => removeEventListener(e, bump)); };
   }, [state.phase]);
 

@@ -20,6 +20,13 @@ for f in (ROOT / "vendor").iterdir():   # React 18.3.1, react-dom 18.3.1, supaba
     shutil.copy(f, OUT / "vendor" / f.name)
 for f in ["ArialNova-Light.woff2", "ArialNova.woff2", "ArialNova-Bold.woff2"]:
     shutil.copy(SITE / "fonts" / f, OUT / "fonts" / f)
+for f in (SITE / "_src" / "belinus-investor" / "app" / "fonts").glob("*.woff2"):
+    shutil.copy(f, OUT / "fonts" / f.name)
+shutil.copy(SITE / "assets" / "press" / "belinus-logo-blue.png", OUT / "assets" / "logo-belinus-blue.png")
+# Same favicon set as belinus.com.
+shutil.copy(SITE / "favicon.ico", OUT / "assets" / "favicon.ico")
+shutil.copy(SITE / "favicon.svg", OUT / "assets" / "favicon.svg")
+shutil.copy(SITE / "assets" / "favicon-180.png", OUT / "assets" / "favicon-180.png")
 for f in ["logo-belinus.png", "logo-belinus-white.png"]:
     src = SITE / "assets" / f
     if not src.exists():
@@ -33,7 +40,8 @@ tmp.write_text("const CATALOG = " + CATALOG + ";\n" + (SRC / "i18n.js").read_tex
 js = subprocess.run(["npx", "-y", "esbuild@0.24.0", str(tmp), "--loader:.jsx=jsx", "--jsx=transform", "--minify", "--target=es2019"],
                     check=True, capture_output=True, text=True).stdout
 tmp.unlink()
-css = (SRC / "portal.css").read_text()
+# One look: the investor stylesheet first, then what only the customer portal has.
+css = (SITE / "_src" / "belinus-investor" / "app" / "src" / "investor.css").read_text() + "\n" + (SRC / "portal.css").read_text()
 import json
 html = f"""<!doctype html>
 <html lang="nl">
@@ -43,10 +51,11 @@ html = f"""<!doctype html>
 <title>Belinus klantenportaal</title>
 <meta name="description" content="Belinus klantenportaal: uw producten, terugroepingen, bestellingen, facturen en support.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#0A0C0F">
+<meta name="theme-color" content="#F5F6F7">
+<link rel="icon" href="assets/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="apple-touch-icon" href="assets/favicon-180.png">
+<script>(function(){{var v;try{{v=localStorage.getItem("inv_theme")}}catch(e){{}}if(v!=="dark")document.documentElement.dataset.theme="light"}})()</script>
 <style>{css}</style>
 </head>
 <body>
