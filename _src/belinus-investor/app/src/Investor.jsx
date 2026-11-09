@@ -1,7 +1,7 @@
 // Investor area of EVChargeking / Belinus (investor.belinus.com). EN/NL/FR (see I18n.jsx). Everything goes through the bel-inv* functions.
 const { useState, useEffect, useRef, useCallback } = React;
 const CFG = window.BELINUS_INV;
-const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: 'pkce' } });
 const ERR = {
   'already-active': 'Deze investeerder heeft al een wachtwoord ingesteld.', 'view-only': 'Dit kan niet: u kijkt mee als investeerder.', 'bad-email': 'Vul een geldig e-mailadres in.', 'mail-not-configured': 'Het versturen van e-mails is nog niet actief.', 'mail-failed': 'De e-mail kon niet verstuurd worden. Probeer het later opnieuw.',
   expired: 'Deze link of code is verlopen of al gebruikt. Vraag een nieuwe aan.', 'weak-password': 'Dit wachtwoord voldoet niet aan alle voorwaarden.', 'leaked-password': 'Dit wachtwoord komt voor in gekende datalekken. Kies een ander wachtwoord.',
@@ -9,6 +9,11 @@ const ERR = {
   closed: 'De uiterste datum is verstreken. Uw keuze kan niet meer gewijzigd worden.', 'reason-required': 'Vermeld kort waarom u niet akkoord gaat.', 'confirm-required': 'Bevestig uw keuze met het vinkje.',
   'already-booked': 'U hebt al een open afspraak van dit type. Annuleer die eerst.', 'event-full': 'Deze investeerdersdag is volzet of heeft te weinig plaatsen.', 'slot-taken': 'Dit moment is net ingenomen. Kies een ander moment.', 'phone-required': 'Vul uw telefoonnummer in.', 'too-late': 'Deze afspraak kan niet meer geannuleerd worden. Neem contact op met info@evchargeking.com.', forbidden: 'U hebt geen toegang.', 'bad-input': 'Controleer de ingevulde gegevens.', generic: 'Er ging iets mis. Probeer het opnieuw.',
 };
+Object.assign(ERR, {
+  'email-mismatch': 'Dit Microsoft- of Google-account heeft een ander e-mailadres dan uw uitnodiging. Meld u aan met het e-mailadres waarop u de uitnodiging ontving, of kies een wachtwoord.',
+  'provider-required': 'Meld u aan met een Microsoft- of Google-account, of kies een wachtwoord.',
+  'account-conflict': 'Dit e-mailadres is al aan een ander account gekoppeld. Neem contact op met info@evchargeking.com.',
+});
 const errText = (e) => t(ERR[e && e.message] || ERR.generic);
 let AS = ''; try { AS = sessionStorage.getItem('inv_as') || ''; } catch (e) {}
 function viewAs(id) { try { sessionStorage.setItem('inv_as', id); } catch (e) {} location.hash = '#/'; location.reload(); }
@@ -61,8 +66,41 @@ function PwInput(props) {
   const label = t(show ? 'Wachtwoord verbergen' : 'Wachtwoord tonen');
   return <div className="pw-wrap"><input {...props} type={show ? 'text' : 'password'} /><button type="button" className="pw-eye" aria-label={label} title={label} aria-pressed={show} onClick={() => setShow(!show)}><svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />{show && <path d="M4 4l16 16" />}</svg></button></div>;
 }
+// Microsoft is live; Google goes on once its OAuth client is set up in Supabase.
+const PROVIDERS_ON = { azure: true, google: false };
+function providerStart(provider, code) {
+  try { sessionStorage.setItem('inv_pcode', code); } catch (e) {}
+  return sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + '/?oauth=1' } });
+}
+// Back from Microsoft/Google: exchange the code, check the invitation server-side, then continue like after a password set.
+async function providerReturn() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('oauth') !== '1' || !q.get('code')) return;
+  history.replaceState(null, '', location.pathname + '#/');
+  let code = ''; try { code = sessionStorage.getItem('inv_pcode') || ''; sessionStorage.removeItem('inv_pcode'); } catch (e) {}
+  const { error } = await sb.auth.exchangeCodeForSession(q.get('code'));
+  try {
+    if (error || !code) throw new Error('expired');
+    await fn('bel-inv-auth', { action: 'provider_link', code });
+    await fn('bel-inv', { action: 'mfa_link', code });
+  } catch (x) {
+    try { await sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+    try { sessionStorage.setItem('inv_provider_err', x.message || 'generic'); } catch (e) {}
+  }
+}
+function providerErr() {
+  try { const v = sessionStorage.getItem('inv_provider_err') || ''; sessionStorage.removeItem('inv_provider_err'); return v ? t(ERR[v] || ERR.generic) : ''; } catch (e) { return ''; }
+}
+function ProviderButtons({ code }) {
+  const [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+  async function go1(p) { setBusy(true); setErr(''); try { const { error } = await providerStart(p, code); if (error) throw error; } catch (x) { setErr(t(ERR.generic)); setBusy(false); } }
+  return <div className="stack"><p className="hint">{t('U kunt ook doorgaan met het Microsoft- of Google-account waarop u de uitnodiging ontving.')}</p>
+    <Btn busy={busy} type="button" onClick={() => go1('azure')}>{t('Doorgaan met Microsoft')}</Btn>
+    {PROVIDERS_ON.google && <Btn busy={busy} type="button" onClick={() => go1('google')}>{t('Doorgaan met Google')}</Btn>}
+    <Note kind="error">{err}</Note><p className="hint">{t('Of stel hieronder een wachtwoord in.')}</p></div>;
+}
 function Login({ onIn }) {
-  const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [needs, setNeeds] = useState(false), [sending, setSending] = useState(false), [sent, setSent] = useState(false);
+  const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(() => providerErr()), [needs, setNeeds] = useState(false), [sending, setSending] = useState(false), [sent, setSent] = useState(false);
   const addr = () => email.trim().toLowerCase();
   async function needsPassword() { try { const r = await fn('bel-inv-auth', { action: 'account_status', email: addr() }); const v = !!(r && r.needs_password); setNeeds(v); return v; } catch (x) { return false; } }
   async function submit(e) { e.preventDefault(); setBusy(true); setErr(''); setSent(false);
@@ -123,6 +161,7 @@ function SetPassword({ route, onIn }) {
     <div className="auth-links"><a href="#/">{t('Naar aanmelden')}</a></div></AuthFrame>;
   if (!email) return <AuthFrame><div className="boot" style={{ minHeight: 200 }}><span className="spin" /></div></AuthFrame>;
   return <AuthFrame>{invite ? <><h2>{t('Welkom in het investeerdersportaal')}</h2><p className="lead">{t('Uw account staat klaar. Uw gebruikersnaam is uw e-mailadres:')} <b>{email}</b>. {t('Kies een wachtwoord en u komt meteen bij uw investering en uw keuze.')}</p></> : <><h2>{t('Kies een wachtwoord')}</h2><p className="lead">{t('Voor')} {email}.</p></>}
+    {invite && <ProviderButtons code={code} />}
     <form className="stack" onSubmit={submit}><input type="email" autoComplete="username" value={email} readOnly hidden /><Field label={t('Nieuw wachtwoord')}><input type="password" autoComplete="new-password" required value={p1} onChange={(e) => setP1(e.target.value)} /></Field><PwRules c={pwCheck(p1)} /><Field label={t('Herhaal het wachtwoord')}><input type="password" autoComplete="new-password" required value={p2} aria-invalid={p2 !== '' && p1 !== p2} onChange={(e) => setP2(e.target.value)} /></Field>{p2 !== '' && p1 !== p2 && <Note kind="error">{t('De twee wachtwoorden zijn niet gelijk.')}</Note>}<Note kind="error">{err}</Note><Btn busy={busy} disabled={p1 !== p2} type="submit">{invite ? t('Wachtwoord opslaan en verder') : t('Wachtwoord opslaan')}</Btn></form></AuthFrame>;
 }
 function SecondFactor({ status, onDone }) {

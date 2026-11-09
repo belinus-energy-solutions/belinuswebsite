@@ -3,6 +3,7 @@
 //   { action: "start", email }            e-mails a one-time link (24 h) to set a password (first access or forgotten)
 //   { action: "check", code }             -> { ok, email } while the link is valid
 //   { action: "set_password", code, password } -> { ok, email }; the page then signs in with the password
+//   { action: "provider_link", code } (with the Microsoft/Google session as bearer) -> { ok, email }; e-mail must match the invitation
 import { adminClient, audit, clientIp, cors, EMAIL, json, mailConfigured, pickLang, sendAccessLink, sha256, str, strong } from "../_shared/inv.ts";
 
 // At least 12 characters, at least 3 of the 4 character types, no more than 2 identical characters in a row (Steve, 8 November 2026).
@@ -101,6 +102,30 @@ Deno.serve(async (req) => {
     await a.from("inv_investors").update({ user_id: uid, status: "active", activated_at: new Date().toISOString(), lang: inv.lang || pickLang(body.lang) }).eq("id", inv.id);
     { const { data: st } = await a.from("inv_settings").select("value").eq("key", "admin_emails").maybeSingle(); const role = st?.value?.[inv.email]; if (role) await a.from("inv_admins").upsert({ user_id: uid, role }); }
     await audit(a, { id: uid!, email: inv.email }, "password-set", inv.email, { ip });
+    return json({ ok: true, email: inv.email });
+  }
+  // Sign-in with Microsoft or Google from the invitation link. The provider account must carry the invited address; the link is
+  // used up here and the second factor is then handled as after a password set (see bel-inv mfa_link).
+  if (action === "provider_link") {
+    const jwt = (req.headers.get("authorization") || "").replace(/^Bearer /i, "");
+    const { data: got } = jwt ? await a.auth.getUser(jwt) : { data: null };
+    const pu = got?.user;
+    if (!pu || !["azure", "google"].includes(String(pu.app_metadata?.provider || ""))) return json({ error: "provider-required" }, 400);
+    const l = await linkOf(String(body.code || "").slice(0, 100));
+    if (!l) return json({ error: "expired" }, 400);
+    const { data: inv } = await a.from("inv_investors").select("id, email, user_id, status, first_name, last_name, lang").eq("id", l.investor_id).single();
+    if (!inv || inv.status === "suspended") return json({ error: "expired" }, 400);
+    if (String(pu.email || "").toLowerCase() !== String(inv.email).toLowerCase()) return json({ error: "email-mismatch" }, 400);
+    if (inv.user_id && inv.user_id !== pu.id) return json({ error: "account-conflict" }, 400);
+    const { data: other } = await a.rpc("inv_auth_user_id", { p_email: inv.email });
+    if (other && other !== pu.id) return json({ error: "account-conflict" }, 400);
+    const { data: claimed } = await a.from("inv_links").update({ used_at: new Date().toISOString() }).eq("code_hash", l.code_hash).is("used_at", null).select("code_hash").maybeSingle();
+    if (!claimed) return json({ error: "expired" }, 400);
+    const { error: mdErr } = await a.auth.admin.updateUserById(pu.id, { app_metadata: { ...(pu.app_metadata || {}), app: "belinus-investor" } });
+    if (mdErr) { console.error("inv provider app_metadata", mdErr.message); return json({ error: "server-error" }, 500); }
+    await a.from("inv_investors").update({ user_id: pu.id, status: "active", activated_at: new Date().toISOString(), lang: inv.lang || pickLang(body.lang) }).eq("id", inv.id);
+    { const { data: st } = await a.from("inv_settings").select("value").eq("key", "admin_emails").maybeSingle(); const role = st?.value?.[inv.email]; if (role) await a.from("inv_admins").upsert({ user_id: pu.id, role }); }
+    await audit(a, { id: pu.id, email: inv.email }, "provider-set", inv.email, { ip, provider: pu.app_metadata?.provider });
     return json({ ok: true, email: inv.email });
   }
   return json({ error: "bad-action" }, 400);

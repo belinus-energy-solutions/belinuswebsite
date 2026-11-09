@@ -80,7 +80,7 @@ function App() {
     setSt({ phase: 'in', email: s.session.user.email });
     await loadData();
   }, [loadData]);
-  useEffect(() => { try { if (localStorage.getItem('inv_rail')) document.documentElement.classList.add('rail'); } catch (e) {} load(); }, [load]);
+  useEffect(() => { try { if (localStorage.getItem('inv_rail')) document.documentElement.classList.add('rail'); } catch (e) {} providerReturn().catch(() => {}).then(() => load()); }, [load]);
   useEffect(() => { if (st.phase !== 'in') return; let last = Date.now(); const bump = () => { last = Date.now(); }; ['click', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true })); const iv = setInterval(() => { if (Date.now() - last > 30 * 60000) sb.auth.signOut({ scope: 'local' }).then(() => location.reload()); }, 60000); return () => { clearInterval(iv); ['click', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, bump)); }; }, [st.phase]);
   const page = route.parts[0] || '';
   if (page === 'switch') return <SwitchIn route={route} />;
