@@ -254,6 +254,40 @@ function loadXlsx() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = () => res(window.XLSX); s.onerror = () => rej(new Error('Excel-module kon niet geladen worden.')); document.head.appendChild(s); });
 }
+function BoleroImport() {
+  const [msg, setMsg] = useState(''), [err, setErr] = useState(''), [rows, setRows] = useState(null), [busy, setBusy] = useState(false);
+  async function pick(e) {
+    setErr(''); setMsg(''); setRows(null);
+    const f = e.target.files?.[0]; if (!f) return;
+    try {
+      const X = await loadXlsx();
+      const wb = X.read(await f.arrayBuffer(), { type: 'array' });
+      const ws = wb.Sheets['Current bondholders'];
+      if (!ws) throw new Error('Blad "Current bondholders" ontbreekt in dit bestand.');
+      const data = X.utils.sheet_to_json(ws, { range: 4, defval: null });
+      const map = new Map();
+      for (const x of data) {
+        const email = String(x['Email'] || '').trim().toLowerCase();
+        if (!email) continue;
+        const h = { last_name: x['Name'], first_name: x['Firstname'], bonds: Number(x['Amount Of Bonds']), invested: Number(x['Invested Amount']) };
+        const cur = map.get(email);
+        if (!cur) map.set(email, { email, first_name: h.first_name, last_name: h.last_name, invested: h.invested, holders: [h] });
+        else { cur.invested += h.invested; cur.holders.push(h); }
+      }
+      setRows([...map.values()]);
+    } catch (x) { setErr(x.message || String(x)); }
+  }
+  async function run() {
+    setBusy(true); setErr(''); setMsg('');
+    try {
+      const r = await adm('bolero_import', { confirm: 'IMPORTEREN', rows });
+      setMsg(`${r.imported} investeerders geïmporteerd. Overgeslagen: ${r.skipped.length}${r.skipped.length ? ' (' + r.skipped.join(', ') + ')' : ''}.`);
+      setRows(null);
+    } catch (x) { setErr(errText(x)); } finally { setBusy(false); }
+  }
+  const total = rows ? rows.reduce((s, r) => s + r.invested, 0) : 0;
+  return <div className="card stack"><h2>Bolero-lijst importeren</h2><p className="hint">Kies het bestand bondholders.xls. Er worden geen e-mails verstuurd; de records krijgen status "opgeschort" tot de uitnodiging wordt verstuurd. Het schema volgt de aflossingstabel (voorlopig).</p><input type="file" accept=".xls,.xlsx" onChange={pick} />{rows && <><p style={{ margin: 0 }}>{rows.length} investeerders, totaal € {total.toLocaleString('nl-BE')}. Met tweede houder: {rows.filter((r) => r.holders.length > 1).length}.</p><Btn onClick={run} disabled={busy}>{busy ? 'Bezig…' : 'Importeer'}</Btn></>}{msg && <Note kind="ok">{msg}</Note>}{err && <Note kind="error">{err}</Note>}</div>;
+}
 function AdmFinancial() {
   const [view, setView] = useState('planned'), [signed, setSigned] = useState(false), [filter, setFilter] = useState('all');
   const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
@@ -273,6 +307,7 @@ function AdmFinancial() {
   }
   return <><div className="page-head"><div><h1 className="page-title">Financieel</h1><p className="page-sub">{view === 'planned' ? 'Geplande betalingen volgens de oorspronkelijke leningen, ongewijzigd.' : 'Betalingen op basis van de geregistreerde keuzes van de investeerders.'}</p></div><div className="row"><Btn kind="ghost" busy={busy} onClick={exportXls}>Exporteer Excel</Btn></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
+    <BoleroImport /><div style={{ height: 12 }} />
     <div className="row" style={{ marginBottom: 16, flexWrap: 'wrap' }}><div className="seg" role="tablist">{[['planned', 'Geplande betalingen'], ['registered', 'Geregistreerde keuzes']].map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={'seg-b' + (view === k ? ' on' : '')} onClick={() => setView(k)}>{l}</button>)}</div>
       <select style={{ width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>{FIN_F.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
       {view === 'registered' && <label className="check"><input type="checkbox" checked={signed} onChange={(e) => setSigned(e.target.checked)} /><span>Enkel getekende keuzes</span></label>}</div>

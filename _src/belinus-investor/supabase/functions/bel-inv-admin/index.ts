@@ -135,8 +135,46 @@ Deno.serve(async (req) => {
     const kind = ["visit", "video", "callback"].includes(body.kind) ? body.kind : "visit";
     return json({ ok: true, ...(await bookingPreview(a, kind)) });
   }
+  if (action === "bolero_import") {
+    // Imports the Bolero (KBC) bondholder list. Records are created as "suspended": no login, no invitation, no mail.
+    // Repayment schedule: the aflossingstabel (amortization-table.pdf, 19/09/2025) pro rata to each investment. Provisional until the contract is clarified.
+    if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
+    if (body.confirm !== "IMPORTEREN") return json({ error: "bad-input" }, 400);
+    const list = Array.isArray(body.rows) ? body.rows : [];
+    if (!list.length || list.length > 1000) return json({ error: "bad-input" }, 400);
+    const TR = "bolero-0925", TOTAL = 500000;
+    const ROWS: [string, number, number, number, number][] = [["2025-09-19",500000,0,0,0],["2025-10-19",500000,0,3350,2350],["2025-11-19",500000,0,3350,2350],["2025-12-19",500000,0,3350,2350],["2026-01-19",500000,0,3350,2350],["2026-02-19",500000,0,3350,2350],["2026-03-19",500000,0,3350,2350],["2026-04-19",500000,0,3350,2350],["2026-05-19",500000,0,3350,2350],["2026-06-19",500000,0,3350,2350],["2026-07-19",500000,0,3350,2350],["2026-08-19",500000,0,3350,2350],["2026-09-19",500000,0,3350,2350],["2026-10-19",489600,10400,3350,2350],["2026-11-19",479200,10400,3250,2300],["2026-12-19",468800,10400,3200,2250],["2027-01-19",458400,10400,3150,2200],["2027-02-19",448000,10400,3050,2150],["2027-03-19",437600,10400,3000,2100],["2027-04-19",427200,10400,2900,2050],["2027-05-19",416800,10400,2850,2000],["2027-06-19",406400,10400,2800,1950],["2027-07-19",396000,10400,2700,1900],["2027-08-19",385600,10400,2650,1850],["2027-09-19",375200,10400,2600,1800],["2027-10-19",364800,10400,2500,1750],["2027-11-19",354400,10400,2450,1700],["2027-12-19",344000,10400,2350,1650],["2028-01-19",333600,10400,2300,1600],["2028-02-19",323200,10400,2250,1550],["2028-03-19",312800,10400,2150,1500],["2028-04-19",302400,10400,2100,1450],["2028-05-19",292000,10400,2000,1400],["2028-06-19",281600,10400,1950,1350],["2028-07-19",271200,10400,1900,1300],["2028-08-19",260800,10400,1800,1250],["2028-09-19",250400,10400,1750,1200],["2028-10-19",240000,10400,1650,1150],["2028-11-19",229600,10400,1600,1100],["2028-12-19",219200,10400,1550,1050],["2029-01-19",208800,10400,1450,1050],["2029-02-19",198400,10400,1400,1000],["2029-03-19",188000,10400,1350,950],["2029-04-19",177600,10400,1250,900],["2029-05-19",167200,10400,1200,850],["2029-06-19",156800,10400,1100,800],["2029-07-19",146400,10400,1050,750],["2029-08-19",136000,10400,1000,700],["2029-09-19",125600,10400,900,650],["2029-10-19",115200,10400,850,600],["2029-11-19",104800,10400,750,550],["2029-12-19",94400,10400,700,500],["2030-01-19",84000,10400,650,450],["2030-02-19",73600,10400,550,400],["2030-03-19",63200,10400,500,350],["2030-04-19",52800,10400,400,300],["2030-05-19",42400,10400,350,250],["2030-06-19",32000,10400,300,200],["2030-07-19",21600,10400,200,150],["2030-08-19",11200,10400,150,100],["2030-09-19",0,11200,50,50]];
+    const r2 = (x: number) => Math.round(x * 100) / 100;
+    const { error: trErr } = await a.from("inv_tranches").upsert({ code: TR, name: "Bolero Crowdfunding 19/09/2025 (KBC)", platform: "bolero", gross_rate: 0.0832, term_years: 5, structure: "Maandelijkse interest; aflossing vanaf 19/10/2026 volgens de aflossingstabel (voorlopig)", original_end: "2030-09-19" }, { onConflict: "code" });
+    if (trErr) return json({ error: "tranche-failed" }, 500);
+    const skipped: string[] = [];
+    let imported = 0, pending: any[] = [];
+    const flush = async () => { if (pending.length) { const { error } = await a.from("inv_schedule").insert(pending); if (error) skipped.push("schedule:" + error.message.slice(0, 80)); pending = []; } };
+    for (const r of list) {
+      const email = String(r.email || "").trim().toLowerCase();
+      const invested = Number(r.invested);
+      if (!email || !(invested > 0)) { skipped.push(email || "(leeg)"); continue; }
+      const { data: exists } = await a.from("inv_investors").select("id").eq("email", email).maybeSingle();
+      if (exists) { skipped.push(email + " (bestaat al)"); continue; }
+      const { data: ins, error } = await a.from("inv_investors").insert({ email, first_name: str(r.first_name, 100) || null, last_name: str(r.last_name, 100) || null, tranche: TR, invested, invested_on: "2025-09-19", status: "suspended", lang: "nl", is_test: false, is_demo: false }).select("id").single();
+      if (error || !ins) { skipped.push(email); continue; }
+      const holders = Array.isArray(r.holders) ? r.holders : [];
+      if (holders.length) await a.from("inv_coholders").insert(holders.map((h: any, i: number) => ({ investor_id: ins.id, role: i === 0 ? "holder" : "co-owner", last_name: str(h.last_name, 100) || null, first_name: str(h.first_name, 100) || null, bonds: Math.round(Number(h.bonds)) || null, invested: Number(h.invested) || null })));
+      const share = invested / TOTAL;
+      for (let i = 0; i < ROWS.length; i++) {
+        const [due, outst, princ, gross, net] = ROWS[i];
+        const g = r2(gross * share), n = r2(net * share);
+        pending.push({ investor_id: ins.id, scenario: "original", period: i, due, gross_interest: g, withholding: r2(g - n), net_interest: n, principal: r2(princ * share), remaining: r2(outst * share), status: "planned" });
+      }
+      if (pending.length >= 1000) await flush();
+      imported++;
+    }
+    await flush();
+    return json({ ok: true, imported, skipped });
+  }
   if (action === "invite_pending" || action === "invite_batch") {
-    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested").eq("is_test", false).eq("status", "invited").order("last_name");
+    // Only Winwinner subscribers (crowd-/winwin- tranches). Bolero investors never receive these mails.
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested, tranche").eq("is_test", false).eq("status", "invited").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name");
     const sent = await invitedMap(a);
     const todo = (inv || []).filter((i: any) => !sent.has(i.email));
     if (action === "invite_pending") return json({ ok: true, pending: todo.length, invited: (inv || []).length - todo.length });
