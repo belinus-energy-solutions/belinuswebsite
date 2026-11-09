@@ -234,8 +234,9 @@ Deno.serve(async (req) => {
       // One Teams meeting per video appointment. If Teams is unavailable the booking still goes ahead with the manual link.
       try {
         const m = await createMeeting(`EVChargeking: videogesprek – ${[inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email}`, b.starts_at, b.ends_at);
-        if (m) { b.meet_url = m.joinUrl; await a.from("inv_bookings").update({ meet_url: m.joinUrl, meet_id: m.id }).eq("id", id); }
-      } catch (err) { console.error("teams create", err); }
+        if (m) { b.meet_url = m.joinUrl; await a.from("inv_bookings").update({ meet_url: m.joinUrl, meet_id: m.id }).eq("id", id); console.log("teams created", id); }
+        else console.log("teams skipped: secrets not visible to the function", id);
+      } catch (err) { console.error("teams create failed", id, String((err as any)?.message || err)); }
     }
     if (phone && phone !== inv.phone) await a.from("inv_investors").update({ phone }).eq("id", inv.id);
     const detailIn = (l: "nl" | "fr" | "en") => {
