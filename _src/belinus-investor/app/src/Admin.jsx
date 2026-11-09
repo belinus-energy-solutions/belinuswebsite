@@ -313,6 +313,7 @@ function AdmGroup({ code }) {
       <div className="row"><Btn onClick={() => run('group_members_add', sel)} disabled={busy || !sel.length}>{busy ? 'Bezig…' : 'Voeg ' + sel.length + ' toe'}</Btn></div></div>
   </>;
 }
+const CAMP_ST = { draft: 'concept', sending: 'wordt verstuurd', sent: 'verstuurd' };
 function AdmCampaigns() {
   const [d, setD] = useState(null), [err, setErr] = useState('');
   useEffect(() => { adm('campaigns').then(setD).catch((x) => setErr(errText(x))); }, []);
