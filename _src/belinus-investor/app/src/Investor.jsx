@@ -189,11 +189,14 @@ function SecondFactor({ status, onDone }) {
 const SCH_STATUS = { planned: ['gepland', ''], paid: ['betaald', 'ok'], deferred: ['uitgesteld', 'warn'] };
 // Payment date shown as the deadline: three months after the scheduled date (paid rows keep the actual date).
 function addMonths(d, n) { const x = new Date(d + 'T12:00:00Z'); x.setUTCMonth(x.getUTCMonth() + n); return x.toISOString().slice(0, 10); }
-function Schedule({ rows }) {
+// Payment date of the current contract that a choice replaces (first unpaid original row).
+function curDueOf(d) { return (d.original || []).find((r) => r.status !== 'paid')?.due; }
+// leadDue: when set, the first unpaid row of this table shows "binnen de drie maanden, ten laatste" + that date.
+function Schedule({ rows, leadDue }) {
   if (!rows || !rows.length) return <p className="hint">{t('De planning wordt nog geladen.')}</p>;
   const L = ['Datum', 'Bruto interest', 'Roerende voorheffing', 'Netto interest', 'Kapitaal', 'Totaal ontvangen', 'Resterend kapitaal', 'Status'].map((x) => t(x));
   return <div className="tblw"><table className="tbl cards"><thead><tr>{L.map((h, i) => <th key={h} className={i > 0 && i < 7 ? 'n' : ''}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={r.period}>
-    <td data-l={L[0]}>{dayNl(r.due)}</td><td data-l={L[1]} className="n">{eur(r.gross_interest)}</td><td data-l={L[2]} className="n">{eur(r.withholding)}</td><td data-l={L[3]} className="n">{eur(r.net_interest)}</td><td data-l={L[4]} className="n">{eur(r.principal)}</td><td data-l={L[5]} className="n"><b>{eur(Number(r.net_interest) + Number(r.principal))}</b></td><td data-l={L[6]} className="n">{eur(r.remaining)}</td><td data-l={L[7]}><span className={'chip ' + SCH_STATUS[r.status][1]}>{t(SCH_STATUS[r.status][0])}</span></td></tr>)}</tbody></table></div>;
+    <td data-l={L[0]}>{leadDue && i === rows.findIndex((x) => x.status !== 'paid') ? <>{t('Binnen de drie maanden, ten laatste')} {dayNl(leadDue)}</> : dayNl(r.due)}</td><td data-l={L[1]} className="n">{eur(r.gross_interest)}</td><td data-l={L[2]} className="n">{eur(r.withholding)}</td><td data-l={L[3]} className="n">{eur(r.net_interest)}</td><td data-l={L[4]} className="n">{eur(r.principal)}</td><td data-l={L[5]} className="n"><b>{eur(Number(r.net_interest) + Number(r.principal))}</b></td><td data-l={L[6]} className="n">{eur(r.remaining)}</td><td data-l={L[7]}><span className={'chip ' + SCH_STATUS[r.status][1]}>{t(SCH_STATUS[r.status][0])}</span></td></tr>)}</tbody></table></div>;
 }
 // Transactions: one row per payment until the end of the bond. Originals stay visible; a chosen option adds its rows as pending until Winwinner confirms the signature, then the old planned rows are cancelled.
 const TX_STATUS = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['in afwachting van handtekening', 'warn'], cancelled: ['geannuleerd', 'info'] };
@@ -265,7 +268,7 @@ function Keuze({ d, reload }) {
     {/* Accordion: the selected option expands under its own block (one open at a time). After confirming, only the chosen option is shown. */}
     <div className="stack" style={{ marginBottom: 18 }}>{OPT.filter(([k]) => !locked || c === k).map(([k, ti, x]) => <div key={k} className="stack" style={{ gap: 8 }}>
       <label className={'opt' + (c === k ? ' on' : '') + (locked ? ' dis' : '')}><input type="radio" name="keuze" disabled={locked} checked={c === k} onChange={() => setC(k)} /><div><b>{t(ti)}</b>{t(x)}</div></label>
-      {c === k && k === 'A' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze A')}</h2>{d.interest_only_date ? null : <p className="hint">{t('De exacte datum van de interestbetaling (binnen de drie maanden) volgt nog.')}</p>}<Schedule rows={d.optionA} /></div>}
+      {c === k && k === 'A' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze A')}</h2>{d.interest_only_date ? null : <p className="hint">{t('De exacte datum van de interestbetaling (binnen de drie maanden) volgt nog.')}</p>}<Schedule rows={d.optionA} leadDue={curDueOf(d) ? addMonths(curDueOf(d), 3) : null} /></div>}
       {c === k && k === 'B' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze B')}</h2><p className="hint">{t('Vanaf 2027 wordt uw kapitaal terugbetaald in stappen. Dit is de planning bij keuze B, zoals ze wordt opgenomen in het addendum.')}</p><Schedule rows={d.optionB} /></div>}
       {c === k && k === 'B' && <div className="card"><Field label={t('Uw wensen voor het voorstel (niet verplicht)')}><textarea disabled={locked} maxLength="2000" value={wish} onChange={(e) => setWish(e.target.value)} /></Field></div>}
       {c === k && k === 'C' && <div className="card"><Field label={t('Waarom gaat u niet akkoord? (verplicht)')}><textarea disabled={locked} maxLength="2000" value={reason} onChange={(e) => setReason(e.target.value)} /></Field></div>}
