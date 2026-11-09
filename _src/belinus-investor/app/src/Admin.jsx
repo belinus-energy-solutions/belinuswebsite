@@ -353,8 +353,6 @@ function AdmCampaign({ id }) {
   </>;
 }
 const AUTO_MAILS = [
-  ['invite', 'Persoonlijke uitnodiging', 'Beheerder klikt "Uitnodigen", of verzending van de uitnodigingsbatch', 'Alleen investeerders met status uitgenodigd. Bij de eerste uitnodiging cc naar info@winwinner.be. Persoonlijke link tot de uiterste datum.', 'Uitnodigingstekst met persoonlijke link en uiterste datum (NL)'],
-  ['invite-test', 'Testmail uitnodiging', 'Knop "Stuur testmail naar Erwin" op Beschikbaarheid', 'Alleen naar erwin@evchargeking.com. Geen cc.', 'Uitnodigingstekst met voorbeeldlink, onderwerp begint met "TEST"'],
   ['access-link', 'Wachtwoordlink', 'Investeerder vraagt een nieuwe link, of beheerder stuurt opnieuw', 'Eén persoonlijke link; geldig tot de uiterste datum.', 'Stel-uw-wachtwoord-tekst (NL/FR/EN)'],
   ['login-code', 'Aanmeldcode', 'Aanmelding op het portaal (tweede stap)', '6 cijfers, 10 minuten geldig, één keer te gebruiken.', 'Korte e-mail met de code'],
   ['choice', 'Bevestiging van uw keuze', 'Investeerder bevestigt keuze A, B of C in het portaal', 'Verstuurd bij elke bevestiging. De keuze is daarna definitief. Bij keuze A/B: aankondiging van een e-mail van info@winwinner.be om het contract aan te passen. Bedankt voor uw vertrouwen.', 'Bevestiging met gekozen optie, vervolgstap en bedankje (NL/FR/EN)'],
