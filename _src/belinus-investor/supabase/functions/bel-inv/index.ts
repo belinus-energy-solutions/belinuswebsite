@@ -1,6 +1,7 @@
 // bel-inv — signed-in investor actions of the EVChargeking investor area.
 // Second factor (as in Clavoris: a code by e-mail, or the authenticator app): mfa_status, mfa_send, mfa_verify, mfa_totp_done.
 // After it: me, choose, slots, book, cancel, set_phone.
+import { bSchedule, loanKind } from "../_shared/finance.ts";
 import { createMeeting, deleteMeeting, moveMeeting } from "../_shared/teams.ts";
 import { icsEvent as ics, access, adminClient, APP_URL, applyChoice, audit, claims, clientIp, cors, currentUser, dateIn, eventTitle, hello, json, KIND_L, nlDate, pickLang, sendMail, settings, sha256, str, strong } from "../_shared/inv.ts";
 
@@ -145,7 +146,10 @@ Deno.serve(async (req) => {
     const { data: msgs } = await a.from("inv_messages").select("id, direction, body, created_at, read_at, channel").eq("investor_id", inv.id).order("created_at");
     const events = (ev || []).map((e: any) => ({ ...e, free: e.capacity - (used || []).filter((x: any) => x.event_id === e.id).reduce((n: number, x: any) => n + x.persons, 0), capacity: undefined }));
     const gift = ch && ch.choice !== "C" && s.gift?.text ? s.gift : null;
-    return json({ ok: true, messages: msgs || [], admin: acc.role, as: asMode ? { mode: asMode, id: inv.id, admin_email: u.email } : null, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
+    // Option B: the paid rows of the original schedule, then the rising repayment plan (see _shared/finance.ts).
+    const origRows = (sch || []).filter((r: any) => r.scenario === "original");
+    const optionB = [...origRows.filter((r: any) => String(r.due).slice(0, 4) < "2026"), ...bSchedule(Number(inv.invested), origRows, Number(tr?.gross_rate || 0), loanKind(inv.tranche))];
+    return json({ ok: true, messages: msgs || [], admin: acc.role, as: asMode ? { mode: asMode, id: inv.id, admin_email: u.email } : null, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), optionB, choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
   }
   if (!inv) return json({ error: "not-investor" }, 403);
   if (asMode === "view" && action !== "slots") return json({ error: "view-only" }, 403);

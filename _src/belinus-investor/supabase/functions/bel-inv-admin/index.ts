@@ -1,5 +1,6 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
+import { bSchedule as bSched, cent, loanKind as kindFor } from "../_shared/finance.ts";
 import { icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
@@ -223,32 +224,7 @@ Deno.serve(async (req) => {
       const g = schBy.get(r.investor_id)!;
       if (r.scenario === "original") g.original.push(r); else if (r.scenario === "A") g.A.push(r);
     }
-    const kindOf = (code: string) => (code.startsWith("crowd") ? "winwin_raise" : code.startsWith("winwin") ? "winwinlening" : "bolero");
-    const SHARES: Record<string, Record<number, number>> = {
-      winwin_raise: { 2027: 0.2, 2028: 0.3, 2029: 0.5 },
-      winwinlening: { 2027: 0.1, 2028: 0.2, 2029: 0.3, 2030: 0.4 },
-    };
-    const cent = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
-    const yearOf = (d: string) => Number(String(d).slice(0, 4));
-    // Option B: 2026 interest only; then steps of the principal outstanding at the start of 2026.
-    const bSchedule = (inv: any, orig: any[], rate: number, kind: string) => {
-      const pre = orig.filter((r) => yearOf(r.due) < 2026);
-      let bal = pre.length ? Number(pre[pre.length - 1].remaining) : Number(inv.invested);
-      const base = bal;
-      const steps = SHARES[kind] || {};
-      const last = Math.max(...Object.keys(steps).map(Number));
-      const rows: any[] = [];
-      for (const r of orig.filter((x) => yearOf(x.due) >= 2026)) {
-        const y = yearOf(r.due);
-        const interest = cent(bal * rate);
-        let prin = 0;
-        if (y > 2026 && steps[y] !== undefined) prin = y === last ? bal : Math.min(bal, cent(base * steps[y]));
-        const wh = cent(interest * 0.3);
-        bal = cent(bal - prin);
-        rows.push({ period: r.period, due: r.due, gross_interest: interest, withholding: wh, net_interest: cent(interest - wh), principal: cent(prin), remaining: bal });
-      }
-      return rows;
-    };
+    const kindOf = kindFor;
     const name = (i: any) => i.company_name || [i.first_name, i.last_name].filter(Boolean).join(" ") || i.email;
     const STATUS: Record<string, string> = { paid: "paid", planned: "planned", deferred: "planned" };
     const lines: any[] = [];
@@ -266,7 +242,7 @@ Deno.serve(async (req) => {
         lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch?.choice || "—", source: "original", gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal), status: origStatus(r) });
       }
       if (applyNew) {
-        const newRows = ch.choice === "A" ? g.A.map((r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) })) : bSchedule(inv, g.original, Number(t?.gross_rate || 0), kind);
+        const newRows = ch.choice === "A" ? g.A.map((r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) })) : bSched(Number(inv.invested), g.original, Number(t?.gross_rate || 0), kind);
         for (const r of newRows) {
           lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch.choice, source: "option " + ch.choice, gross_interest: r.gross_interest, withholding: r.withholding, net_interest: r.net_interest, principal: r.principal, status: signed ? "planned" : "pending" });
         }

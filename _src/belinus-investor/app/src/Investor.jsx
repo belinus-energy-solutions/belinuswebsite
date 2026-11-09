@@ -91,13 +91,19 @@ async function providerReturn() {
 function providerErr() {
   try { const v = sessionStorage.getItem('inv_provider_err') || ''; sessionStorage.removeItem('inv_provider_err'); return v ? t(ERR[v] || ERR.generic) : ''; } catch (e) { return ''; }
 }
+// Standard sign-in buttons (Microsoft and Google brand look). The user picks the account he received the invitation on.
+const MS_LOGO = <svg width="21" height="21" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022" /><rect x="11" y="1" width="9" height="9" fill="#7fba00" /><rect x="1" y="11" width="9" height="9" fill="#00a4ef" /><rect x="11" y="11" width="9" height="9" fill="#ffb900" /></svg>;
+const G_LOGO = <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2045c0-.6382-.0573-1.2518-.1636-1.8409H9v3.4814h4.8436c-.2086 1.125-.8427 2.0782-1.7959 2.7164v2.2582h2.9087c1.7018-1.5668 2.6836-3.874 2.6836-6.615z" /><path fill="#34A853" d="M9 18c2.43 0 4.4673-.8064 5.9564-2.1805l-2.9087-2.2582c-.8064.54-1.8368.859-3.0477.859-2.344 0-4.3282-1.5831-5.036-3.7104H.9574v2.3318C2.4382 15.9832 5.4818 18 9 18z" /><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.2822-1.1168-.2822-1.71s.1023-1.17.2823-1.71V4.9582H.9573A8.9965 8.9965 0 0 0 0 9c0 1.4523.3477 2.8268.9573 4.0418L3.964 10.71z" /><path fill="#EA4335" d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.346l2.5813-2.5814C13.4632.8918 11.4259 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9582L3.964 7.29C4.6718 5.1627 6.6559 3.5795 9 3.5795z" /></svg>;
 function ProviderButtons({ code }) {
-  const [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false), [err, setErr] = useState('');
   async function go1(p) { setBusy(true); setErr(''); try { const { error } = await providerStart(p, code); if (error) throw error; } catch (x) { setErr(t(ERR.generic)); setBusy(false); } }
-  return <div className="stack"><p className="hint">{t('U kunt ook doorgaan met het Microsoft- of Google-account waarop u de uitnodiging ontving.')}</p>
-    <Btn busy={busy} type="button" onClick={() => go1('azure')}>{t('Doorgaan met Microsoft')}</Btn>
-    {PROVIDERS_ON.google && <Btn busy={busy} type="button" onClick={() => go1('google')}>{t('Doorgaan met Google')}</Btn>}
-    <Note kind="error">{err}</Note><p className="hint">{t('Of stel hieronder een wachtwoord in.')}</p></div>;
+  const pb = (p, logo, label) => <button type="button" className={'pbtn pbtn-' + p} disabled={busy} onClick={() => go1(p)}>{logo}<span>{label}</span></button>;
+  return <div className="stack pwrap"><h3 className="ptitle">{t('Meld u aan met het Microsoft- of Google-account waarop u de uitnodiging ontving')}</h3>
+    {pb('azure', MS_LOGO, t('Aanmelden met Microsoft'))}
+    {PROVIDERS_ON.google && pb('google', G_LOGO, t('Aanmelden met Google'))}
+    <Note kind="error">{err}</Note>
+    <div className="or"><span>{t('of')}</span></div>
+    <h3 className="ptitle">{t('Stel een wachtwoord in')}</h3></div>;
 }
 function Login({ onIn }) {
   const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(() => providerErr()), [needs, setNeeds] = useState(false), [sending, setSending] = useState(false), [sent, setSent] = useState(false);
@@ -233,6 +239,7 @@ function Keuze({ d, reload }) {
     {locked && <div style={{ marginBottom: 16 }}><Note kind="warn">{t('Uw keuze kan niet meer gewijzigd worden.')}</Note></div>}
     <div className="stack" style={{ marginBottom: 18 }}>{OPT.map(([k, ti, x]) => <label key={k} className={'opt' + (c === k ? ' on' : '') + (locked ? ' dis' : '')}><input type="radio" name="keuze" disabled={locked} checked={c === k} onChange={() => setC(k)} /><div><b>{t(ti)}</b>{t(x)}</div></label>)}</div>
     {c === 'A' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze A')}</h2>{d.interest_only_date ? null : <p className="hint">{t('De exacte datum van de interestbetaling (binnen de drie maanden) volgt nog.')}</p>}<Schedule rows={d.optionA} /></div>}
+    {c === 'B' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze B')}</h2><p className="hint">{t('Vanaf 2027 wordt uw kapitaal terugbetaald in stappen. Dit is de planning bij keuze B, zoals ze wordt opgenomen in het addendum.')}</p><Schedule rows={d.optionB} /></div>}
     {c === 'B' && <div className="card"><Field label={t('Uw wensen voor het voorstel (niet verplicht)')}><textarea disabled={locked} maxLength="2000" value={wish} onChange={(e) => setWish(e.target.value)} /></Field></div>}
     {c === 'C' && <div className="card"><Field label={t('Waarom gaat u niet akkoord? (verplicht)')}><textarea disabled={locked} maxLength="2000" value={reason} onChange={(e) => setReason(e.target.value)} /></Field></div>}
     {c && !locked && <div className="card stack"><label className="check"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} /><span>{t('Ik bevestig mijn keuze. Ik begrijp dat Winwinner mij een addendum ter ondertekening zal bezorgen.')}</span></label><Note kind="error">{err}</Note><div><Btn busy={busy} disabled={!ok || (c === 'C' && !reason.trim())} onClick={save}>{t('Bevestig mijn keuze')}</Btn></div></div>}
