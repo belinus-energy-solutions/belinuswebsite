@@ -153,7 +153,8 @@ Deno.serve(async (req) => {
       });
       return { ...e, slots, arrival_slots: slots.map((x: any) => x.time), free: slots.reduce((n: number, x: any) => n + x.free, 0), capacity: undefined };
     });
-    const gift = ch && ch.choice !== "C" && s.gift?.text ? s.gift : null;
+    // The welcome gift is not shown to investors yet (to be sent out later).
+    const gift = null;
     // Option B: the paid rows of the original schedule, then the rising repayment plan (see _shared/finance.ts).
     const origRows = (sch || []).filter((r: any) => r.scenario === "original");
     const optionB = [...origRows.filter((r: any) => String(r.due).slice(0, 4) < "2026"), ...bSchedule(Number(inv.invested), origRows, Number(tr?.gross_rate || 0), loanKind(inv.tranche))];
@@ -207,7 +208,8 @@ Deno.serve(async (req) => {
     if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
     if (closed) return json({ error: "closed" }, 400);
     const { data: cur } = await a.from("inv_choices").select("addendum_status").eq("investor_id", inv.id).maybeSingle();
-    if (cur && cur.addendum_status !== "none") return json({ error: "closed" }, 400);
+    // Once a choice is made it is final; changes go through Winwinner's addendum.
+    if (cur) return json({ error: "already-chosen" }, 400);
     const reason = str(body.reason, 2000), wish = str(body.wish, 2000);
     if (choice === "C" && !reason) return json({ error: "reason-required" }, 400);
     await applyChoice(a, inv, { choice, reason, wish, ip });

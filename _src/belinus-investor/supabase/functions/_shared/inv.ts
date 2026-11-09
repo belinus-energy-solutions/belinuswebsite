@@ -134,9 +134,9 @@ const CHOICE_L: Record<Lang, Record<string, string>> = {
   en: { A: "A – I agree to the extension. Within three months I receive interest only, no principal.", B: "B – I agree that only interest, no principal, is paid within three months. I choose the rising repayment plan: from 2027 my capital is repaid in steps according to the schedule in the portal, and interest is paid on the remaining capital.", C: "C – I do not agree." },
 };
 const CONFIRM_L: Record<Lang, { subject: string; got: string; next: Record<string, string>; change: string; thanks: string }> = {
-  nl: { subject: "Bevestiging van uw keuze – EVChargeking", got: "We hebben uw keuze goed ontvangen:", next: { A: "Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.", B: "De planning van het stijgend terugbetalingsplan staat in het portaal. Daarna ontvangt u een e-mail van Winwinner om het addendum te ondertekenen.", C: "We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing." }, change: "U kunt uw keuze nog wijzigen in het portaal tot aan de uiterste datum:", thanks: "Met vriendelijke groeten," },
-  fr: { subject: "Confirmation de votre choix – EVChargeking", got: "Nous avons bien reçu votre choix :", next: { A: "Dès que tous les investisseurs auront confirmé leur choix, vous recevrez un e-mail de Winwinner pour signer l'avenant à votre contrat, qui reprend votre choix.", B: "Le calendrier du plan de remboursement croissant figure dans le portail. Vous recevrez ensuite un e-mail de Winwinner pour signer l'avenant.", C: "Nous vous contacterons dans les 5 jours ouvrables. Votre contrat existant reste d'application sans modification." }, change: "Vous pouvez encore modifier votre choix dans le portail jusqu'à la date limite :", thanks: "Cordialement," },
-  en: { subject: "Confirmation of your choice – EVChargeking", got: "We have received your choice:", next: { A: "As soon as all investors have confirmed their choice, you will receive an e-mail from Winwinner to sign the addendum to your contract, which records your choice.", B: "The schedule of the rising repayment plan is in the portal. You will then receive an e-mail from Winwinner to sign the addendum.", C: "We will contact you within 5 working days. Your existing agreement continues to apply unchanged." }, change: "You can still change your choice in the portal until the deadline:", thanks: "Kind regards," },
+  nl: { subject: "Bevestiging van uw keuze – EVChargeking", got: "We hebben uw keuze goed ontvangen:", next: { A: "Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.", B: "De planning van het stijgend terugbetalingsplan staat in het portaal. Daarna ontvangt u een e-mail van Winwinner om het addendum te ondertekenen.", C: "We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing." }, thank: "Hartelijk dank voor uw vertrouwen en uw steun aan EVChargeking.", change: "U ontvangt binnenkort een e-mail van info@winwinner.be om uw contract aan te passen.", thanks: "Met vriendelijke groeten," },
+  fr: { subject: "Confirmation de votre choix – EVChargeking", got: "Nous avons bien reçu votre choix :", next: { A: "Dès que tous les investisseurs auront confirmé leur choix, vous recevrez un e-mail de Winwinner pour signer l'avenant à votre contrat, qui reprend votre choix.", B: "Le calendrier du plan de remboursement croissant figure dans le portail. Vous recevrez ensuite un e-mail de Winwinner pour signer l'avenant.", C: "Nous vous contacterons dans les 5 jours ouvrables. Votre contrat existant reste d'application sans modification." }, thank: "Merci beaucoup pour votre confiance et votre soutien envers EVChargeking.", change: "Vous recevrez bientôt un e-mail de info@winwinner.be pour modifier votre contrat.", thanks: "Cordialement," },
+  en: { subject: "Confirmation of your choice – EVChargeking", got: "We have received your choice:", next: { A: "As soon as all investors have confirmed their choice, you will receive an e-mail from Winwinner to sign the addendum to your contract, which records your choice.", B: "The schedule of the rising repayment plan is in the portal. You will then receive an e-mail from Winwinner to sign the addendum.", C: "We will contact you within 5 working days. Your existing agreement continues to apply unchanged." }, thank: "Thank you for your trust and support in EVChargeking.", change: "You will soon receive an e-mail from info@winwinner.be to amend your contract.", thanks: "Kind regards," },
 };
 export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: string; wish?: string; reason?: string; by_admin?: string; note?: string; ip?: string }) {
   const { error } = await a.from("inv_choices").upsert({ investor_id: inv.id, choice: c.choice, wish: c.choice === "B" ? c.wish || null : null, reason: c.choice === "C" ? c.reason || null : null, confirmed_at: new Date().toISOString() });
@@ -147,7 +147,7 @@ export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: stri
     else await a.from("inv_followups").update({ status: "cancelled" }).eq("investor_id", inv.id).eq("kind", kind);
   }
   const L = pickLang(inv.lang), T = CONFIRM_L[L];
-  await sendMail(a, { to: inv.email, kind: "choice", lang: L, subject: T.subject, text: `${hello(inv.first_name, L)}\n\n${T.got}\n\n${CHOICE_L[L][c.choice]}\n\n${T.next[c.choice]}\n\n${T.change} ${APP_URL}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
+  await sendMail(a, { to: inv.email, kind: "choice", lang: L, subject: T.subject, text: `${hello(inv.first_name, L)}\n\n${T.got}\n\n${CHOICE_L[L][c.choice]}\n\n${T.next[c.choice]}\n\n${T.thank}\n\n${T.change}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
 }
 
 export function strong(p: string): boolean {
@@ -218,7 +218,7 @@ Deze knop is persoonlijk en werkt tot en met ${nlDate(expires)}. Stuur deze e-ma
 
 Daarna meldt u zich aan op ${APP_URL} met uw e-mailadres en wachtwoord. Voor uw veiligheid vragen we vanaf de volgende keer bij elke aanmelding ook een code van 6 cijfers, die u per e-mail ontvangt.
 
-U ontvangt een e-mail ter bevestiging van uw keuze. Tot de uiterste datum kunt u uw keuze nog wijzigen in het portaal. Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.
+U ontvangt een e-mail ter bevestiging van uw keuze. Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.
 
 ## VRAGEN? MAAK EEN AFSPRAAK IN HET PORTAAL
 
@@ -233,8 +233,6 @@ Werkt de knop niet meer? Ga naar ${APP_URL}, klik op "Wachtwoord vergeten" en vu
 ## BELINUS IN 2027
 
 Belinus lanceert volgend jaar een residentiële natrium-ionbatterij, made in Belgium: lithiumvrij, veilig en met 15 jaar garantie. Ze maakt deel uit van een totaalpakket met een slim zonnepaneel (in partnerschap met LONGi), een hybride SiC-omvormer, energieopslag, de ETAPpro-laadpaal van EVChargeking en een AI-energiebeheersysteem. Bekijk het aanbod: https://www.belinus.com/b2c/index.html
-
-Na uw positief antwoord verwelkomen we u in de groep met een heel bijzonder geschenk.
 
 Hartelijk dank voor uw vertrouwen.
 

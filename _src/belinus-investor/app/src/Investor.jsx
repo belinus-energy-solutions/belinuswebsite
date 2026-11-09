@@ -6,7 +6,7 @@ const ERR = {
   'already-active': 'Deze investeerder heeft al een wachtwoord ingesteld.', 'view-only': 'Dit kan niet: u kijkt mee als investeerder.', 'bad-email': 'Vul een geldig e-mailadres in.', 'mail-not-configured': 'Het versturen van e-mails is nog niet actief.', 'mail-failed': 'De e-mail kon niet verstuurd worden. Probeer het later opnieuw.',
   expired: 'Deze link of code is verlopen of al gebruikt. Vraag een nieuwe aan.', 'weak-password': 'Dit wachtwoord voldoet niet aan alle voorwaarden.', 'leaked-password': 'Dit wachtwoord komt voor in gekende datalekken. Kies een ander wachtwoord.',
   'wrong-code': 'Deze code klopt niet.', 'bad-code': 'Vul de 6 cijfers van de code in.', 'too-many-attempts': 'Te veel pogingen. Vraag een nieuwe code aan.', wait: 'Wacht even voor u een nieuwe code vraagt.', 'too-many': 'Te veel aanvragen. Probeer het over een uur opnieuw.',
-  closed: 'De uiterste datum is verstreken. Uw keuze kan niet meer gewijzigd worden.', 'reason-required': 'Vermeld kort waarom u niet akkoord gaat.', 'confirm-required': 'Bevestig uw keuze met het vinkje.',
+  closed: 'De uiterste datum is verstreken. Uw keuze kan niet meer gewijzigd worden.', 'already-chosen': 'Uw keuze is al vastgelegd en kan niet meer gewijzigd worden.','reason-required': 'Vermeld kort waarom u niet akkoord gaat.', 'confirm-required': 'Bevestig uw keuze met het vinkje.',
   'already-booked': 'U hebt al een open afspraak van dit type. Annuleer die eerst.', 'event-full': 'Deze investeerdersdag is volzet of heeft te weinig plaatsen.', 'slot-taken': 'Dit moment is net ingenomen. Kies een ander moment.', 'phone-required': 'Vul uw telefoonnummer in.', 'too-late': 'Deze afspraak kan niet meer geannuleerd worden. Neem contact op met info@evchargeking.com.', forbidden: 'U hebt geen toegang.', 'bad-input': 'Controleer de ingevulde gegevens.', generic: 'Er ging iets mis. Probeer het opnieuw.',
 };
 Object.assign(ERR, {
@@ -258,18 +258,19 @@ const OPT = [
   ['C', 'C – Ik ga niet akkoord.', 'Vermeld kort waarom. We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing.'],
 ];
 function Keuze({ d, reload }) {
-  const locked = d.closed || (d.choice && d.choice.addendum_status !== 'none');
+  const locked = d.closed || !!d.choice?.choice;
   const [c, setC] = useState(d.choice?.choice || ''), [wish, setWish] = useState(d.choice?.wish || ''), [reason, setReason] = useState(d.choice?.reason || ''), [ok, setOk] = useState(false), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [done, setDone] = useState(false);
   async function save() { setErr(''); setBusy(true); try { await fn('bel-inv', { action: 'choose', choice: c, wish, reason, confirm: ok }); await reload(); setDone(true); setOk(false); window.scrollTo(0, 0); } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <>
     <div className="page-head"><div><h1 className="page-title">{t('Uw keuze')}</h1><p className="page-sub">{t('We rekenen verder op uw steun en vragen uw vertrouwen in EVChargeking. Maak hieronder uw keuze.')}</p></div>{choiceChip(d)}</div>
-    {done && <div style={{ marginBottom: 16 }}><Note kind="ok">{t('Uw keuze is bewaard. U ontvangt een bevestiging per e-mail. U kunt uw keuze wijzigen tot aan de uiterste datum.')}</Note></div>}
+    {done && <div style={{ marginBottom: 16 }}><Note kind="ok">{t('Uw keuze is bewaard. U ontvangt een bevestiging per e-mail.')}</Note></div>}
     {locked && <div style={{ marginBottom: 16 }}><Note kind="warn">{t('Uw keuze kan niet meer gewijzigd worden.')}</Note></div>}
+    {d.choice?.choice && <div style={{ marginBottom: 16 }}><Note kind="ok">{t('Hartelijk dank voor uw vertrouwen en uw steun aan EVChargeking.')}</Note></div>}
     {/* Accordion: the selected option expands under its own block (one open at a time). After confirming, only the chosen option is shown. */}
     <div className="stack" style={{ marginBottom: 18 }}>{OPT.filter(([k]) => !locked || c === k).map(([k, ti, x]) => <div key={k} className="stack" style={{ gap: 8 }}>
       <label className={'opt' + (c === k ? ' on' : '') + (locked ? ' dis' : '')}><input type="radio" name="keuze" disabled={locked} checked={c === k} onChange={() => setC(k)} /><div><b>{t(ti)}</b>{t(x)}</div></label>
       {c === k && k === 'A' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze A')}</h2>{d.interest_only_date ? null : <p className="hint">{t('De exacte datum van de interestbetaling (binnen de drie maanden) volgt nog.')}</p>}<Schedule rows={d.optionA} leadDue={curDueOf(d) ? addMonths(curDueOf(d), 3) : null} /></div>}
-      {c === k && k === 'B' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze B')}</h2><p className="hint">{t('Vanaf 2027 wordt uw kapitaal terugbetaald in stappen. Dit is de planning bij keuze B, zoals ze wordt opgenomen in het addendum.')}</p><Schedule rows={d.optionB} /></div>}
+      {c === k && k === 'B' && <div className="card"><h2>{t('Uw nieuwe planning bij keuze B')}</h2><p className="hint">{t('Vanaf 2027 wordt uw kapitaal terugbetaald in stappen. Dit is de planning bij keuze B, zoals ze wordt opgenomen in het addendum.')}</p><Schedule rows={d.optionB} leadDue={curDueOf(d) ? addMonths(curDueOf(d), 3) : null} /></div>}
       {c === k && k === 'B' && <div className="card"><Field label={t('Uw wensen voor het voorstel (niet verplicht)')}><textarea disabled={locked} maxLength="2000" value={wish} onChange={(e) => setWish(e.target.value)} /></Field></div>}
       {c === k && k === 'C' && <div className="card"><Field label={t('Waarom gaat u niet akkoord? (verplicht)')}><textarea disabled={locked} maxLength="2000" value={reason} onChange={(e) => setReason(e.target.value)} /></Field></div>}
     </div>)}</div>
