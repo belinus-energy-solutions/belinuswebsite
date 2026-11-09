@@ -99,9 +99,11 @@ function AdmMessages() {
   const stateOf = (t) => t.unread ? 'new' : t.last.direction === 'in' ? 'wait' : t.last.mail_status === 'failed' ? 'failed' : 'answered';
   const ST = { new: ['Nieuw bericht', 'warn'], wait: ['Wacht op antwoord', 'info'], failed: ['Mail mislukt', 'warn'], answered: ['Beantwoord', 'ok'] };
   const needle = q.trim().toLowerCase();
-  const list = [...threads.values()]
+  let list = [...threads.values()]
     .filter((t) => (f === 'all' || (f === 'new' && t.unread > 0) || (f === 'wait' && t.last.direction === 'in')))
     .filter((t) => !needle || (t.name + ' ' + (t.email || '')).toLowerCase().includes(needle));
+  // Most recent message on top.
+  list.sort((x, y) => new Date(y.last.created_at) - new Date(x.last.created_at));
   const open = (t) => { if (t.unread) adm('message_read', { id: t.id }).catch(() => {}); location.hash = '#/investeerders/' + t.id; };
   const snippet = (m) => (m.direction === 'in' ? '' : 'EVChargeking: ') + String(m.body || '').replace(/\s+/g, ' ').slice(0, 140);
   return <div className="card stack"><h2 style={{ margin: 0 }}>Berichten van investeerders</h2>
