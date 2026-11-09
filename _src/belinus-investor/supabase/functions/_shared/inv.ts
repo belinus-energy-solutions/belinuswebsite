@@ -341,3 +341,11 @@ export async function automatedPreview(a: SupabaseClient, kind: string): Promise
     default: return null;
   }
 }
+
+// Terms of use of the investor platform. Every investor accepts the current version (with the consent to receive e-mails from
+// Belinus) at the first login and again at the next login after each change of TERMS_VERSION. Bump the version with the text.
+export const TERMS_VERSION = "2026-11-09";
+export function termsState(inv: any) {
+  const ok = !!inv && inv.terms_version === TERMS_VERSION && inv.terms_email_consent === true;
+  return { version: TERMS_VERSION, pending: !!inv && !ok, accepted_at: inv?.terms_accepted_at || null, accepted_version: inv?.terms_version || null };
+}

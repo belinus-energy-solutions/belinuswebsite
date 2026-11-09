@@ -90,6 +90,7 @@ function App() {
   if (st.phase === 'mfa') return <SecondFactor status={st.status} onDone={load} />;
   const d = st.d;
   if (!d) return <div className="boot"><span className="spin" /></div>;
+  if (d.investor && d.terms && d.terms.pending && !d.as) return <Terms d={d} reload={loadData} />;
   const acting = d.as, role = d.admin, hasInv = !!d.investor && (!role || !!acting);
   const name = hasInv ? (d.investor.company_name || [d.investor.first_name, d.investor.last_name].filter(Boolean).join(' ')) : '';
   const P = { beheer: AdmOverview, investeerders: AdmInvestors, opvolging: AdmFollow, afspraken: AdmBookings, beschikbaarheid: AdmAvail, financieel: AdmFinancial, instellingen: AdmSettings };

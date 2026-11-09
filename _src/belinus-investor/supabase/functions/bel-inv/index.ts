@@ -3,7 +3,7 @@
 // After it: me, choose, slots, book, cancel, set_phone.
 import { bSchedule, loanKind } from "../_shared/finance.ts";
 import { createMeeting, deleteMeeting, moveMeeting } from "../_shared/teams.ts";
-import { icsEvent as ics, access, adminClient, APP_URL, applyChoice, audit, bookingDetail, bookingMail, claims, clientIp, cors, currentUser, dateIn, hello, json, KIND_L, nlDate, pickLang, sendMail, settings, sha256, str, strong } from "../_shared/inv.ts";
+import { termsState, TERMS_VERSION, icsEvent as ics, access, adminClient, APP_URL, applyChoice, audit, bookingDetail, bookingMail, claims, clientIp, cors, currentUser, dateIn, hello, json, KIND_L, nlDate, pickLang, sendMail, settings, sha256, str, strong } from "../_shared/inv.ts";
 
 const TOPICS = ["keuze", "terugbetaling", "andere"];
 const KIND_NL: Record<string, string> = { visit: "Bezoek op een investeerdersdag", video: "Videogesprek", callback: "Terugbelverzoek" };
@@ -133,8 +133,20 @@ Deno.serve(async (req) => {
   const s = await settings(a);
   const closed = Date.now() > new Date(s.deadline).getTime();
 
+  // Terms of use: accepted (with the e-mail consent) before anything else on the platform. Admins viewing an account are not held up.
+  const terms = termsState(inv);
+  if (action === "terms_accept") {
+    if (!inv || asMode) return json({ error: "forbidden" }, 403);
+    if (body.version !== TERMS_VERSION || body.email_consent !== true) return json({ error: "bad-input" }, 400);
+    await a.from("inv_investors").update({ terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString(), terms_email_consent: true }).eq("id", inv.id);
+    await audit(a, u, "terms-accepted", inv.email, { version: TERMS_VERSION, ip });
+    return json({ ok: true });
+  }
+  if (inv && !asMode && action !== "me" && terms.pending) return json({ error: "terms-required" }, 403);
+
   if (action === "me") {
     if (!inv) return json({ ok: true, admin: acc.role, investor: null });
+    if (terms.pending && !asMode) return json({ ok: true, admin: acc.role, as: null, terms, messages: [], investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email } });
     const [{ data: tr }, { data: sch }, { data: ch }, { data: bk }, { data: ev }, { data: used }, { data: slotRows }] = await Promise.all([
       a.from("inv_tranches").select("*").eq("code", inv.tranche).single(),
       a.from("inv_schedule").select("scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status, paid_at").eq("investor_id", inv.id).order("period"),
@@ -158,7 +170,7 @@ Deno.serve(async (req) => {
     // Option B: the paid rows of the original schedule, then the rising repayment plan (see _shared/finance.ts).
     const origRows = (sch || []).filter((r: any) => r.scenario === "original");
     const optionB = [...origRows.filter((r: any) => String(r.due).slice(0, 4) < "2026"), ...bSchedule(Number(inv.invested), origRows, Number(tr?.gross_rate || 0), loanKind(inv.tranche))];
-    return json({ ok: true, messages: msgs || [], admin: acc.role, as: asMode ? { mode: asMode, id: inv.id, admin_email: u.email } : null, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), optionB, choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
+    return json({ ok: true, terms, messages: msgs || [], admin: acc.role, as: asMode ? { mode: asMode, id: inv.id, admin_email: u.email } : null, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), optionB, choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
   }
   if (!inv) return json({ error: "not-investor" }, 403);
   if (asMode === "view" && action !== "slots") return json({ error: "view-only" }, 403);
