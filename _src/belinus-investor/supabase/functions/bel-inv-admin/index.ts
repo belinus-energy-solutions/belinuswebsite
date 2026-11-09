@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   // Full investor page: loan, choices, appointments with their notes (admins only), messages and the mails sent.
   if (action === "investor_page") {
     const [{ data: inv }, { data: sch }, { data: log }, { data: bk }, { data: notes }, { data: msgs }, { data: ch }, { data: tr }] = await Promise.all([
-      a.from("inv_investors").select("id, email, first_name, last_name, company_name, phone, tranche, invested, invested_on, status, is_test, is_demo, activated_at, last_login_at, lang").eq("id", id).single(),
+      a.from("inv_investors").select("id, email, first_name, last_name, company_name, phone, iban, tranche, invested, invested_on, status, is_test, is_demo, activated_at, last_login_at, created_at, lang, terms_version, terms_accepted_at, terms_email_consent").eq("id", id).single(),
       a.from("inv_schedule").select("*").eq("investor_id", id).order("period"),
       a.from("inv_choice_log").select("*").eq("investor_id", id).order("created_at", { ascending: false }),
       a.from("inv_bookings").select("*, inv_events(title)").eq("investor_id", id).order("starts_at", { ascending: false }),
