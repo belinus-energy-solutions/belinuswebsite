@@ -124,19 +124,19 @@ export async function sendAccessLink(a: SupabaseClient, inv: { id: string; email
 
 // ---- choice (investor or admin on behalf) ----
 export const CHOICE_TEXT: Record<string, string> = {
-  A: "A – Ik ga akkoord met de verlenging.",
-  B: "B – Ik ga akkoord dat de interesten binnen de drie maanden worden betaald, maar ik wil een voorstel om mijn investering en interesten volledig terugbetaald te krijgen binnen de looptijd van mijn contract.",
+  A: "A – Ik ga akkoord met de verlenging. Binnen de drie maanden ontvang ik enkel de interesten, geen kapitaal.",
+  B: "B – Ik ga akkoord dat binnen de drie maanden enkel de interesten worden betaald, geen kapitaal. Ik kies het stijgend terugbetalingsplan: vanaf 2027 wordt mijn kapitaal in stappen terugbetaald volgens de planning in het portaal, en de interesten worden betaald op het resterende kapitaal.",
   C: "C – Ik ga niet akkoord.",
 };
 const CHOICE_L: Record<Lang, Record<string, string>> = {
   nl: CHOICE_TEXT,
-  fr: { A: "A – J'accepte la prolongation.", B: "B – J'accepte que les intérêts soient payés dans les trois mois, mais je souhaite une proposition de remboursement intégral de mon investissement et des intérêts dans la durée de mon contrat.", C: "C – Je ne suis pas d'accord." },
-  en: { A: "A – I agree to the extension.", B: "B – I agree that the interest will be paid within three months, but I would like a proposal to have my investment and interest fully repaid within the term of my contract.", C: "C – I do not agree." },
+  fr: { A: "A – J'accepte la prolongation. Dans les trois mois, je reçois uniquement les intérêts, sans capital.", B: "B – J'accepte que seuls les intérêts, sans capital, soient payés dans les trois mois. Je choisis le plan de remboursement croissant : à partir de 2027, mon capital est remboursé par étapes selon le calendrier du portail, et les intérêts sont payés sur le capital restant.", C: "C – Je ne suis pas d'accord." },
+  en: { A: "A – I agree to the extension. Within three months I receive interest only, no principal.", B: "B – I agree that only interest, no principal, is paid within three months. I choose the rising repayment plan: from 2027 my capital is repaid in steps according to the schedule in the portal, and interest is paid on the remaining capital.", C: "C – I do not agree." },
 };
 const CONFIRM_L: Record<Lang, { subject: string; got: string; next: Record<string, string>; change: string; thanks: string }> = {
-  nl: { subject: "Bevestiging van uw keuze – EVChargeking", got: "We hebben uw keuze goed ontvangen:", next: { A: "Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.", B: "EVChargeking bezorgt u een persoonlijk terugbetalingsvoorstel in het portaal. Daarna ontvangt u een e-mail van Winwinner om het addendum te ondertekenen.", C: "We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing." }, change: "U kunt uw keuze nog wijzigen in het portaal tot aan de uiterste datum:", thanks: "Met vriendelijke groeten," },
-  fr: { subject: "Confirmation de votre choix – EVChargeking", got: "Nous avons bien reçu votre choix :", next: { A: "Dès que tous les investisseurs auront confirmé leur choix, vous recevrez un e-mail de Winwinner pour signer l'avenant à votre contrat, qui reprend votre choix.", B: "EVChargeking vous transmettra une proposition personnelle de remboursement dans le portail. Vous recevrez ensuite un e-mail de Winwinner pour signer l'avenant.", C: "Nous vous contacterons dans les 5 jours ouvrables. Votre contrat existant reste d'application sans modification." }, change: "Vous pouvez encore modifier votre choix dans le portail jusqu'à la date limite :", thanks: "Cordialement," },
-  en: { subject: "Confirmation of your choice – EVChargeking", got: "We have received your choice:", next: { A: "As soon as all investors have confirmed their choice, you will receive an e-mail from Winwinner to sign the addendum to your contract, which records your choice.", B: "EVChargeking will send you a personal repayment proposal in the portal. You will then receive an e-mail from Winwinner to sign the addendum.", C: "We will contact you within 5 working days. Your existing agreement continues to apply unchanged." }, change: "You can still change your choice in the portal until the deadline:", thanks: "Kind regards," },
+  nl: { subject: "Bevestiging van uw keuze – EVChargeking", got: "We hebben uw keuze goed ontvangen:", next: { A: "Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.", B: "De planning van het stijgend terugbetalingsplan staat in het portaal. Daarna ontvangt u een e-mail van Winwinner om het addendum te ondertekenen.", C: "We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing." }, change: "U kunt uw keuze nog wijzigen in het portaal tot aan de uiterste datum:", thanks: "Met vriendelijke groeten," },
+  fr: { subject: "Confirmation de votre choix – EVChargeking", got: "Nous avons bien reçu votre choix :", next: { A: "Dès que tous les investisseurs auront confirmé leur choix, vous recevrez un e-mail de Winwinner pour signer l'avenant à votre contrat, qui reprend votre choix.", B: "Le calendrier du plan de remboursement croissant figure dans le portail. Vous recevrez ensuite un e-mail de Winwinner pour signer l'avenant.", C: "Nous vous contacterons dans les 5 jours ouvrables. Votre contrat existant reste d'application sans modification." }, change: "Vous pouvez encore modifier votre choix dans le portail jusqu'à la date limite :", thanks: "Cordialement," },
+  en: { subject: "Confirmation of your choice – EVChargeking", got: "We have received your choice:", next: { A: "As soon as all investors have confirmed their choice, you will receive an e-mail from Winwinner to sign the addendum to your contract, which records your choice.", B: "The schedule of the rising repayment plan is in the portal. You will then receive an e-mail from Winwinner to sign the addendum.", C: "We will contact you within 5 working days. Your existing agreement continues to apply unchanged." }, change: "You can still change your choice in the portal until the deadline:", thanks: "Kind regards," },
 };
 export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: string; wish?: string; reason?: string; by_admin?: string; note?: string; ip?: string }) {
   const { error } = await a.from("inv_choices").upsert({ investor_id: inv.id, choice: c.choice, wish: c.choice === "B" ? c.wish || null : null, reason: c.choice === "C" ? c.reason || null : null, confirmed_at: new Date().toISOString() });
@@ -196,14 +196,14 @@ De integratie in de Belinus-groep moet de continuïteit van het bedrijf waarborg
 ## ONS VOORSTEL
 
 • De looptijd van uw lening wordt met één jaar verlengd.
-• De volgende betaling bevat enkel de interesten en gebeurt binnen de drie maanden.
+• De volgende betaling bevat enkel de interesten, geen kapitaal, en gebeurt binnen de drie maanden.
 • Vanaf 2027 loopt alles verder zoals gepland, maar één jaar langer.
 De rentevoet blijft dezelfde. U ontvangt dus één jaar extra interest.
 
 ## UW KEUZE
 
-A – Ik ga akkoord met de verlenging.
-B – Ik ga akkoord dat de interesten binnen de drie maanden worden betaald, maar ik wil een voorstel om mijn investering en interesten volledig terugbetaald te krijgen binnen de looptijd van mijn contract.
+A – Ik ga akkoord met de verlenging. Binnen de drie maanden ontvang ik enkel de interesten, geen kapitaal.
+B – Ik ga akkoord dat binnen de drie maanden enkel de interesten worden betaald, geen kapitaal. Ik kies het stijgend terugbetalingsplan: vanaf 2027 wordt mijn kapitaal in stappen terugbetaald volgens de planning in het portaal, en de interesten worden betaald op het resterende kapitaal.
 C – Ik ga niet akkoord. Vermeld kort waarom; we nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft dan ongewijzigd van toepassing.
 
 ## UW ACCOUNT STAAT KLAAR – UW KEUZE UITERLIJK OP ${D.toUpperCase()}

@@ -248,8 +248,8 @@ function Home({ d }) {
   </>;
 }
 const OPT = [
-  ['A', 'A – Ik ga akkoord met de verlenging.', 'De volgende betaling bevat enkel de interesten en gebeurt binnen de drie maanden. Daarna loopt uw lening verder zoals gepland, één jaar langer.'],
-  ['B', 'B – Ik wil een voorstel voor volledige terugbetaling binnen de looptijd.', 'Ik ga akkoord dat de interesten binnen de drie maanden worden betaald, maar ik wil een voorstel om mijn investering en interesten volledig terugbetaald te krijgen binnen de looptijd van mijn contract.'],
+  ['A', 'A – Ik ga akkoord met de verlenging.', 'De volgende betaling bevat enkel de interesten, geen kapitaal, en gebeurt binnen de drie maanden. Daarna loopt uw lening verder zoals gepland, één jaar langer.'],
+  ['B', 'B – Ik kies het stijgend terugbetalingsplan.', 'Ik ga akkoord dat binnen de drie maanden enkel de interesten worden betaald, geen kapitaal. Vanaf 2027 wordt mijn kapitaal in stappen terugbetaald volgens de planning hieronder; de interesten worden betaald op het resterende kapitaal.'],
   ['C', 'C – Ik ga niet akkoord.', 'Vermeld kort waarom. We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing.'],
 ];
 function Keuze({ d, reload }) {
