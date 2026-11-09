@@ -368,11 +368,20 @@ const AUTO_MAILS = [
 ];
 function openHtml(html) { const u = URL.createObjectURL(new Blob([html], { type: 'text/html' })); window.open(u, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(u), 60000); }
 function AutoPreview({ kind }) {
-  const [p, setP] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
-  async function show() { setBusy(true); setErr(''); try { setP(await adm('automated_preview', { kind })); } catch (x) { setErr(errText(x)); } finally { setBusy(false); } }
-  if (!p) return <div><Btn kind="ghost" onClick={show} disabled={busy}>{busy ? 'Bezig…' : 'Voorbeeld'}</Btn>{err && <Note kind="error">{err}</Note>}</div>;
-  if (!p.ok) return <p className="hint" style={{ margin: 0 }}>Volledig voorbeeld volgt; tekst staat in de kolom Inhoud.</p>;
-  return <div className="stack"><div className="mail-meta"><span>Van</span><b>{p.from}</b><span>Onderwerp</span><b>{p.subject}</b></div><div><Btn kind="ghost" onClick={() => openHtml(p.html)}>Open in nieuw venster</Btn></div><iframe className="mail-frame" title={'Voorbeeld ' + kind} sandbox="" srcDoc={p.html} /></div>;
+  const [busy, setBusy] = useState(false), [err, setErr] = useState('');
+  // The window is opened straight away on the click (so the browser does not block it), then filled with the template.
+  async function show() {
+    setBusy(true); setErr('');
+    const w = window.open('', '_blank');
+    try {
+      const p = await adm('automated_preview', { kind });
+      if (!p.ok) { if (w) w.close(); setErr('Volledig voorbeeld volgt; tekst staat in de kolom Inhoud.'); }
+      else if (!w) setErr('Het venster kon niet openen. Sta pop-ups toe voor deze site.');
+      else { w.document.title = p.subject || 'Voorbeeld'; w.document.open(); w.document.write(p.html); w.document.close(); }
+    } catch (x) { if (w) w.close(); setErr(errText(x)); }
+    finally { setBusy(false); }
+  }
+  return <div><Btn kind="ghost" onClick={show} disabled={busy}>{busy ? 'Bezig…' : 'Voorbeeld'}</Btn>{err && <Note kind="error">{err}</Note>}</div>;
 }
 function AdmAutomated() {
   return <><div className="page-head"><div><h1 className="page-title">Automatische e-mails</h1><p className="page-sub">Alle e-mails die het systeem zelf verstuurt, met trigger en regels. Campagnes staan onder E-mailcampagnes.</p></div></div>
