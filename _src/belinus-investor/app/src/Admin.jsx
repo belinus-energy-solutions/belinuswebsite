@@ -227,6 +227,39 @@ function EventRow({ e, run }) {
   const [cap, setCap] = useState(e.capacity), [slots, setSlots] = useState(e.arrival_slots.join(', '));
   return <div className="stack"><b>{e.title}</b><div className="grid2"><Field label="Capaciteit (personen)"><input type="number" min="0" value={cap} onChange={(x) => setCap(x.target.value)} /></Field><Field label="Aankomsturen"><input value={slots} onChange={(x) => setSlots(x.target.value)} /></Field></div><div><Btn kind="ghost" onClick={() => run(adm('event_save', { id: e.id, capacity: cap, active: e.active, arrival_slots: slots.split(',').map((s) => s.trim()) }))}>Opslaan</Btn></div></div>;
 }
+const FIN_ST = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['wacht op handtekening', 'warn'], cancelled: ['geannuleerd', 'bad'] };
+const FIN_F = [['all', 'Alle leningen'], ['bolero', 'Bolero'], ['winwinlening', 'Winwin'], ['winwin_raise', 'Winwin raise']];
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = () => res(window.XLSX); s.onerror = () => rej(new Error('Excel-module kon niet geladen worden.')); document.head.appendChild(s); });
+}
+function AdmFinancial() {
+  const [view, setView] = useState('planned'), [signed, setSigned] = useState(false), [filter, setFilter] = useState('all');
+  const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+  useEffect(() => { let live = true; setErr(''); adm('financial', { view, signed_only: signed, filter }).then((r) => { if (live) setD(r); }).catch((x) => { if (live) setErr(errText(x)); }); return () => { live = false; }; }, [view, signed, filter]);
+  if (!d) return <Wait err={err} />;
+  const sum = (k) => d.dates.reduce((s, x) => s + x[k], 0);
+  const stText = (s) => Object.keys(FIN_ST).filter((k) => s[k]).map((k) => FIN_ST[k][0] + ' ' + eur(s[k])).join(' · ');
+  async function exportXls() {
+    setBusy(true); setErr('');
+    try {
+      const X = await loadXlsx(), wb = X.utils.book_new();
+      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.dates.map((x) => ({ Datum: x.due, 'Bruto rente': x.gross_interest, 'Roerende voorheffing': x.withholding, 'Netto rente': x.net_interest, Kapitaal: x.principal, Totaal: x.total, Investeerders: x.investors, 'Betaald': x.status.paid, 'Gepland': x.status.planned, 'Wacht op handtekening': x.status.pending, 'Geannuleerd': x.status.cancelled }))), 'Overzicht');
+      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.lines.map((l) => ({ Datum: l.due, Investeerder: l.investor, 'E-mail': l.email, Tranche: l.tranche, Keuze: l.choice, Bron: l.source, 'Bruto rente': l.gross_interest, 'Roerende voorheffing': l.withholding, 'Netto rente': l.net_interest, Kapitaal: l.principal, Totaal: Math.round((l.gross_interest + l.principal) * 100) / 100, Status: FIN_ST[l.status][0] }))), 'Details');
+      X.writeFile(wb, 'financieel-' + view + '-' + filter + '.xlsx');
+    } catch (x) { setErr(errText(x)); }
+    setBusy(false);
+  }
+  return <><div className="page-head"><div><h1 className="page-title">Financieel</h1><p className="page-sub">{view === 'planned' ? 'Geplande betalingen volgens de oorspronkelijke leningen, ongewijzigd.' : 'Betalingen op basis van de geregistreerde keuzes van de investeerders.'}</p></div><div className="row"><Btn kind="ghost" busy={busy} onClick={exportXls}>Exporteer Excel</Btn></div></div>
+    <Note kind="error">{err}</Note><div style={{ height: 12 }} />
+    <div className="row" style={{ marginBottom: 16, flexWrap: 'wrap' }}><div className="seg" role="tablist">{[['planned', 'Geplande betalingen'], ['registered', 'Geregistreerde keuzes']].map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={'seg-b' + (view === k ? ' on' : '')} onClick={() => setView(k)}>{l}</button>)}</div>
+      <select style={{ width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>{FIN_F.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+      {view === 'registered' && <label className="check"><input type="checkbox" checked={signed} onChange={(e) => setSigned(e.target.checked)} /><span>Enkel getekende keuzes</span></label>}</div>
+    <div className="card">{!d.dates.length ? <p style={{ margin: 0 }}>{filter === 'bolero' ? 'Bolero-gegevens ontbreken nog. Er zijn nog geen betalingen geladen.' : 'Geen betalingen gevonden.'}</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Datum</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Kapitaal</th><th className="n">Totaal</th><th className="n">Investeerders</th><th>Status</th></tr></thead><tbody>
+      {d.dates.map((x) => <tr key={x.due}><td data-l="Datum">{dayNl(x.due + 'T12:00:00Z')}</td><td data-l="Bruto rente" className="n">{eur(x.gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(x.withholding)}</td><td data-l="Netto rente" className="n">{eur(x.net_interest)}</td><td data-l="Kapitaal" className="n">{eur(x.principal)}</td><td data-l="Totaal" className="n"><b>{eur(x.total)}</b></td><td data-l="Investeerders" className="n">{x.investors}</td><td data-l="Status"><span className="hint">{stText(x.status)}</span></td></tr>)}
+      <tr><td><b>Totaal</b></td><td className="n"><b>{eur(sum('gross_interest'))}</b></td><td className="n"><b>{eur(sum('withholding'))}</b></td><td className="n"><b>{eur(sum('net_interest'))}</b></td><td className="n"><b>{eur(sum('principal'))}</b></td><td className="n"><b>{eur(sum('total'))}</b></td><td /><td /></tr>
+      </tbody></table></div>}</div></>;
+}
 function AdmSettings() {
   const [d, load, err] = useLoad('availability');
   const [v, setV] = useState(null), [msg, setMsg] = useState(''), [e2, setE2] = useState('');

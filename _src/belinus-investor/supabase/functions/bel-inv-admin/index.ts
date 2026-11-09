@@ -193,6 +193,99 @@ Deno.serve(async (req) => {
     await audit(a, u, "availability", "windows", { n: rows.length });
     return json({ ok: true });
   }
+  // Financieel: planned payments per payment date (original schedule), or the live planning from the registered choices.
+  // Option B is calculated here from the original schedule (rising repayment, see Steve's table); option A uses scenario 'A'.
+  if (action === "financial") {
+    const view = body.view === "registered" ? "registered" : "planned";
+    const signedOnly = body.signed_only === true;
+    const filt = ["all", "bolero", "winwinlening", "winwin_raise"].includes(body.filter) ? String(body.filter) : "all";
+    const page = async (build: () => any) => {
+      const out: any[] = [];
+      for (let p = 0; ; p++) {
+        const { data, error } = await build().range(p * 1000, p * 1000 + 999);
+        if (error) throw new Error(error.message);
+        out.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      return out;
+    };
+    const [invs, tr, sch, chs] = await Promise.all([
+      page(() => a.from("inv_investors").select("id, email, first_name, last_name, company_name, tranche, invested, is_test, is_demo").order("id")),
+      a.from("inv_tranches").select("code, gross_rate, platform"),
+      page(() => a.from("inv_schedule").select("investor_id, scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status").order("investor_id").order("period")),
+      page(() => a.from("inv_choices").select("investor_id, choice, addendum_status").order("investor_id")),
+    ]);
+    const trMap = new Map((tr.data || []).map((t: any) => [t.code, t]));
+    const chMap = new Map((chs || []).map((c: any) => [c.investor_id, c]));
+    const schBy = new Map<string, { original: any[]; A: any[] }>();
+    for (const r of sch || []) {
+      if (!schBy.has(r.investor_id)) schBy.set(r.investor_id, { original: [], A: [] });
+      const g = schBy.get(r.investor_id)!;
+      if (r.scenario === "original") g.original.push(r); else if (r.scenario === "A") g.A.push(r);
+    }
+    const kindOf = (code: string) => (code.startsWith("crowd") ? "winwin_raise" : code.startsWith("winwin") ? "winwinlening" : "bolero");
+    const SHARES: Record<string, Record<number, number>> = {
+      winwin_raise: { 2027: 0.2, 2028: 0.3, 2029: 0.5 },
+      winwinlening: { 2027: 0.1, 2028: 0.2, 2029: 0.3, 2030: 0.4 },
+    };
+    const cent = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
+    const yearOf = (d: string) => Number(String(d).slice(0, 4));
+    // Option B: 2026 interest only; then steps of the principal outstanding at the start of 2026.
+    const bSchedule = (inv: any, orig: any[], rate: number, kind: string) => {
+      const pre = orig.filter((r) => yearOf(r.due) < 2026);
+      let bal = pre.length ? Number(pre[pre.length - 1].remaining) : Number(inv.invested);
+      const base = bal;
+      const steps = SHARES[kind] || {};
+      const last = Math.max(...Object.keys(steps).map(Number));
+      const rows: any[] = [];
+      for (const r of orig.filter((x) => yearOf(x.due) >= 2026)) {
+        const y = yearOf(r.due);
+        const interest = cent(bal * rate);
+        let prin = 0;
+        if (y > 2026 && steps[y] !== undefined) prin = y === last ? bal : Math.min(bal, cent(base * steps[y]));
+        const wh = cent(interest * 0.3);
+        bal = cent(bal - prin);
+        rows.push({ period: r.period, due: r.due, gross_interest: interest, withholding: wh, net_interest: cent(interest - wh), principal: cent(prin), remaining: bal });
+      }
+      return rows;
+    };
+    const name = (i: any) => i.company_name || [i.first_name, i.last_name].filter(Boolean).join(" ") || i.email;
+    const STATUS: Record<string, string> = { paid: "paid", planned: "planned", deferred: "planned" };
+    const lines: any[] = [];
+    for (const inv of invs || []) {
+      if (inv.is_test || inv.is_demo) continue;
+      const t = trMap.get(inv.tranche);
+      const kind = t ? kindOf(t.code) : "bolero";
+      if (filt !== "all" && filt !== kind) continue;
+      const g = schBy.get(inv.id) || { original: [], A: [] };
+      const ch: any = chMap.get(inv.id);
+      const signed = ch?.addendum_status === "signed";
+      const applyNew = view === "registered" && ch && (ch.choice === "A" || ch.choice === "B") && (!signedOnly || signed);
+      const origStatus = (r: any) => (applyNew && signed && r.status !== "paid" ? "cancelled" : STATUS[r.status] || "planned");
+      for (const r of g.original) {
+        lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch?.choice || "—", source: "original", gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal), status: origStatus(r) });
+      }
+      if (applyNew) {
+        const newRows = ch.choice === "A" ? g.A.map((r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) })) : bSchedule(inv, g.original, Number(t?.gross_rate || 0), kind);
+        for (const r of newRows) {
+          lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch.choice, source: "option " + ch.choice, gross_interest: r.gross_interest, withholding: r.withholding, net_interest: r.net_interest, principal: r.principal, status: signed ? "planned" : "pending" });
+        }
+      }
+    }
+    const byDate = new Map<string, any>();
+    for (const l of lines) {
+      if (!byDate.has(l.due)) byDate.set(l.due, { due: l.due, gross_interest: 0, withholding: 0, net_interest: 0, principal: 0, total: 0, investors: new Set(), status: { paid: 0, planned: 0, pending: 0, cancelled: 0 } });
+      const d = byDate.get(l.due);
+      const tot = cent(l.gross_interest + l.principal);
+      if (l.status === "cancelled") { d.status.cancelled = cent(d.status.cancelled + tot); continue; }
+      d.gross_interest = cent(d.gross_interest + l.gross_interest); d.withholding = cent(d.withholding + l.withholding); d.net_interest = cent(d.net_interest + l.net_interest); d.principal = cent(d.principal + l.principal);
+      d.total = cent(d.total + tot);
+      d.investors.add(l.email);
+      d.status[l.status] = cent(d.status[l.status] + tot);
+    }
+    const dates = [...byDate.values()].sort((x, y) => (x.due < y.due ? -1 : 1)).map((d) => ({ ...d, investors: d.investors.size }));
+    return json({ ok: true, view, signed_only: signedOnly, filter: filt, dates, lines: lines.sort((x, y) => (x.due < y.due ? -1 : x.due > y.due ? 1 : x.investor.localeCompare(y.investor))) });
+  }
   if (action === "blocked") {
     const day = String(body.day || "");
     if (!/^\d{4}-\d\d-\d\d$/.test(day)) return json({ error: "bad-input" }, 400);
