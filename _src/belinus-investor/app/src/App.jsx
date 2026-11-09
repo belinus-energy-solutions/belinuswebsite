@@ -26,7 +26,7 @@ function Shell({ page, investor, role, email, name, unread = 0, children }) {
   const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
   const secs = [];
   if (investor) secs.push(['Mijn investering', [['', 'Mijn investering', 'trend'], ['keuze', 'Uw keuze', 'keuze'], ['transacties', 'Transacties', 'chart'], ['afspraak', 'Maak een afspraak', 'afspraak'], ['berichten', 'Berichten', 'mail']]]);
-  if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['opvolging', 'Opvolging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ['financieel', 'Financieel', 'chart'], ['campagnes', 'E-mailcampagnes', 'mail'], ['automatisch', 'Automatische e-mails', 'cog'], ['instellingen', 'Instellingen', 'cog']]]);
+  if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['opvolging', 'Messaging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ['financieel', 'Financieel', 'chart'], ['campagnes', 'E-mailcampagnes', 'mail'], ['automatisch', 'Automatische e-mails', 'cog'], ['instellingen', 'Instellingen', 'cog']]]);
   const tabs = secs.flatMap((s) => s[1]).slice(0, 3);
   const filt = (r) => !q || t(r[1]).toLowerCase().includes(q.toLowerCase());
   const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); try { localStorage.setItem('inv_rail', on ? '1' : ''); } catch (e) {} };

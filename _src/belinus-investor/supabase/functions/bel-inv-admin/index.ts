@@ -214,6 +214,15 @@ Deno.serve(async (req) => {
     }
     return json({ ok: true, campaign: c, stats, recipients: rows, template: tpl });
   }
+  if (action === "messages_all") {
+    const { data: ms, error } = await a.from("inv_messages").select("id, investor_id, direction, body, created_at, read_at, mail_status, author_email, inv_investors(email, first_name, last_name, company_name)").order("created_at", { ascending: false }).limit(1000);
+    if (error) return json({ error: "server-error" }, 500);
+    return json({ ok: true, messages: ms || [] });
+  }
+  if (action === "message_read") {
+    await a.from("inv_messages").update({ read_at: new Date().toISOString() }).eq("investor_id", id).eq("direction", "in").is("read_at", null);
+    return json({ ok: true });
+  }
   if (action === "automated_preview") {
     // Full rendered preview for the automated mails that have a live renderer; the others are shown as text only.
     const k = String(body.kind || "");

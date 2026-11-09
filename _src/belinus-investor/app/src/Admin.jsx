@@ -99,14 +99,43 @@ function InvDetail({ id, onClose }) {
     <div><h3 style={{ fontSize: 16, marginBottom: 8 }}>Geschiedenis van keuzes</h3>{d.log.length ? d.log.map((l) => <p key={l.id} style={{ margin: '0 0 4px', fontSize: 14 }}><b>{l.choice}</b> · {whenNl(l.created_at)}{l.by_admin ? ' · door beheerder: ' + l.note : ''}{l.reason ? ' · ' + l.reason : ''}</p>) : <p className="hint">Nog geen keuze.</p>}</div>
     <div className="stack"><h3 style={{ fontSize: 16 }}>Keuze registreren (ontvangen per telefoon of e-mail)</h3><div className="grid2"><select value={c} onChange={(e) => setC(e.target.value)}><option value="">Kies…</option><option>A</option><option>B</option><option>C</option></select><input placeholder="Notitie (verplicht)" value={note} onChange={(e) => setNote(e.target.value)} /></div>{c === 'C' && <input placeholder="Reden (verplicht)" value={reason} onChange={(e) => setReason(e.target.value)} />}<div className="row"><Btn kind="ghost" disabled={!c || !note.trim()} onClick={rec}>Registreren</Btn><Btn kind="ghost" onClick={invite}>{d.investor.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</Btn></div></div></>}</div></div>;
 }
+function AdmMessages() {
+  const [d, setD] = useState(null), [err, setErr] = useState(''), [sel, setSel] = useState(null), [txt, setTxt] = useState(''), [busy, setBusy] = useState(false);
+  const load = () => adm('messages_all').then(setD).catch((x) => setErr(errText(x)));
+  useEffect(() => { load(); }, []);
+  const threads = new Map();
+  for (const m of d ? d.messages : []) {
+    if (!threads.has(m.investor_id)) threads.set(m.investor_id, { id: m.investor_id, name: nameOf(m.inv_investors || {}), email: m.inv_investors?.email, items: [] });
+    threads.get(m.investor_id).items.push(m);
+  }
+  const list = [...threads.values()];
+  const cur = list.find((t) => t.id === sel) || list[0];
+  useEffect(() => { if (cur && cur.items.some((m) => m.direction === 'in' && !m.read_at)) adm('message_read', { id: cur.id }).then(load).catch(() => {}); }, [cur && cur.id]);
+  if (!d) return <Wait err={err} />;
+  async function reply() {
+    if (!txt.trim() || !cur) return;
+    setBusy(true); setErr('');
+    try { await adm('message_send', { id: cur.id, body: txt.trim() }); setTxt(''); await load(); } catch (x) { setErr(errText(x)); } finally { setBusy(false); }
+  }
+  const unread = (t) => t.items.filter((m) => m.direction === 'in' && !m.read_at).length;
+  return <div className="card stack"><h2 style={{ margin: 0 }}>Berichten van investeerders</h2>
+    {!list.length ? <p className="hint" style={{ margin: 0 }}>Nog geen berichten.</p> : <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) 2fr', gap: 16, alignItems: 'start' }}>
+      <div className="stack" style={{ gap: 8 }}>{list.map((t) => <button key={t.id} className={'btn ' + (cur && cur.id === t.id ? '' : 'ghost') + ' sm'} style={{ textAlign: 'left', display: 'block' }} onClick={() => setSel(t.id)}><b>{t.name}</b>{unread(t) > 0 && <span className="chip warn" style={{ marginLeft: 6 }}>{unread(t)} nieuw</span>}<br /><small>{new Date(t.items[0].created_at).toLocaleString('nl-BE')}</small></button>)}</div>
+      {cur && <div className="stack"><div><b>{cur.name}</b><br /><span className="hint">{cur.email}</span></div>
+        {cur.items.slice().reverse().map((m) => <div key={m.id} className="card" style={{ margin: 0 }}><small>{m.direction === 'in' ? 'Investeerder' : 'Belinus'} · {new Date(m.created_at).toLocaleString('nl-BE')}{m.direction === 'out' && m.mail_status ? ' · mail ' + m.mail_status : ''}</small><p style={{ whiteSpace: 'pre-wrap', margin: '6px 0 0' }}>{m.body}</p></div>)}
+        <textarea rows={4} value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Antwoord aan deze investeerder…" />
+        <div><Btn onClick={reply} disabled={busy || !txt.trim()}>{busy ? 'Versturen…' : 'Verstuur antwoord'}</Btn></div></div>}
+    </div>}
+    <Note kind="error">{err}</Note></div>;
+}
 function AdmFollow() {
   const [d, load, err] = useLoad('dashboard');
   if (!d) return <Wait err={err} />;
   const inv = new Map(d.investors.map((i) => [i.id, i]));
   const save = (id, patch) => adm('followup', { id, ...patch }).then(load);
   const rows = (d.followups || []).sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)));
-  return <><div className="page-head"><div><h1 className="page-title">Opvolging</h1><p className="page-sub">Keuze B: terugbetalingsvoorstel. Keuze C: contact binnen 5 werkdagen.</p></div></div>
-    <div className="card">{!rows.length ? <p style={{ margin: 0 }}>Nog niets op te volgen.</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Investeerder</th><th>Keuze</th><th>Uiterlijk</th><th>Toelichting</th><th>Status</th><th>Notitie</th></tr></thead><tbody>{rows.map((f) => { const i = inv.get(f.investor_id); return <tr key={f.id}><td data-l="Investeerder"><b>{nameOf(i)}</b><br /><span className="hint">{eur(i.invested)}</span></td><td data-l="Keuze"><span className="chip info">{f.kind}</span></td><td data-l="Uiterlijk">{dayNl(f.due_date)}</td><td data-l="Toelichting">{i.choice?.reason || i.choice?.wish || '—'}</td><td data-l="Status"><select defaultValue={f.status} onChange={(e) => save(f.id, { status: e.target.value })}><option value="open">Open</option><option value="contacted">Gecontacteerd</option>{f.kind === 'B' && <option value="published">Voorstel bezorgd</option>}<option value="resolved">Afgerond</option></select></td><td data-l="Notitie"><input defaultValue={f.notes || ''} onBlur={(e) => e.target.value !== (f.notes || '') && save(f.id, { notes: e.target.value })} /></td></tr>; })}</tbody></table></div>}</div></>;
+  return <><div className="page-head"><div><h1 className="page-title">Messaging</h1><p className="page-sub">Opvolging van keuzes B en C, en alle berichten van investeerders.</p></div></div>
+    <div className="card">{!rows.length ? <p style={{ margin: 0 }}>Nog niets op te volgen.</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Investeerder</th><th>Keuze</th><th>Uiterlijk</th><th>Toelichting</th><th>Status</th><th>Notitie</th></tr></thead><tbody>{rows.map((f) => { const i = inv.get(f.investor_id); return <tr key={f.id}><td data-l="Investeerder"><b>{nameOf(i)}</b><br /><span className="hint">{eur(i.invested)}</span></td><td data-l="Keuze"><span className="chip info">{f.kind}</span></td><td data-l="Uiterlijk">{dayNl(f.due_date)}</td><td data-l="Toelichting">{i.choice?.reason || i.choice?.wish || '—'}</td><td data-l="Status"><select defaultValue={f.status} onChange={(e) => save(f.id, { status: e.target.value })}><option value="open">Open</option><option value="contacted">Gecontacteerd</option>{f.kind === 'B' && <option value="published">Voorstel bezorgd</option>}<option value="resolved">Afgerond</option></select></td><td data-l="Notitie"><input defaultValue={f.notes || ''} onBlur={(e) => e.target.value !== (f.notes || '') && save(f.id, { notes: e.target.value })} /></td></tr>; })}</tbody></table></div>}</div><div style={{ height: 16 }} /><AdmMessages /></>;
 }
 // Appointments for Belinus and EVChargeking: list, day, month, and per investor day (attendees in arrival order).
 const bxDay = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels' }).format(new Date(d));
