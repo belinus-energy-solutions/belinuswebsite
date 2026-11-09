@@ -135,16 +135,24 @@ Deno.serve(async (req) => {
 
   if (action === "me") {
     if (!inv) return json({ ok: true, admin: acc.role, investor: null });
-    const [{ data: tr }, { data: sch }, { data: ch }, { data: bk }, { data: ev }, { data: used }] = await Promise.all([
+    const [{ data: tr }, { data: sch }, { data: ch }, { data: bk }, { data: ev }, { data: used }, { data: slotRows }] = await Promise.all([
       a.from("inv_tranches").select("*").eq("code", inv.tranche).single(),
       a.from("inv_schedule").select("scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status, paid_at").eq("investor_id", inv.id).order("period"),
       a.from("inv_choices").select("choice, wish, reason, confirmed_at, addendum_status").eq("investor_id", inv.id).maybeSingle(),
       a.from("inv_bookings").select("id, kind, starts_at, ends_at, arrival, persons, phone, topic, status, event_id, meet_url").eq("investor_id", inv.id).order("starts_at"),
-      a.from("inv_events").select("id, title, starts_at, ends_at, address, capacity, arrival_slots, description").eq("active", true).gte("ends_at", new Date().toISOString()).order("starts_at"),
-      a.from("inv_bookings").select("event_id, persons").eq("kind", "visit").eq("status", "confirmed"),
+      a.from("inv_events").select("id, title, starts_at, ends_at, address, capacity, arrival_slots, description, slot_minutes").eq("active", true).gte("ends_at", new Date().toISOString()).order("starts_at"),
+      a.from("inv_bookings").select("event_id, arrival, persons").eq("kind", "visit").eq("status", "confirmed"),
+      a.from("inv_event_slots").select("event_id, start_time, capacity"),
     ]);
     const { data: msgs } = await a.from("inv_messages").select("id, direction, body, created_at, read_at, channel").eq("investor_id", inv.id).order("created_at");
-    const events = (ev || []).map((e: any) => ({ ...e, free: e.capacity - (used || []).filter((x: any) => x.event_id === e.id).reduce((n: number, x: any) => n + x.persons, 0), capacity: undefined }));
+    // Each arrival time has its own capacity; the investor sees the places still free per time.
+    const events = (ev || []).map((e: any) => {
+      const slots = (slotRows || []).filter((x: any) => x.event_id === e.id).sort((p: any, q: any) => String(p.start_time).localeCompare(String(q.start_time))).map((x: any) => {
+        const booked = (used || []).filter((y: any) => y.event_id === e.id && y.arrival === x.start_time).reduce((n: number, y: any) => n + y.persons, 0);
+        return { time: x.start_time, capacity: x.capacity, free: Math.max(0, x.capacity - booked) };
+      });
+      return { ...e, slots, arrival_slots: slots.map((x: any) => x.time), free: slots.reduce((n: number, x: any) => n + x.free, 0), capacity: undefined };
+    });
     const gift = ch && ch.choice !== "C" && s.gift?.text ? s.gift : null;
     // Option B: the paid rows of the original schedule, then the rising repayment plan (see _shared/finance.ts).
     const origRows = (sch || []).filter((r: any) => r.scenario === "original");
@@ -222,9 +230,13 @@ Deno.serve(async (req) => {
       eventId = String(body.event_id || "");
       persons = Math.floor(Number(body.persons || 1));
       if (!/^[0-9a-f-]{36}$/.test(eventId) || persons < 1 || persons > s.booking.max_persons) return json({ error: "bad-input" }, 400);
-      const { data: e } = await a.from("inv_events").select("arrival_slots").eq("id", eventId).maybeSingle();
+      const { data: e } = await a.from("inv_events").select("starts_at, slot_minutes").eq("id", eventId).maybeSingle();
       arrival = str(body.arrival, 5);
-      if (!e || (e.arrival_slots.length && !e.arrival_slots.includes(arrival))) return json({ error: "bad-input" }, 400);
+      const { data: sl } = await a.from("inv_event_slots").select("start_time").eq("event_id", eventId).eq("start_time", arrival).maybeSingle();
+      if (!e || !sl) return json({ error: "bad-input" }, 400);
+      // The appointment runs from its arrival time for the length of one slot on the day of the investor day.
+      starts = toUtc(localDay(new Date(e.starts_at)), arrival).toISOString();
+      ends = new Date(new Date(starts).getTime() + Number(e.slot_minutes || 30) * 60000).toISOString();
     } else {
       starts = new Date(String(body.starts_at || "")).toISOString();
       const free = (await freeSlots(a, kind, s.booking)).flatMap((d) => d.slots);
@@ -232,7 +244,7 @@ Deno.serve(async (req) => {
       ends = new Date(new Date(starts).getTime() + s.booking.slot_minutes * 60000).toISOString();
     }
     const { data: id, error } = await a.rpc("inv_book", { p_investor: inv.id, p_kind: kind, p_event: eventId, p_arrival: arrival, p_starts: starts, p_ends: ends, p_persons: persons, p_phone: phone || null, p_topic: topic, p_message: message || null });
-    if (error) { const m = /already-booked|event-full|slot-taken|no-event/.exec(error.message); if (m) return json({ error: m[0] }, 409); console.error("inv book", error.message); return json({ error: "server-error" }, 500); }
+    if (error) { const m = /already-booked|slot-full|slot-taken|no-slot|no-event/.exec(error.message); if (m) return json({ error: m[0] }, 409); console.error("inv book", error.message); return json({ error: "server-error" }, 500); }
     const { data: b } = await a.from("inv_bookings").select("*, inv_events(title, address)").eq("id", id).single();
     if (kind === "video") {
       // One Teams meeting per video appointment. If Teams is unavailable the booking still goes ahead with the manual link.

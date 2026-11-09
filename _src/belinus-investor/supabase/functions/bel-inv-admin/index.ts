@@ -183,8 +183,9 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
   if (action === "availability") {
-    const [{ data: w }, { data: bl }, { data: ev }] = await Promise.all([a.from("inv_availability").select("*").order("weekday").order("start_time"), a.from("inv_blocked").select("*").order("day"), a.from("inv_events").select("*").order("starts_at")]);
-    return json({ ok: true, windows: w, blocked: bl, events: ev, settings: await settings(a) });
+    const [{ data: w }, { data: bl }, { data: ev }, { data: sl }] = await Promise.all([a.from("inv_availability").select("*").order("weekday").order("start_time"), a.from("inv_blocked").select("*").order("day"), a.from("inv_events").select("*").order("starts_at"), a.from("inv_event_slots").select("*").order("start_time")]);
+    const events = (ev || []).map((e: any) => ({ ...e, slots: (sl || []).filter((x: any) => x.event_id === e.id) }));
+    return json({ ok: true, windows: w, blocked: bl, events, settings: await settings(a) });
   }
   if (action === "availability_save") {
     const rows = (Array.isArray(body.windows) ? body.windows : []).map((w: any) => ({ weekday: Number(w.weekday), start_time: str(w.start_time, 5), end_time: str(w.end_time, 5), kinds: (w.kinds || []).filter((k: string) => ["video", "callback"].includes(k)) }));
@@ -268,10 +269,17 @@ Deno.serve(async (req) => {
     if (body.remove) await a.from("inv_blocked").delete().eq("day", day); else await a.from("inv_blocked").upsert({ day, note: str(body.note, 200) || null });
     return json({ ok: true });
   }
+  // Investor day: the length of one appointment, and each arrival time with its own number of places.
   if (action === "event_save") {
-    const patch = { capacity: Math.max(0, Math.floor(Number(body.capacity))), active: body.active !== false, arrival_slots: (body.arrival_slots || []).map((s: string) => str(s, 5)).filter((s: string) => /^\d\d:\d\d$/.test(s)) };
+    const slots = (Array.isArray(body.slots) ? body.slots : []).map((x: any) => ({ start_time: str(x.start_time, 5), capacity: Math.max(0, Math.floor(Number(x.capacity) || 0)) }));
+    const slotMin = Math.floor(Number(body.slot_minutes));
+    const times = slots.map((x: any) => x.start_time);
+    if (slots.some((x: any) => !/^\d\d:\d\d$/.test(x.start_time)) || new Set(times).size !== times.length || !(slotMin >= 10 && slotMin <= 120)) return json({ error: "bad-input" }, 400);
+    const patch = { active: body.active !== false, slot_minutes: slotMin, capacity: slots.reduce((n: number, x: any) => n + x.capacity, 0), arrival_slots: times.sort() };
     await a.from("inv_events").update(patch).eq("id", id);
-    await audit(a, u, "event", id, patch);
+    await a.from("inv_event_slots").delete().eq("event_id", id);
+    if (slots.length) { const { error } = await a.from("inv_event_slots").insert(slots.map((x: any) => ({ event_id: id, ...x }))); if (error) { console.error("inv slots", error.message); return json({ error: "server-error" }, 500); } }
+    await audit(a, u, "event", id, { ...patch, slots });
     return json({ ok: true });
   }
   if (action === "settings_save") {
