@@ -49,4 +49,4 @@ jobs:
         run: |
           set -euo pipefail
           echo "Deploying: $FUNCTIONS"
-          supabase functions deploy $FUNCTIONS --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy $FUNCTIONS --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt --yes
