@@ -195,6 +195,26 @@ function Schedule({ rows }) {
   return <div className="tblw"><table className="tbl cards"><thead><tr>{L.map((h, i) => <th key={h} className={i > 0 && i < 7 ? 'n' : ''}>{h}</th>)}</tr></thead><tbody>{rows.map((r) => <tr key={r.period}>
     <td data-l={L[0]}>{r.status === 'paid' ? dayNl(r.due) : <>{t('Ten laatste')} {dayNl(addMonths(r.due, 3))}</>}</td><td data-l={L[1]} className="n">{eur(r.gross_interest)}</td><td data-l={L[2]} className="n">{eur(r.withholding)}</td><td data-l={L[3]} className="n">{eur(r.net_interest)}</td><td data-l={L[4]} className="n">{eur(r.principal)}</td><td data-l={L[5]} className="n"><b>{eur(Number(r.net_interest) + Number(r.principal))}</b></td><td data-l={L[6]} className="n">{eur(r.remaining)}</td><td data-l={L[7]}><span className={'chip ' + SCH_STATUS[r.status][1]}>{t(SCH_STATUS[r.status][0])}</span></td></tr>)}</tbody></table></div>;
 }
+// Transactions: one row per payment until the end of the bond. Originals stay visible; a chosen option adds its rows as pending until Winwinner confirms the signature, then the old planned rows are cancelled.
+const TX_STATUS = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['in afwachting van handtekening', 'warn'], cancelled: ['geannuleerd', 'info'] };
+function txRows(d) {
+  const c = d.choice?.choice, signed = d.choice?.addendum_status === 'signed';
+  const chosen = (c === 'A' || c === 'B') ? (c === 'A' ? d.optionA : d.optionB) || [] : [];
+  const rows = [];
+  for (const r of d.original || []) rows.push({ ...r, src: 'orig', status: r.status === 'paid' ? 'paid' : (chosen.length && signed ? 'cancelled' : 'planned') });
+  for (const r of chosen) if (r.status !== 'paid') rows.push({ ...r, src: 'opt', status: signed ? 'planned' : 'pending' });
+  return rows.sort((a, b) => String(a.due).localeCompare(String(b.due)) || (a.src === 'opt') - (b.src === 'opt'));
+}
+function Transacties({ d }) {
+  const rows = txRows(d);
+  const L = ['Datum', 'Kapitaal', 'Bruto interest', 'Roerende voorheffing', 'Netto interest', 'Totaal ontvangen', 'Status'].map((x) => t(x));
+  return <div className="stack">
+    <h2 style={{ margin: 0 }}>{t('Transacties')}</h2>
+    <p className="hint" style={{ margin: 0 }}>{t('Alle betalingen tot het einde van uw lening. Bij een gekozen optie verschijnen de nieuwe betalingen eerst als "in afwachting van handtekening"; zodra Winwinner de handtekening bevestigt, worden ze gepland en worden de vervallen geplande betalingen geannuleerd.')}</p>
+    {!rows.length ? <p className="hint">{t('De planning wordt nog geladen.')}</p> : <div className="tblw"><table className="tbl cards"><thead><tr>{L.map((h, i) => <th key={h} className={i > 0 && i < 6 ? 'n' : ''}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={r.src + r.period + i} style={r.status === 'cancelled' ? { opacity: 0.55 } : undefined}>
+      <td data-l={L[0]}>{['planned', 'pending'].includes(r.status) ? <>{t('Ten laatste')} {dayNl(addMonths(r.due, 3))}</> : dayNl(r.due)}</td><td data-l={L[1]} className="n">{eur(r.principal)}</td><td data-l={L[2]} className="n">{eur(r.gross_interest)}</td><td data-l={L[3]} className="n">{eur(r.withholding)}</td><td data-l={L[4]} className="n">{eur(r.net_interest)}</td><td data-l={L[5]} className="n"><b>{eur(Number(r.net_interest) + Number(r.principal))}</b></td><td data-l={L[6]}><span className={'chip ' + TX_STATUS[r.status][1]}>{t(TX_STATUS[r.status][0])}</span></td></tr>)}</tbody></table></div>}
+  </div>;
+}
 function choiceChip(d) {
   const c = d.choice;
   if (!c) return <span className="chip warn">{t('Nog te kiezen')}</span>;

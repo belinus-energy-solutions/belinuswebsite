@@ -25,7 +25,7 @@ function Shell({ page, investor, role, email, name, unread = 0, children }) {
   const toSupport = async (e) => { e.preventDefault(); try { const r = await fn('bel-switch', { action: 'create', to: 'support' }); location.href = r.url; } catch (x) {} };
   const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
   const secs = [];
-  if (investor) secs.push(['Mijn investering', [['', 'Mijn investering', 'trend'], ['keuze', 'Uw keuze', 'keuze'], ['afspraak', 'Maak een afspraak', 'afspraak'], ['berichten', 'Berichten', 'mail']]]);
+  if (investor) secs.push(['Mijn investering', [['', 'Mijn investering', 'trend'], ['keuze', 'Uw keuze', 'keuze'], ['transacties', 'Transacties', 'chart'], ['afspraak', 'Maak een afspraak', 'afspraak'], ['berichten', 'Berichten', 'mail']]]);
   if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['opvolging', 'Opvolging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ['financieel', 'Financieel', 'chart'], ['instellingen', 'Instellingen', 'cog']]]);
   const tabs = secs.flatMap((s) => s[1]).slice(0, 3);
   const filt = (r) => !q || t(r[1]).toLowerCase().includes(q.toLowerCase());
@@ -99,6 +99,7 @@ function App() {
   else if (role && !acting && P[page]) { const C = P[page]; body = <C />; }
   else if (hasInv && page === 'berichten') body = <Berichten d={d} reload={loadData} />;
   else if (hasInv && page === 'keuze') body = <Keuze d={d} reload={loadData} />;
+  else if (hasInv && page === 'transacties') body = <Transacties d={d} />;
   else if (hasInv && page === 'afspraak') body = <Afspraak d={d} reload={loadData} />;
   else if (hasInv) body = <Home d={d} />;
   else if (role) body = <AdmOverview />;
