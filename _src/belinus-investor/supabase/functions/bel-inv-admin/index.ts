@@ -120,7 +120,8 @@ Deno.serve(async (req) => {
     let inv: any = null;
     if (id) ({ data: inv } = await a.from("inv_investors").select("email, first_name, invested").eq("id", id).maybeSingle());
     if (!inv) { const { data } = await a.from("inv_investors").select("email, first_name, invested").eq("is_test", false).eq("status", "invited").order("last_name").limit(1); inv = data?.[0] || { email: "voorbeeld@investeerder.be", first_name: "Jan", invested: 5000 }; }
-    return json({ ok: true, ...(await invitePreview(a, inv)) });
+    // The first invitation to each investor carries a copy to info@winwinner.be (see sendInvite).
+    return json({ ok: true, ...(await invitePreview(a, inv)), cc: "info@winwinner.be" });
   }
   // Test send of the personal invitation, to Erwin only, so he can check the content. The button link is a placeholder: no investor link is created.
   if (action === "test_invite") {
@@ -273,7 +274,7 @@ Deno.serve(async (req) => {
       const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
       const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
       const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
-      tpl = { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, "") };
+      tpl = { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, ""), cc: "info@winwinner.be" } as any;
     }
     return json({ ok: true, role: acc.role, campaign: c, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl });
   }
