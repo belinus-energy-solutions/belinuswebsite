@@ -255,6 +255,16 @@ Deno.serve(async (req) => {
       else if (r.status === "failed") delivery = "Verzending mislukt";
       return { recipient: r.recipient, status: r.status, sent_at: r.sent_at, delivery, refused: !delivered && !!refused, temporary: !delivered && !refused && !!temp, complained: has("complained"), unsubscribed: has("unsubscribed"), delivered, opened: has("opened"), clicked: has("clicked"), links: r.events.filter((e: any) => e.event === "clicked").map((e: any) => e.url) };
     });
+    // Group members who have not received this campaign yet are listed too; for invitation campaigns only the Winwinner investors that still await an invitation.
+    const { data: grp } = await a.from("inv_groups").select("code, name, description").eq("code", c.group_code || "").maybeSingle();
+    const { data: mem } = await a.from("inv_group_members").select("investor_id").eq("group_code", c.group_code || "");
+    const memIds = (mem || []).map((m: any) => m.investor_id);
+    const { data: members } = memIds.length ? await a.from("inv_investors").select("email, status, tranche, is_test").in("id", memIds) : { data: [] as any[] };
+    const alreadyInvited = c.mail_kind === "invite" ? await invitedMap(a) : new Map();
+    const seenR = new Set(rows.map((r: any) => String(r.recipient).toLowerCase()));
+    const waiting = (members || []).filter((m: any) => !m.is_test && !seenR.has(String(m.email).toLowerCase()) && (c.mail_kind !== "invite" || (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !alreadyInvited.has(String(m.email).toLowerCase()))));
+    for (const m of waiting) rows.push({ recipient: m.email, status: "nog niet verstuurd", sent_at: null, delivery: "Nog niet verstuurd", refused: false, temporary: false, complained: false, unsubscribed: false, delivered: false, opened: false, clicked: false, links: [] });
+    const pending = c.mail_kind === "invite" ? waiting.length : 0;
     const cnt = (f: (r: any) => boolean) => rows.filter(f).length;
     const stats = { sent: cnt((r) => r.status === "sent"), failed: cnt((r) => r.status === "failed"), delivered: cnt((r) => r.delivered), refused: cnt((r) => r.refused), temporary: cnt((r) => r.temporary), opened: cnt((r) => r.opened), not_opened: cnt((r) => r.status === "sent" && !r.opened), clicked: cnt((r) => r.clicked), complained: cnt((r) => r.complained), unsubscribed: cnt((r) => r.unsubscribed) };
     let tpl: { subject: string; html: string; text: string } = { subject: c.subject, text: c.body, html: mailHtml(c.body, undefined, "nl", false, "") };
@@ -265,7 +275,7 @@ Deno.serve(async (req) => {
       const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
       tpl = { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, "") };
     }
-    return json({ ok: true, campaign: c, stats, recipients: rows, template: tpl });
+    return json({ ok: true, role: acc.role, campaign: c, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl });
   }
   if (action === "messages_all") {
     const { data: ms, error } = await a.from("inv_messages").select("id, investor_id, direction, body, created_at, read_at, mail_status, author_email, inv_investors(email, first_name, last_name, company_name)").order("created_at", { ascending: false }).limit(1000);
@@ -318,7 +328,14 @@ Deno.serve(async (req) => {
   }
   if (action === "invite_pending" || action === "invite_batch") {
     // Recipients: members of the chosen group, and only Winwinner tranches (crowd-/winwin-). Bolero investors never receive these mails, even when they are in a group.
-    const gcode = String(body.group || "winwinner");
+    let gcode = String(body.group || "winwinner");
+    let linked: any = null;
+    if (body.campaign) {
+      // Sent from a campaign page: the campaign decides the group and receives the mails.
+      const { data: cc } = await a.from("inv_campaigns").select("id, group_code, mail_kind, status").eq("id", String(body.campaign)).maybeSingle();
+      if (!cc || cc.mail_kind !== "invite" || !["draft", "sending"].includes(cc.status)) return json({ error: "bad-input" }, 400);
+      linked = cc; gcode = cc.group_code;
+    }
     const { data: grp } = await a.from("inv_groups").select("code, name").eq("code", gcode).maybeSingle();
     if (!grp) return json({ error: "not-found" }, 404);
     const { data: mem } = await a.from("inv_group_members").select("investor_id").eq("group_code", gcode);
@@ -333,7 +350,7 @@ Deno.serve(async (req) => {
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
     let ok = 0, failed = 0;
     // One campaign per batch; every mail of this batch is linked to it (tracking, status, detail page).
-    let { data: camp } = await a.from("inv_campaigns").select("id").eq("mail_kind", "invite").eq("group_code", gcode).in("status", ["draft", "sending"]).order("created_at").limit(1).maybeSingle();
+    let { data: camp } = linked ? { data: linked } : await a.from("inv_campaigns").select("id").eq("mail_kind", "invite").eq("group_code", gcode).in("status", ["draft", "sending"]).order("created_at").limit(1).maybeSingle();
     if (!camp) ({ data: camp } = await a.from("inv_campaigns").insert({ name: `Uitnodiging ${grp.name} – eerste uitnodiging`, group_code: gcode, mail_kind: "invite", subject: "Uitnodiging voor het Investeerdersportaal EVChargeking", body: "Persoonlijke uitnodigingsmail met persoonlijke link.", status: "sending" }).select("id").single());
     if (camp?.id) await a.from("inv_campaigns").update({ status: "sending" }).eq("id", camp.id);
     for (const i of todo.slice(0, 20)) { if (await sendInvite(a, i, { cc: true, campaign: camp?.id })) ok++; else failed++; }
