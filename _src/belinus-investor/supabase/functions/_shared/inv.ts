@@ -44,9 +44,9 @@ const EVENT_L: Record<string, [string, string]> = {
 };
 export const eventTitle = (t: string, l: Lang) => (l === "nl" || !EVENT_L[t] ? t : EVENT_L[t][l === "fr" ? 0 : 1]);
 const MC: Record<Lang, { btn: string; foot: (u: string) => string; sig: string }> = {
-  nl: { btn: "Werkt de knop niet? Kopieer dit adres in uw browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Vragen? Antwoord op deze e-mail of maak een afspraak via ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
-  fr: { btn: "Le bouton ne fonctionne pas ? Copiez cette adresse dans votre navigateur :", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Des questions ? Répondez à cet e-mail ou prenez rendez-vous via ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
-  en: { btn: "Button not working? Copy this address into your browser:", foot: (u) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Questions? Reply to this e-mail or make an appointment at ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
+  nl: { btn: "Werkt de knop niet? Kopieer dit adres in uw browser:", foot: (u) => `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>Vragen? Antwoord op deze e-mail of maak een afspraak via ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
+  fr: { btn: "Le bouton ne fonctionne pas ? Copiez cette adresse dans votre navigateur :", foot: (u) => `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>Des questions ? Répondez à cet e-mail ou prenez rendez-vous via ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
+  en: { btn: "Button not working? Copy this address into your browser:", foot: (u) => `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>Questions? Reply to this e-mail or make an appointment at ${u}/afspraak`, sig: "EVChargeking (Some BV), a belinus group company" },
 };
 
 // ---- callers ----
@@ -71,7 +71,7 @@ const NOREPLY = Deno.env.get("INV_MAIL_NOREPLY") || "noreply@belinus.com";
 const FROM_ADDR = Deno.env.get("INV_MAIL_FROM") || "investors@belinus.com", FROM_NAME = "EVChargeking via Belinus", REPLY = Deno.env.get("INV_MAIL_REPLY_TO") || "info@evchargeking.com";
 const FONT = "'Arial Nova','Helvetica Neue',Helvetica,Arial,sans-serif";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const NOREPLY_FOOT = (u: string) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Dit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen. Vragen? Meld u aan op ${u} en maak een afspraak.`;
+const NOREPLY_FOOT = (u: string) => `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>Dit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen. Vragen? Meld u aan op ${u} en maak een afspraak.`;
 export function html(text: string, cta: { url: string; label: string } | undefined, L: Lang, noreply = false, foot = ""): string {
   const parts = text.replace(/\r/g, "").split(/\n{2,}/).map((p) => {
     if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">${esc(MC[L].btn)}<br>${esc(cta.url)}</p>`;
@@ -222,7 +222,7 @@ U ontvangt een e-mail ter bevestiging van uw keuze. Zodra alle investeerders hun
 
 ## VRAGEN? MAAK EEN AFSPRAAK IN HET PORTAAL
 
-Kom langs op een van onze investeerdersdagen, bij EVChargeking, Hooilaar 40, 2230 Herselt, telkens van 10 tot 12 uur, met koffie en iets lekkers:
+Kom langs op een van onze investeerdersdagen, bij EVChargeking, Probastraat 21, 2235 Westmeerbeek, telkens van 10 tot 12 uur, met koffie en iets lekkers:
 • zaterdag 28 november 2026
 • zaterdag 5 december 2026
 
@@ -266,7 +266,7 @@ export async function mailMessage(a: SupabaseClient, inv: { email: string; first
     en: ["New message from EVChargeking", "You have a new message in the investor portal:", "You can simply reply to this e-mail, or reply in the portal.", "View in the portal", "You can reply to this e-mail. Your answer is added to your messages in the portal."],
   }[L];
   const url = `${APP_URL}/#/berichten`;
-  return await sendMail(a, { to: inv.email, kind: "message", lang: L, from: MSG_FROM, replyTo: replyAddress(messageId), foot: `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>${T[4]}`, subject: T[0], cta: { url, label: T[3] }, text: `${hello(inv.first_name, L)}\n\n${T[1]}\n\n${body}\n\n${T[2]}\n\n${url}` });
+  return await sendMail(a, { to: inv.email, kind: "message", lang: L, from: MSG_FROM, replyTo: replyAddress(messageId), foot: `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>${T[4]}`, subject: T[0], cta: { url, label: T[3] }, text: `${hello(inv.first_name, L)}\n\n${T[1]}\n\n${body}\n\n${T[2]}\n\n${url}` });
 }
 
 // Calendar invitation (.ics). Same UID per appointment; a moved appointment is sent with METHOD:REQUEST and a higher SEQUENCE so calendars update it.
@@ -295,7 +295,7 @@ export async function bookingPreview(a: SupabaseClient, kind: string): Promise<{
   const s = await settings(a);
   const { data: ev } = await a.from("inv_events").select("id, title, address, starts_at").eq("active", true).order("starts_at").limit(1).maybeSingle();
   const { data: sl } = ev ? await a.from("inv_event_slots").select("start_time").eq("event_id", ev.id).order("start_time").limit(1).maybeSingle() : { data: null };
-  const b: BookingB = { starts_at: ev?.starts_at || new Date().toISOString(), inv_events: { title: ev?.title || "Investeerdersdag", address: ev?.address || "EVChargeking, Hooilaar 40, 2230 Herselt" } };
+  const b: BookingB = { starts_at: ev?.starts_at || new Date().toISOString(), inv_events: { title: ev?.title || "Investeerdersdag", address: ev?.address || "EVChargeking, Probastraat 21, 2235 Westmeerbeek" } };
   const m = bookingMail(kind, b, sl?.start_time || "10:00", 1, null, s, "Jan", "nl");
   return { subject: m.subject, html: html(m.text, undefined, "nl", false, ""), from: `${FROM_NAME} <${FROM_ADDR}>`, to: "jan@voorbeeld.be", replyTo: REPLY, attachment: "afspraak.ics" };
 }
@@ -334,7 +334,7 @@ export async function automatedPreview(a: SupabaseClient, kind: string): Promise
     case "message": {
       const url = `${APP_URL}/#/berichten`;
       const text = `${hello("Jan", L)}\n\nU hebt een nieuw bericht in het investeerdersportaal:\n\nDit is een voorbeeldbericht van de beheerder.\n\nU kunt gewoon op deze e-mail antwoorden, of antwoorden in het portaal.\n\n${url}`;
-      return { subject: "Nieuw bericht van EVChargeking", html: html(text, { url, label: "Bekijk in het portaal" }, L, false, `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>U kunt op deze e-mail antwoorden. Uw antwoord komt bij uw berichten in het portaal.`), from: `${FROM_NAME} <${MSG_FROM}>`, to };
+      return { subject: "Nieuw bericht van EVChargeking", html: html(text, { url, label: "Bekijk in het portaal" }, L, false, `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>U kunt op deze e-mail antwoorden. Uw antwoord komt bij uw berichten in het portaal.`), from: `${FROM_NAME} <${MSG_FROM}>`, to };
     }
     case "message-in":
       return { subject: "Nieuw bericht van Jan Janssen", html: html(`Jan Janssen antwoordde in het investeerdersportaal:\n\nVoorbeeldbericht\n\nBekijk en antwoord: ${APP_URL}/#/investeerders/VOORBEELD`, undefined, L), from: fromFull, to: notify };
