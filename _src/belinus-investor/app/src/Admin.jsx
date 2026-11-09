@@ -338,7 +338,7 @@ function AdmCampaign({ id }) {
   if (!d) return <Wait err={err} />;
   const c = d.campaign, s = d.stats;
   const cards = [['Verstuurd', s.sent], ['Afgeleverd', s.delivered], ['Geweigerd', s.refused], ['Tijdelijk mislukt', s.temporary], ['Geopend', s.opened], ['Niet geopend', s.not_opened], ['Link geklikt', s.clicked], ['Klacht', s.complained], ['Uitgeschreven', s.unsubscribed], ['Mislukt bij verzenden', s.failed]];
-  return <><div className="page-head"><div><h1 className="page-title">{c.name}</h1><p className="page-sub"><a href="#/campagnes">← Alle campagnes</a> · Groep: {c.group_code || '—'} · {CAMP_ST[c.status] || c.status}{c.sent_at ? ' · ' + new Date(c.sent_at).toLocaleString('nl-BE') : ''}</p></div><div className="row"><Btn kind="ghost" onClick={refresh} disabled={busy}>{busy ? 'Bezig…' : 'Statistieken bijwerken'}</Btn></div></div>
+  return <><div className="page-head"><div><h1 className="page-title">{c.name}</h1><p className="page-sub"><a href="#/campagnes">← Alle campagnes</a> · Groep: {c.group_code || '—'} · {CAMP_ST[c.status] || c.status}{c.sent_at ? ' · ' + new Date(c.sent_at).toLocaleString('nl-BE') : ''}</p></div><div className="row"><Btn kind="ghost" onClick={refresh} disabled={busy}>{busy ? 'Bezig…' : 'Statistieken bijwerken'}</Btn><TestMail body={{ campaign: c.id }} /></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
     <div className="seg" role="tablist">{[['stats', 'Resultaten'], ['recipients', 'Ontvangers'], ['template', 'E-mailtemplate']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={'seg-b' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}</div>
     <div style={{ height: 16 }} />
@@ -361,6 +361,12 @@ const AUTO_MAILS = [
   ['message-in', 'Nieuw bericht van investeerder', 'Investeerder stuurt een bericht in het portaal', 'Interne melding naar het ingestelde meldingsadres.', 'Korte interne melding met de tekst van het bericht'],
 ];
 function openHtml(html) { const u = URL.createObjectURL(new Blob([html], { type: 'text/html' })); window.open(u, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(u), 60000); }
+// Sends a test mail (content only, not the flow) to the admin who is logged in. Used on the automated mails and on the campaigns.
+function TestMail({ body }) {
+  const [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  async function go() { setBusy(true); setMsg(''); setErr(''); try { const r = await adm('send_test', body); setMsg('Testmail verstuurd naar ' + r.to + '.'); } catch (x) { setErr(errText(x)); } finally { setBusy(false); } }
+  return <div><Btn kind="ghost" onClick={go} busy={busy} disabled={busy}>Stuur testmail</Btn>{msg && <p className="hint" style={{ margin: '8px 0 0' }}>{msg}</p>}{err && <Note kind="error">{err}</Note>}</div>;
+}
 function AutoPreview({ kind }) {
   const [busy, setBusy] = useState(false), [err, setErr] = useState('');
   // The window is opened straight away on the click (so the browser does not block it), then filled with the template.
@@ -375,7 +381,7 @@ function AutoPreview({ kind }) {
     } catch (x) { if (w) w.close(); setErr(errText(x)); }
     finally { setBusy(false); }
   }
-  return <div><Btn kind="ghost" onClick={show} disabled={busy}>{busy ? 'Bezig…' : 'Voorbeeld'}</Btn>{err && <Note kind="error">{err}</Note>}</div>;
+  return <div><div className="row"><Btn kind="ghost" onClick={show} disabled={busy}>{busy ? 'Bezig…' : 'Voorbeeld'}</Btn><TestMail body={{ kind }} /></div>{err && <Note kind="error">{err}</Note>}</div>;
 }
 function AdmAutomated() {
   return <><div className="page-head"><div><h1 className="page-title">Automatische e-mails</h1><p className="page-sub">Alle e-mails die het systeem zelf verstuurt, met trigger en regels. Campagnes staan onder E-mailcampagnes.</p></div></div>

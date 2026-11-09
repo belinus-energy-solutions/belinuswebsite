@@ -84,7 +84,7 @@ export function html(text: string, cta: { url: string; label: string } | undefin
     + `<tr><td style="padding:30px 36px 14px">${parts.join("")}</td></tr>`
     + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">${foot || (noreply ? NOREPLY_FOOT(APP_URL) : MC[L].foot(APP_URL))}</td></tr></table></td></tr></table></body></html>`;
 }
-export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang; noreply?: boolean; from?: string; replyTo?: string; foot?: string; cc?: string; campaign?: string }): Promise<boolean> {
+export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; htmlOverride?: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang; noreply?: boolean; from?: string; replyTo?: string; foot?: string; cc?: string; campaign?: string }): Promise<boolean> {
   const L = pickLang(m.lang);
   const log = (provider: string, status: string, msgId?: string | null) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status, campaign_id: m.campaign || null, message_id: msgId || null }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
@@ -92,7 +92,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
   try {
     if (key && domain) {
       const f = new FormData();
-      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", html(m.text, m.cta, L, !!m.noreply, m.foot || ""));
+      f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", m.htmlOverride || html(m.text, m.cta, L, !!m.noreply, m.foot || ""));
       if (m.noreply) f.set("from", `${FROM_NAME} <${NOREPLY}>`); else { if (m.from) f.set("from", `${FROM_NAME} <${m.from}>`); f.set("h:Reply-To", m.replyTo || REPLY); } if (m.campaign) { f.set("o:tracking", "yes"); f.set("o:tracking-opens", "yes"); f.set("o:tracking-clicks", "yes"); f.set("o:tag", "campaign:" + m.campaign); } else f.set("o:tracking", "no"); f.set("v:kind", m.kind); if (m.cc) f.set("cc", m.cc);
       if (m.ics) f.append("attachment", new File([m.ics], "afspraak.ics", { type: "text/calendar" }));
       const r = await fetch(`${(Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "")}/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", headers: { Authorization: "Basic " + btoa("api:" + key) }, body: f });
@@ -100,7 +100,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
       const jm: any = await r.json().catch(() => ({})); await log("mailgun", "sent", jm.id); return true;
     }
     if (brevo) {
-      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : (m.from || FROM_ADDR) }, to: [{ email: m.to }], ...(m.cc ? { cc: [{ email: m.cc }] } : {}), ...(m.noreply ? {} : { replyTo: { email: m.replyTo || REPLY } }), subject: m.subject, textContent: body, htmlContent: html(m.text, m.cta, L, !!m.noreply, m.foot || ""), tags: [m.kind, ...(m.campaign ? ["campaign:" + m.campaign] : [])], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : (m.from || FROM_ADDR) }, to: [{ email: m.to }], ...(m.cc ? { cc: [{ email: m.cc }] } : {}), ...(m.noreply ? {} : { replyTo: { email: m.replyTo || REPLY } }), subject: m.subject, textContent: body, htmlContent: m.htmlOverride || html(m.text, m.cta, L, !!m.noreply, m.foot || ""), tags: [m.kind, ...(m.campaign ? ["campaign:" + m.campaign] : [])], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
       if (!r.ok) throw new Error("brevo " + r.status + " " + (await r.text()).slice(0, 200));
       const jb: any = await r.json().catch(() => ({})); await log("brevo", "sent", jb.messageId); return true;
     }

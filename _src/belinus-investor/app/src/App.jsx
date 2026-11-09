@@ -71,25 +71,26 @@ function App() {
   const route = useRoute();
   const [st, setSt] = useState({ phase: 'boot' });
   const loadData = useCallback(async () => { let d; try { d = await fn('bel-inv', { action: 'me' }); } catch (e) { if (AS) { stopAs(); return; } throw e; } if (!d.as) syncLang(d); setSt((s) => ({ ...s, phase: 'in', d })); return d; }, []);
-  const load = useCallback(async () => {
+  const load = useCallback(async (fromLogin = false) => {
     const { data: s } = await sb.auth.getSession();
     if (!s?.session) { setSt({ phase: 'out' }); return; }
     let m;
     try { m = await fn('bel-inv', { action: 'mfa_status' }); } catch (e) { try { for (const k of Object.keys(sessionStorage)) if (k.startsWith('sb-')) sessionStorage.removeItem(k); } catch (x) {} sb.auth.signOut({ scope: 'local' }).catch(() => {}); setSt({ phase: 'out', denied: e.status === 403 }); return; }
     if (!m.verified) { setSt({ phase: 'mfa', status: m }); return; }
     setSt({ phase: 'in', email: s.session.user.email });
-    // The terms are asked once, just after login (not again while the session is open). Admins are exempt.
+    // The terms are asked only after a password (or provider) sign-in, not on a page reload. Admins are exempt.
     const d0 = await loadData();
-    if (d0 && d0.investor && d0.terms && d0.terms.pending && !d0.admin && !d0.as) setSt((s0) => ({ ...s0, gate: true }));
+    // A reload also shows it to someone who has never accepted yet (their sign-in was not finished); a change of the terms during a session waits for the next sign-in.
+    if (d0 && d0.investor && d0.terms && d0.terms.pending && (fromLogin || !d0.terms.accepted_version) && !d0.admin && !d0.as) setSt((s0) => ({ ...s0, gate: true }));
   }, [loadData]);
-  useEffect(() => { try { if (localStorage.getItem('inv_rail')) document.documentElement.classList.add('rail'); } catch (e) {} providerReturn().catch(() => {}).then(() => load()); }, [load]);
+  useEffect(() => { try { if (localStorage.getItem('inv_rail')) document.documentElement.classList.add('rail'); } catch (e) {} const back = new URLSearchParams(location.search).get('oauth') === '1'; providerReturn().catch(() => {}).then(() => load(back)); }, [load]);
   useEffect(() => { if (st.phase !== 'in') return; let last = Date.now(); const bump = () => { last = Date.now(); }; ['click', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true })); const iv = setInterval(() => { if (Date.now() - last > 30 * 60000) sb.auth.signOut({ scope: 'local' }).then(() => location.reload()); }, 60000); return () => { clearInterval(iv); ['click', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, bump)); }; }, [st.phase]);
   const page = route.parts[0] || '';
   if (page === 'switch') return <SwitchIn route={route} />;
-  if (page === 'wachtwoord') return <SetPassword route={route} onIn={load} />;
+  if (page === 'wachtwoord') return <SetPassword route={route} onIn={() => load(true)} />;
   if (st.phase === 'boot') return <div className="boot"><span className="spin" /></div>;
-  if (st.phase === 'out') return page === 'start' ? <Start route={route} /> : <Login onIn={load} />;
-  if (st.phase === 'mfa') return <SecondFactor status={st.status} onDone={load} />;
+  if (st.phase === 'out') return page === 'start' ? <Start route={route} /> : <Login onIn={() => load(true)} />;
+  if (st.phase === 'mfa') return <SecondFactor status={st.status} onDone={() => load(true)} />;
   const d = st.d;
   if (!d) return <div className="boot"><span className="spin" /></div>;
   if (st.gate && d.investor && d.terms && d.terms.pending && !d.as && !d.admin) return <Terms d={d} reload={loadData} />;

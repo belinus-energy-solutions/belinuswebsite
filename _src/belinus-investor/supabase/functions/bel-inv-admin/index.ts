@@ -287,6 +287,34 @@ Deno.serve(async (req) => {
     await a.from("inv_messages").update({ read_at: new Date().toISOString() }).eq("investor_id", id).eq("direction", "in").is("read_at", null);
     return json({ ok: true });
   }
+  // Test mail of an automated mail or of a campaign template, sent to the admin who is logged in. It shows the content only: the links and the flow do not work in it.
+  if (action === "send_test") {
+    let subject = "", htmlOut = "";
+    if (body.campaign) {
+      const { data: c } = await a.from("inv_campaigns").select("*").eq("id", body.campaign).single();
+      if (!c) return json({ error: "not-found" }, 404);
+      if (c.mail_kind === "invite") {
+        const st = await settings(a);
+        const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
+        const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
+        const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
+        subject = m.subject; htmlOut = mailHtml(m.text, m.cta, "nl", true, "");
+      } else { subject = c.subject; htmlOut = mailHtml(c.body, undefined, "nl", false, ""); }
+    } else {
+      const k = String(body.kind || "");
+      let p: any = null;
+      if (k === "invite" || k === "invite-test") p = await invitePreview(a, { email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 });
+      else if (k === "booking") p = await bookingPreview(a, "visit");
+      else p = await automatedPreview(a, k);
+      if (!p) return json({ error: "not-available" }, 400);
+      subject = p.subject; htmlOut = p.html;
+    }
+    const note = "TESTMAIL – niet-functionele test. Deze mail toont enkel de inhoud van de sjabloon. De werking (knoppen, links, afspraken, inschrijvingen en verzending aan investeerders) is in deze test niet getest.";
+    const banner = `<div style="max-width:600px;margin:16px auto 0;padding:12px 16px;background:#FFF4CC;border:1px solid #E0B43A;border-radius:8px;font-family:Arial,sans-serif;font-size:13px;line-height:1.5;color:#5A4300"><b>${note.split(" – ")[0]} – niet-functionele test.</b>${note.split("niet-functionele test.")[1]}</div>`;
+    const withBanner = /<body[^>]*>/i.test(htmlOut) ? htmlOut.replace(/<body([^>]*)>/i, (m0) => m0 + banner) : banner + htmlOut;
+    const sent = await sendMail(a, { to: u.email, kind: "test", lang: "nl", noreply: true, subject: "[TEST – niet-functioneel] " + subject, text: note + "\n\n" + subject, htmlOverride: withBanner });
+    return sent ? json({ ok: true, to: u.email }) : json({ error: "mail-failed" }, 503);
+  }
   if (action === "automated_preview") {
     // Full rendered preview for the automated mails that have a live renderer; the others are shown as text only.
     const k = String(body.kind || "");
