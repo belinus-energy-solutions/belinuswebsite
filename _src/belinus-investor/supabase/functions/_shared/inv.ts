@@ -268,3 +268,10 @@ export async function mailMessage(a: SupabaseClient, inv: { email: string; first
   const url = `${APP_URL}/#/berichten`;
   return await sendMail(a, { to: inv.email, kind: "message", lang: L, from: MSG_FROM, replyTo: replyAddress(messageId), foot: `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>${T[4]}`, subject: T[0], cta: { url, label: T[3] }, text: `${hello(inv.first_name, L)}\n\n${T[1]}\n\n${body}\n\n${T[2]}\n\n${url}` });
 }
+
+// Calendar invitation (.ics). Same UID per appointment; a moved appointment is sent with METHOD:REQUEST and a higher SEQUENCE so calendars update it.
+const icsT = (d: Date | string) => new Date(d).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z/, "Z");
+export function icsEvent(b: { id: string; title: string; start: string; end: string; location?: string; url?: string; desc: string; sequence?: number; method?: "PUBLISH" | "REQUEST" }): string {
+  const e = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Belinus//Investeerdersportaal//NL", `METHOD:${b.method || "PUBLISH"}`, "BEGIN:VEVENT", `UID:${b.id}@investor.belinus.com`, `DTSTAMP:${icsT(new Date())}`, ...(b.sequence ? [`SEQUENCE:${b.sequence}`] : []), `DTSTART:${icsT(b.start)}`, `DTEND:${icsT(b.end)}`, `SUMMARY:${e(b.title)}`, ...(b.location ? [`LOCATION:${e(b.location)}`] : []), ...(b.url ? [`URL:${b.url}`] : []), `DESCRIPTION:${e(b.desc)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+}

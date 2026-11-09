@@ -1,5 +1,6 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
-import { access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview } from "../_shared/inv.ts";
+import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
+import { icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -155,9 +156,29 @@ Deno.serve(async (req) => {
   if (action === "booking_update") {
     const status = String(body.status || "");
     if (!["cancelled", "held", "no_show", "confirmed"].includes(status)) return json({ error: "bad-input" }, 400);
-    const { data: b } = await a.from("inv_bookings").update({ status, note: str(body.note, 1000) || null, ...(status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}) }).eq("id", id).select("starts_at, kind, inv_investors(email, lang)").single();
+    const { data: b } = await a.from("inv_bookings").update({ status, note: str(body.note, 1000) || null, ...(status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}) }).eq("id", id).select("starts_at, kind, meet_id, inv_investors(email, lang)").single();
+    if (status === "cancelled" && (b as any)?.meet_id) await deleteMeeting((b as any).meet_id).catch((err) => console.error("teams delete", err));
     if (status === "cancelled" && body.notify) { const L = pickLang((b as any).inv_investors.lang), W = dateIn(b!.starts_at, true, L), M = str(body.message, 1000), U = "https://investor.belinus.com/afspraak", T = { nl: ["Uw afspraak is geannuleerd – EVChargeking", `Uw afspraak van ${W} werd geannuleerd.\n\n${M}\n\nEen nieuwe afspraak maken kan via ${U}`], fr: ["Votre rendez-vous est annulé – EVChargeking", `Votre rendez-vous du ${W} a été annulé.\n\n${M}\n\nVous pouvez prendre un nouveau rendez-vous via ${U}`], en: ["Your appointment has been cancelled – EVChargeking", `Your appointment of ${W} has been cancelled.\n\n${M}\n\nYou can make a new appointment at ${U}`] }[L]; await sendMail(a, { to: (b as any).inv_investors.email, kind: "booking-cancel", lang: L, subject: T[0], text: T[1] }); }
     await audit(a, u, "booking-update", id, { status });
+    return json({ ok: true });
+  }
+  if (action === "booking_move") {
+    // Admin moves a video or call-back appointment to a new time and tells the investor by e-mail.
+    const { data: cur } = await a.from("inv_bookings").select("id, kind, status, meet_id").eq("id", id).maybeSingle();
+    if (!cur || cur.status !== "confirmed" || !["video", "callback"].includes(cur.kind)) return json({ error: "not-found" }, 404);
+    const starts = new Date(String(body.starts_at || "")).toISOString();
+    if (Number.isNaN(new Date(starts).getTime())) return json({ error: "bad-input" }, 400);
+    const cfg = await settings(a), slot = Number((cfg.booking || {}).slot_minutes || 30);
+    const ends = new Date(new Date(starts).getTime() + slot * 60000).toISOString();
+    const { data: clash } = await a.from("inv_bookings").select("id").eq("status", "confirmed").eq("starts_at", starts).neq("id", id).limit(1);
+    if (clash && clash.length) return json({ error: "slot-taken" }, 409);
+    const { data: nb } = await a.from("inv_bookings").update({ starts_at: starts, ends_at: ends }).eq("id", id).select("*, inv_investors(email, first_name, last_name, lang)").single();
+    if (cur.meet_id) await moveMeeting(cur.meet_id, starts, ends).catch((err) => console.error("teams move", err));
+    const inv = (nb as any).inv_investors, L = pickLang(inv.lang), K = KIND_L[L][cur.kind], W = dateIn(starts, true, L), link = nb.meet_url || null;
+    const det = `${K}: ${W}${link ? "\nLink: " + link : ""}`;
+    const MV = { nl: [`Uw afspraak is verplaatst: ${K}`, `Uw afspraak is verplaatst naar ${W}.`, "Afspraak verplaatsen of annuleren kan in het portaal:", "Met vriendelijke groeten,"], fr: [`Votre rendez-vous a été déplacé : ${K}`, `Votre rendez-vous a été déplacé au ${W}.`, "Vous pouvez déplacer ou annuler le rendez-vous dans le portail :", "Cordialement,"], en: [`Your appointment has been moved: ${K}`, `Your appointment has been moved to ${W}.`, "You can move or cancel the appointment in the portal:", "Kind regards,"] }[L];
+    if (body.notify !== false) await sendMail(a, { to: inv.email, kind: "booking-moved", lang: L, subject: MV[0], ics: ics({ id, title: `EVChargeking: ${K}`, start: starts, end: ends, url: link || undefined, desc: det, sequence: 1, method: "REQUEST" }), text: `${hello(inv.first_name, L)}\n\n${MV[1]}\n\n${det}\n\n${MV[2]} https://investor.belinus.com/afspraak\n\n${MV[3]}\nEVChargeking` });
+    await audit(a, u, "booking-move", id, { starts });
     return json({ ok: true });
   }
   if (action === "availability") {
