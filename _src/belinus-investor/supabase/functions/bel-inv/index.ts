@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
     const gift = null;
     // Option B: the paid rows of the original schedule, then the rising repayment plan (see _shared/finance.ts).
     const origRows = (sch || []).filter((r: any) => r.scenario === "original");
-    const optionB = [...origRows.filter((r: any) => String(r.due).slice(0, 4) < "2026"), ...bSchedule(Number(inv.invested), origRows, Number(tr?.gross_rate || 0), loanKind(inv.tranche))];
+    const optionB = [...origRows.filter((r: any) => String(r.due).slice(0, 4) < "2026"), ...bSchedule(Number(inv.invested), origRows, Number(tr?.gross_rate || 0), loanKind(inv.tranche), !!String(inv.company_name || "").trim())];
     return json({ ok: true, terms, messages: msgs || [], admin: acc.role, as: asMode ? { mode: asMode, id: inv.id, admin_email: u.email } : null, investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email, phone: inv.phone, invested: inv.invested, invested_on: inv.invested_on }, tranche: tr, original: (sch || []).filter((r: any) => r.scenario === "original"), optionA: (sch || []).filter((r: any) => r.scenario === "A"), optionB, choice: ch, bookings: bk, events, deadline: s.deadline, closed, interest_only_date: s.interest_only_date, gift, booking: s.booking });
   }
   if (!inv) return json({ error: "not-investor" }, 403);
