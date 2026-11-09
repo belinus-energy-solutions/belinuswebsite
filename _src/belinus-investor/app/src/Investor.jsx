@@ -70,7 +70,7 @@ function PwInput(props) {
 const PROVIDERS_ON = { azure: true, google: true };
 function providerStart(provider, code) {
   try { sessionStorage.setItem('inv_pcode', code); } catch (e) {}
-  return sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + '/?oauth=1' } });
+  return sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + '/investor/?oauth=1' } });
 }
 // Back from Microsoft/Google: exchange the code, check the invitation server-side, then continue like after a password set.
 async function providerReturn() {
