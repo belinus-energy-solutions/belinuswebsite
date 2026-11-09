@@ -304,8 +304,10 @@ Deno.serve(async (req) => {
         const r: Response = await fetch(next, { headers: { Authorization: "Basic " + btoa("api:" + key) } });
         if (!r.ok) return json({ error: "mailgun-events-failed", status: r.status }, 502);
         const j: any = await r.json();
-        for (const e of j.items || []) const ds = e["delivery-status"] || {};
-        got.push({ campaign_id: c.id, message_id: e.message?.headers?.["message-id"] || null, recipient: e.recipient, event: e.event, url: e.url || null, at: new Date(e.timestamp * 1000).toISOString(), severity: e.severity || null, reason: e.reason || e.reject?.reason || null, detail: String(ds.description || ds.message || e.reject?.reason || "").slice(0, 300) || null });
+        for (const e of j.items || []) {
+          const ds = e["delivery-status"] || {};
+          got.push({ campaign_id: c.id, message_id: e.message?.headers?.["message-id"] || null, recipient: e.recipient, event: e.event, url: e.url || null, at: new Date(e.timestamp * 1000).toISOString(), severity: e.severity || null, reason: e.reason || e.reject?.reason || null, detail: String(ds.description || ds.message || e.reject?.reason || "").slice(0, 300) || null });
+        }
         next = (j.items || []).length && j.paging?.next ? j.paging.next : null;
         pages++;
       }
