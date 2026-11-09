@@ -390,7 +390,7 @@ function AdmAutomated() {
 const FIN_ST = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['wacht op handtekening', 'warn'], cancelled: ['geannuleerd', 'bad'] };
 const FIN_F = [['all', 'Alle leningen'], ['bolero', 'Bolero'], ['winwinlening', 'Winwin'], ['winwin_raise', 'Winwin raise']];
 function AdmFinancial() {
-  const [view, setView] = useState('planned'), [signed, setSigned] = useState(false), [filter, setFilter] = useState('all');
+  const [view, setView] = useState('planned'), [signed, setSigned] = useState(false), [filter, setFilter] = useState('all'), [pick, setPick] = useState('all');
   const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
   useEffect(() => { let live = true; setErr(''); adm('financial', { view, signed_only: signed, filter }).then((r) => { if (live) setD(r); }).catch((x) => { if (live) setErr(errText(x)); }); return () => { live = false; }; }, [view, signed, filter]);
   if (!d) return <Wait err={err} />;
@@ -409,7 +409,8 @@ function AdmFinancial() {
   return <><div className="page-head"><div><h1 className="page-title">Financieel</h1><p className="page-sub">{view === 'planned' ? 'Geplande betalingen volgens de oorspronkelijke leningen, ongewijzigd.' : 'Betalingen op basis van de geregistreerde keuzes van de investeerders.'}</p></div><div className="row"><Btn kind="ghost" busy={busy} onClick={exportXls}>Exporteer Excel</Btn></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
     <div className="row" style={{ marginBottom: 16, flexWrap: 'wrap' }}><div className="seg" role="tablist">{[['planned', 'Geplande betalingen'], ['registered', 'Geregistreerde keuzes']].map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={'seg-b' + (view === k ? ' on' : '')} onClick={() => setView(k)}>{l}</button>)}</div>
-      <select style={{ width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>{FIN_F.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+      <select style={{ width: 'auto' }} value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Lening">{FIN_F.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+      <Btn kind="ghost" busy={pick === filter} onClick={() => setFilter(pick)}>Toepassen</Btn>
       {view === 'registered' && <label className="check"><input type="checkbox" checked={signed} onChange={(e) => setSigned(e.target.checked)} /><span>Enkel getekende keuzes</span></label>}</div>
     <div className="card">{!d.dates.length ? <p style={{ margin: 0 }}>{filter === 'bolero' ? 'Bolero-gegevens ontbreken nog. Er zijn nog geen betalingen geladen.' : 'Geen betalingen gevonden.'}</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Datum</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Kapitaal</th><th className="n">Totaal</th><th className="n">Investeerders</th><th>Status</th></tr></thead><tbody>
       {d.dates.map((x) => <tr key={x.due}><td data-l="Datum">{dayNl(x.due + 'T12:00:00Z')}</td><td data-l="Bruto rente" className="n">{eur(x.gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(x.withholding)}</td><td data-l="Netto rente" className="n">{eur(x.net_interest)}</td><td data-l="Kapitaal" className="n">{eur(x.principal)}</td><td data-l="Totaal" className="n"><b>{eur(x.total)}</b></td><td data-l="Investeerders" className="n">{x.investors}</td><td data-l="Status"><span className="hint">{stText(x.status)}</span></td></tr>)}
