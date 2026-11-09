@@ -175,9 +175,9 @@ function SecondFactor({ status, onDone }) {
       else { await fn('bel-inv', { action: 'mfa_verify', code }); try { sessionStorage.setItem('inv_ask_totp', '1'); } catch (x) {} }
       await onDone();
     } catch (x) { setErr(errText(x)); } setBusy(false); }
-  return <AuthFrame><h2>{t('Bevestig dat u het bent')}</h2><p className="lead">{mode === 'app' ? t('Vul de 6 cijfers uit uw authenticator-app in.') : t('Vul de code van 6 cijfers in die u per e-mail ontving.')}</p>
+  return <AuthFrame><h2>{t('Bevestig dat u het bent')}</h2><p className="lead">{mode === 'app' ? t('Vul de 6 cijfers uit uw Google Authenticator-app in.') : t('Vul de code van 6 cijfers in die u per e-mail ontving.')}</p>
     <form className="stack" onSubmit={submit}><Field label={t('Code')}><OtpBoxes value={code} onChange={setCode} autoFocus autoSubmit label={t('Code')} /></Field><Note kind="error">{err}</Note><Note>{mode === 'email' ? info : ''}</Note><Btn busy={busy} type="submit">{t('Bevestigen')}</Btn></form>
-    <div className="auth-links">{mode === 'email' && <button className="link" onClick={send}>{t('Stuur een nieuwe code')}</button>}{status.totp && <button className="link" onClick={() => { setMode(mode === 'app' ? 'email' : 'app'); setCode(''); setErr(''); }}>{mode === 'app' ? t('Gebruik een code per e-mail') : t('Gebruik de authenticator-app')}</button>}<button className="link" onClick={() => sb.auth.signOut({ scope: 'local' }).then(() => location.reload())}>{t('Afmelden')}</button></div></AuthFrame>;
+    <div className="auth-links">{mode === 'email' && <button className="link" onClick={send}>{t('Stuur een nieuwe code')}</button>}{status.totp && <button className="link" onClick={() => { setMode(mode === 'app' ? 'email' : 'app'); setCode(''); setErr(''); }}>{mode === 'app' ? t('Gebruik een code per e-mail') : t('Gebruik de Google Authenticator-app')}</button>}<button className="link" onClick={() => sb.auth.signOut({ scope: 'local' }).then(() => location.reload())}>{t('Afmelden')}</button></div></AuthFrame>;
 }
 
 const SCH_STATUS = { planned: ['gepland', ''], paid: ['betaald', 'ok'], deferred: ['uitgesteld', 'warn'] };
@@ -288,17 +288,17 @@ function Account({ d, reload, email }) {
   async function saveLang(l) { setErr(''); setLang(l); if (d?.investor) try { await fn('bel-inv', { action: 'set_lang', lang: l }); setMsg(t('Opgeslagen.')); } catch (x) { setErr(errText(x)); } }
   async function savePhone() { setErr(''); try { await fn('bel-inv', { action: 'set_phone', phone }); await reload(); setMsg(t('Opgeslagen.')); } catch (x) { setErr(errText(x)); } }
   async function start() { setErr(''); setBusy(true); const { data: all } = await sb.auth.mfa.listFactors(); for (const f of (all?.all || []).filter((f) => f.status !== 'verified')) await sb.auth.mfa.unenroll({ factorId: f.id }); const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Belinus ' + new Date().toISOString().slice(0, 10) }); setBusy(false); if (error) setErr(t(ERR.generic)); else setEnroll(data); }
-  async function confirm(e) { e.preventDefault(); setBusy(true); setErr(''); const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: enroll.id, code: code.trim() }); if (error) setErr(t(ERR['wrong-code'])); else { await sb.auth.refreshSession(); await fn('bel-inv', { action: 'mfa_totp_done' }).catch(() => {}); setEnroll(null); setCode(''); setMsg(t('De authenticator-app is geactiveerd.')); loadF(); } setBusy(false); }
-  async function remove() { const { error } = await sb.auth.mfa.unenroll({ factorId: factor.id }); if (error) setErr(t(ERR.generic)); else { setMsg(t('De authenticator-app is verwijderd.')); loadF(); } }
+  async function confirm(e) { e.preventDefault(); setBusy(true); setErr(''); const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: enroll.id, code: code.trim() }); if (error) setErr(t(ERR['wrong-code'])); else { await sb.auth.refreshSession(); await fn('bel-inv', { action: 'mfa_totp_done' }).catch(() => {}); setEnroll(null); setCode(''); setMsg(t('De Google Authenticator-app is geactiveerd.')); loadF(); } setBusy(false); }
+  async function remove() { const { error } = await sb.auth.mfa.unenroll({ factorId: factor.id }); if (error) setErr(t(ERR.generic)); else { setMsg(t('De Google Authenticator-app is verwijderd.')); loadF(); } }
   async function newPw() { setErr(''); try { await fn('bel-inv-auth', { action: 'start', email, lang: LANG }); setMsg(t('We stuurden u een e-mail met een link om uw wachtwoord te wijzigen.')); } catch (x) { setErr(errText(x)); } }
   return <>
     <div className="page-head"><div><h1 className="page-title">{t('Mijn account')}</h1><p className="page-sub">{email}</p></div></div>
     <Note kind="ok">{msg}</Note><Note kind="error">{err}</Note><div style={{ height: 12 }} />
     {d?.investor && <div className="card stack"><h2>{t('Telefoonnummer')}</h2><Field label={t('Voor terugbelverzoeken')}><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field><div><Btn kind="ghost" onClick={savePhone}>{t('Opslaan')}</Btn></div></div>}
     <div className="card stack"><h2>{t('Taal')}</h2><Field label={t('Taal van het portaal en van uw e-mails')}><select value={LANG} onChange={(e) => saveLang(e.target.value)}><option value="nl">Nederlands</option><option value="fr">Français</option><option value="en">English</option></select></Field></div>
-    <div className="card stack"><h2>{t('Aanmelden in twee stappen')}</h2><p style={{ margin: 0 }}>{t('Na uw wachtwoord bevestigt u elke aanmelding met een code per e-mail of, als u die activeert, met een authenticator-app.')}</p>
-      {factor ? <div className="row"><span className="chip ok">{t('Authenticator-app actief')}</span><button className="btn danger sm" onClick={remove}>{t('Verwijderen')}</button></div> : !enroll ? <div><Btn kind="ghost" busy={busy} onClick={start}>{t('Authenticator-app activeren')}</Btn></div> :
-        <form className="stack" onSubmit={confirm}><p style={{ margin: 0 }}>{t('Scan deze QR-code met uw authenticator-app en vul de code in.')}</p><img src={enroll.totp.qr_code} alt="QR-code" width="180" height="180" /><p className="hint" style={{ margin: 0, wordBreak: 'break-all' }}>{t('Handmatige sleutel:')} {enroll.totp.secret}</p><Field label={t('Code')}><OtpBoxes value={code} onChange={setCode} autoFocus label={t('Code')} /></Field><div><Btn busy={busy} type="submit">{t('Activeren')}</Btn></div></form>}
+    <div className="card stack"><h2>{t('Aanmelden in twee stappen')}</h2><p style={{ margin: 0 }}>{t('Na uw wachtwoord bevestigt u elke aanmelding met een code per e-mail of, als u die activeert, met een Google Authenticator-app.')}</p>
+      {factor ? <div className="row"><span className="chip ok">{t('Google Authenticator-app actief')}</span><button className="btn danger sm" onClick={remove}>{t('Verwijderen')}</button></div> : !enroll ? <div><Btn kind="ghost" busy={busy} onClick={start}>{t('Google Authenticator-app activeren')}</Btn></div> :
+        <form className="stack" onSubmit={confirm}><p style={{ margin: 0 }}>{t('Scan deze QR-code met uw Google Authenticator-app en vul de code in.')}</p><img src={enroll.totp.qr_code} alt="QR-code" width="180" height="180" /><p className="hint" style={{ margin: 0, wordBreak: 'break-all' }}>{t('Handmatige sleutel:')} {enroll.totp.secret}</p><Field label={t('Code')}><OtpBoxes value={code} onChange={setCode} autoFocus label={t('Code')} /></Field><div><Btn busy={busy} type="submit">{t('Activeren')}</Btn></div></form>}
     </div>
     <div className="card stack"><h2>{t('Wachtwoord')}</h2><div><Btn kind="ghost" onClick={newPw}>{t('Stuur mij een link om te wijzigen')}</Btn></div></div>
   </>;
@@ -349,7 +349,7 @@ function Composer({ placeholder, onSend, label }) {
   return <div className="composer"><textarea rows={3} maxLength="8000" placeholder={placeholder} value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); go(); } }} /><div className="composer-row"><span className="hint">{t('Ctrl + Enter om te versturen')}</span><Btn busy={busy} disabled={!txt.trim()} onClick={go}>{label || t('Versturen')}</Btn></div></div>;
 }
 
-// From the second sign-in on (the first is through the invitation link): suggest an authenticator app, once per sign-in,
+// From the second sign-in on (the first is through the invitation link): suggest an Google Authenticator app, once per sign-in,
 // unless the investor already has one or chose "not for 6 months" (kept on the account, so it holds on every device).
 const SNOOZE_DAYS = 182;
 function TotpNudge() {
@@ -371,7 +371,7 @@ function TotpNudge() {
   return <div className="modal-bg" role="dialog" aria-modal="true" aria-labelledby="totp-h"><div className="modal stack totp-nudge">
     <svg className="totp-phone" viewBox="0 0 120 170" aria-hidden="true"><rect x="22" y="6" width="76" height="158" rx="14" className="ph-body" /><rect x="29" y="22" width="62" height="118" rx="4" className="ph-screen" /><rect x="50" y="12" width="20" height="4" rx="2" className="ph-dot" /><circle cx="60" cy="152" r="5" className="ph-dot" /><path d="M60 40l16 6v12c0 10-7 18-16 21-9-3-16-11-16-21V46z" className="ph-shield" /><path d="M53 58l5 5 9-10" className="ph-check" /><text x="60" y="108" textAnchor="middle" className="ph-code">482 913</text><rect x="38" y="118" width="44" height="4" rx="2" className="ph-bar" /></svg>
     <h2 id="totp-h" style={{ margin: 0 }}>{t('Sneller en veiliger aanmelden')}</h2>
-    <p style={{ margin: 0 }}>{t('Koppel een authenticator-app, zoals Google Authenticator, aan uw account. U hoeft dan niet meer op een code per e-mail te wachten: de app op uw smartphone toont meteen een nieuwe code. Het instellen duurt ongeveer een minuut.')}</p>
+    <p style={{ margin: 0 }}>{t('Koppel de Google Authenticator-app aan uw account. U hoeft dan niet meer op een code per e-mail te wachten: de app op uw smartphone toont meteen een nieuwe code. Het instellen duurt ongeveer een minuut.')}</p>
     <label className="check"><input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} /><span>{t('Niet meer herinneren voor 6 maanden')}</span></label>
     <div className="row"><Btn type="button" onClick={() => close(true)}>{t('OK, instellen')}</Btn><Btn kind="ghost" type="button" onClick={() => close(false)}>{t('Sluiten')}</Btn></div>
   </div></div>;
