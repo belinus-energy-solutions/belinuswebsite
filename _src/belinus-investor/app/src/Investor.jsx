@@ -67,7 +67,7 @@ function PwInput(props) {
   return <div className="pw-wrap"><input {...props} type={show ? 'text' : 'password'} /><button type="button" className="pw-eye" aria-label={label} title={label} aria-pressed={show} onClick={() => setShow(!show)}><svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />{show && <path d="M4 4l16 16" />}</svg></button></div>;
 }
 // Microsoft is live; Google goes on once its OAuth client is set up in Supabase.
-const PROVIDERS_ON = { azure: true, google: false };
+const PROVIDERS_ON = { azure: true, google: true };
 function providerStart(provider, code) {
   try { sessionStorage.setItem('inv_pcode', code); } catch (e) {}
   return sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + '/?oauth=1' } });
