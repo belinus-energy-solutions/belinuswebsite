@@ -270,7 +270,7 @@ function loadXlsx() {
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = () => res(window.XLSX); s.onerror = () => rej(new Error('Excel-module kon niet geladen worden.')); document.head.appendChild(s); });
 }
 function AdmGroups() {
-  const [gs, setGs] = useState(null), [err, setErr] = useState(''), [name, setName] = useState(''), [desc, setDesc] = useState(''), [busy, setBusy] = useState(false);
+  const [gs, setGs] = useState(null), [err, setErr] = useState(''), [name, setName] = useState(''), [desc, setDesc] = useState(''), [busy, setBusy] = useState(false), [creating, setCreating] = useState(false);
   const load = () => adm('groups').then((r) => setGs(r.groups)).catch((x) => setErr(errText(x)));
   useEffect(() => { load(); }, []);
   async function create() {
@@ -279,13 +279,13 @@ function AdmGroups() {
     catch (x) { setErr(errText(x)); setBusy(false); }
   }
   if (!gs) return <Wait err={err} />;
-  return <><div className="page-head"><div><h1 className="page-title">Investeerdersgroepen</h1><p className="page-sub">Groepen investeerders. Een groep wordt gebruikt voor e-mailcampagnes.</p></div></div>
+  return <><div className="page-head"><div><h1 className="page-title">Investeerdersgroepen</h1><p className="page-sub">Groepen investeerders. Een groep wordt gebruikt voor e-mailcampagnes.</p></div><div className="row"><Btn onClick={() => setCreating((x) => !x)}>{creating ? 'Sluiten' : 'Nieuwe groep'}</Btn></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
     <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Groep</th><th>Omschrijving</th><th className="n">Leden</th></tr></thead><tbody>{gs.map((x) => <tr key={x.code} className="click" style={{ cursor: 'pointer' }} onClick={() => { location.hash = '#/investeerdersgroepen/' + x.code; }}><td data-l="Groep"><b>{x.name}</b></td><td data-l="Omschrijving">{x.description}</td><td data-l="Leden" className="n">{x.members}</td></tr>)}</tbody></table></div></div>
-    <div style={{ height: 12 }} />
+    {creating && <><div style={{ height: 12 }} />
     <div className="card stack"><h2 style={{ margin: 0 }}>Nieuwe groep</h2>
       <div className="grid2"><label>Naam<input value={name} onChange={(e) => setName(e.target.value)} placeholder="bv. Investeerders 2027" /></label><label>Omschrijving<input value={desc} onChange={(e) => setDesc(e.target.value)} /></label></div>
-      <div><Btn onClick={create} disabled={busy || !name.trim()}>{busy ? 'Bezig…' : 'Groep aanmaken'}</Btn></div></div>
+      <div><Btn onClick={create} disabled={busy || !name.trim()}>{busy ? 'Bezig…' : 'Groep aanmaken'}</Btn></div></div></>}
   </>;
 }
 // One group: members, add investors, remove investors.
