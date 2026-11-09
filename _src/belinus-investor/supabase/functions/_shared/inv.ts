@@ -15,6 +15,8 @@ export const clientIp = (r: Request) => (r.headers.get("x-forwarded-for") || "")
 export async function sha256(s: string): Promise<string> { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))).map((b) => b.toString(16).padStart(2, "0")).join(""); }
 export function randomCode(n = 32): string { return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(n)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
 export async function audit(a: SupabaseClient, actor: { id: string; email: string } | null, event_type: string, target: string, detail: Record<string, unknown> = {}) {
+  // IP addresses are kept only as a one-way hash in the security log (privacy policy, section 2).
+  if (typeof detail.ip === "string" && detail.ip) detail = { ...detail, ip: "sha256:" + (await sha256(detail.ip)).slice(0, 32) };
   await a.from("bel_audit").insert({ actor: actor?.id ?? null, actor_email: actor?.email ?? null, event_type: "inv-" + event_type, target, detail }).then(() => {}, () => {});
 }
 export async function settings(a: SupabaseClient): Promise<Record<string, any>> { const { data } = await a.from("inv_settings").select("key, value"); return Object.fromEntries((data || []).map((r: any) => [r.key, r.value])); }
