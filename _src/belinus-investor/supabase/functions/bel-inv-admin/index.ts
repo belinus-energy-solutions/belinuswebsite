@@ -181,6 +181,46 @@ Deno.serve(async (req) => {
     for (const m of ms || []) n.set(m.group_code, (n.get(m.group_code) || 0) + 1);
     return json({ ok: true, groups: (gs || []).map((g: any) => ({ ...g, members: n.get(g.code) || 0 })) });
   }
+  // Investor groups: create a group, add or remove investors. The preconfigured groups (winwinner, bolero) are kept as they are.
+  if (action === "group_detail") {
+    const code = String(body.code || "");
+    const { data: g } = await a.from("inv_groups").select("code, name, description").eq("code", code).maybeSingle();
+    if (!g) return json({ error: "not-found" }, 404);
+    const { data: ms } = await a.from("inv_group_members").select("investor_id").eq("group_code", code);
+    const ids = (ms || []).map((m: any) => m.investor_id);
+    const { data: inv } = ids.length ? await a.from("inv_investors").select("id, email, first_name, last_name, company_name, tranche, status, invested").in("id", ids).order("last_name") : { data: [] as any[] };
+    return json({ ok: true, group: g, members: inv || [] });
+  }
+  if (action === "group_create") {
+    const name = str(body.name, 80);
+    const description = str(body.description, 300) || null;
+    if (!name) return json({ error: "bad-input" }, 400);
+    const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+    if (!slug) return json({ error: "bad-input" }, 400);
+    const { data: exists } = await a.from("inv_groups").select("code").eq("code", slug).maybeSingle();
+    if (exists) return json({ error: "exists" }, 409);
+    const { error } = await a.from("inv_groups").insert({ code: slug, name, description });
+    if (error) { console.error("inv group", error.message); return json({ error: "server-error" }, 500); }
+    await audit(a, u, "group", slug, { name, description });
+    return json({ ok: true, code: slug });
+  }
+  if (action === "group_members_add" || action === "group_members_remove") {
+    const code = String(body.code || "");
+    const ids = (Array.isArray(body.investor_ids) ? body.investor_ids : []).map((x: any) => String(x)).filter(Boolean);
+    const { data: g } = await a.from("inv_groups").select("code").eq("code", code).maybeSingle();
+    if (!g || !ids.length || ids.length > 1000) return json({ error: "bad-input" }, 400);
+    if (action === "group_members_add") {
+      const { data: found } = await a.from("inv_investors").select("id").in("id", ids);
+      const rows = (found || []).map((x: any) => ({ group_code: code, investor_id: x.id }));
+      if (rows.length) { const { error } = await a.from("inv_group_members").upsert(rows, { onConflict: "group_code,investor_id", ignoreDuplicates: true }); if (error) { console.error("inv group add", error.message); return json({ error: "server-error" }, 500); } }
+      await audit(a, u, "group", code, { added: rows.length });
+      return json({ ok: true, changed: rows.length });
+    }
+    const { error } = await a.from("inv_group_members").delete().eq("group_code", code).in("investor_id", ids);
+    if (error) { console.error("inv group remove", error.message); return json({ error: "server-error" }, 500); }
+    await audit(a, u, "group", code, { removed: ids.length });
+    return json({ ok: true, changed: ids.length });
+  }
   if (action === "campaigns") {
     const { data: cs } = await a.from("inv_campaigns").select("*").order("created_at", { ascending: false });
     const { data: logs } = await a.from("inv_mail_log").select("campaign_id, status").not("campaign_id", "is", null);
@@ -191,7 +231,7 @@ Deno.serve(async (req) => {
       const uniq = (k: string) => new Set(e.filter((x: any) => x.event === k).map((x: any) => x.recipient)).size;
       return { ...c, sent: l.filter((x: any) => x.status === "sent").length, failed: l.filter((x: any) => x.status === "failed").length, opened: uniq("opened"), clicked: uniq("clicked"), events_loaded: e.length > 0 };
     });
-    return json({ ok: true, campaigns: out });
+    return json({ ok: true, role: acc.role, campaigns: out });
   }
   if (action === "campaign") {
     const { data: c } = await a.from("inv_campaigns").select("*").eq("id", body.id).single();
@@ -201,9 +241,22 @@ Deno.serve(async (req) => {
     const per = new Map<string, any>();
     for (const l of logs || []) per.set(l.recipient, { recipient: l.recipient, status: l.status, sent_at: l.created_at, events: [] });
     for (const x of ev || []) { const r = per.get(x.recipient) || { recipient: x.recipient, status: "onbekend", sent_at: null, events: [] }; r.events.push(x); per.set(x.recipient, r); }
-    const rows = [...per.values()].map((r: any) => ({ recipient: r.recipient, status: r.status, sent_at: r.sent_at, delivered: r.events.some((e: any) => e.event === "delivered"), opened: r.events.some((e: any) => e.event === "opened"), clicked: r.events.some((e: any) => e.event === "clicked"), links: r.events.filter((e: any) => e.event === "clicked").map((e: any) => e.url) }));
+    const rows = [...per.values()].map((r: any) => {
+      const has = (k: string) => r.events.some((e: any) => e.event === k);
+      const delivered = has("delivered");
+      // Refused by the recipient's server (permanent) or by Mailgun: no delivery, retry is pointless.
+      const refused = r.events.find((e: any) => e.event === "rejected" || (e.event === "failed" && e.severity === "permanent"));
+      // Temporary failure: Mailgun keeps retrying; only a problem if no delivery follows.
+      const temp = r.events.find((e: any) => e.event === "failed" && e.severity !== "permanent");
+      let delivery = "Nog geen bevestiging";
+      if (delivered) delivery = "Afgeleverd";
+      else if (refused) delivery = "Geweigerd" + (refused.detail ? ": " + refused.detail : "");
+      else if (temp) delivery = "Tijdelijk mislukt, opnieuw geprobeerd" + (temp.detail ? ": " + temp.detail : "");
+      else if (r.status === "failed") delivery = "Verzending mislukt";
+      return { recipient: r.recipient, status: r.status, sent_at: r.sent_at, delivery, refused: !delivered && !!refused, temporary: !delivered && !refused && !!temp, complained: has("complained"), unsubscribed: has("unsubscribed"), delivered, opened: has("opened"), clicked: has("clicked"), links: r.events.filter((e: any) => e.event === "clicked").map((e: any) => e.url) };
+    });
     const cnt = (f: (r: any) => boolean) => rows.filter(f).length;
-    const stats = { sent: cnt((r) => r.status === "sent"), failed: cnt((r) => r.status === "failed"), delivered: cnt((r) => r.delivered), opened: cnt((r) => r.opened), not_opened: cnt((r) => r.status === "sent" && !r.opened), clicked: cnt((r) => r.clicked) };
+    const stats = { sent: cnt((r) => r.status === "sent"), failed: cnt((r) => r.status === "failed"), delivered: cnt((r) => r.delivered), refused: cnt((r) => r.refused), temporary: cnt((r) => r.temporary), opened: cnt((r) => r.opened), not_opened: cnt((r) => r.status === "sent" && !r.opened), clicked: cnt((r) => r.clicked), complained: cnt((r) => r.complained), unsubscribed: cnt((r) => r.unsubscribed) };
     let tpl: { subject: string; html: string; text: string } = { subject: c.subject, text: c.body, html: mailHtml(c.body, undefined, "nl", false, "") };
     if (c.mail_kind === "invite") {
       const st = await settings(a);
@@ -244,14 +297,15 @@ Deno.serve(async (req) => {
     if (!key || !domain) return json({ error: "mail-not-configured" }, 503);
     const base = (Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "");
     const got: any[] = [];
-    for (const event of ["delivered", "opened", "clicked", "failed"]) {
+    for (const event of ["delivered", "opened", "clicked", "failed", "rejected", "complained", "unsubscribed"]) {
       let next: string | null = `${base}/v3/${encodeURIComponent(domain)}/events?event=${event}&tags=${encodeURIComponent("campaign:" + c.id)}&limit=300`;
       let pages = 0;
       while (next && pages < 10) {
         const r: Response = await fetch(next, { headers: { Authorization: "Basic " + btoa("api:" + key) } });
         if (!r.ok) return json({ error: "mailgun-events-failed", status: r.status }, 502);
         const j: any = await r.json();
-        for (const e of j.items || []) got.push({ campaign_id: c.id, message_id: e.message?.headers?.["message-id"] || null, recipient: e.recipient, event: e.event, url: e.url || null, at: new Date(e.timestamp * 1000).toISOString() });
+        for (const e of j.items || []) const ds = e["delivery-status"] || {};
+        got.push({ campaign_id: c.id, message_id: e.message?.headers?.["message-id"] || null, recipient: e.recipient, event: e.event, url: e.url || null, at: new Date(e.timestamp * 1000).toISOString(), severity: e.severity || null, reason: e.reason || e.reject?.reason || null, detail: String(ds.description || ds.message || e.reject?.reason || "").slice(0, 300) || null });
         next = (j.items || []).length && j.paging?.next ? j.paging.next : null;
         pages++;
       }
@@ -261,18 +315,24 @@ Deno.serve(async (req) => {
     return json({ ok: true, events: got.length });
   }
   if (action === "invite_pending" || action === "invite_batch") {
-    // Only Winwinner subscribers (crowd-/winwin- tranches). Bolero investors never receive these mails.
-    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested, tranche").eq("is_test", false).eq("status", "invited").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name");
+    // Recipients: members of the chosen group, and only Winwinner tranches (crowd-/winwin-). Bolero investors never receive these mails, even when they are in a group.
+    const gcode = String(body.group || "winwinner");
+    const { data: grp } = await a.from("inv_groups").select("code, name").eq("code", gcode).maybeSingle();
+    if (!grp) return json({ error: "not-found" }, 404);
+    const { data: mem } = await a.from("inv_group_members").select("investor_id").eq("group_code", gcode);
+    const memIds = new Set((mem || []).map((m: any) => m.investor_id));
+    const { data: inv0 } = await a.from("inv_investors").select("id, email, first_name, status, invested, tranche").eq("is_test", false).eq("status", "invited").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name");
+    const inv = (inv0 || []).filter((i: any) => memIds.has(i.id));
     const sent = await invitedMap(a);
-    const todo = (inv || []).filter((i: any) => !sent.has(i.email));
-    if (action === "invite_pending") return json({ ok: true, pending: todo.length, invited: (inv || []).length - todo.length });
+    const todo = inv.filter((i: any) => !sent.has(i.email));
+    if (action === "invite_pending") return json({ ok: true, pending: todo.length, invited: inv.length - todo.length });
     if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
     if (body.confirm !== "VERSTUREN") return json({ error: "bad-input" }, 400);
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
     let ok = 0, failed = 0;
     // One campaign per batch; every mail of this batch is linked to it (tracking, status, detail page).
-    let { data: camp } = await a.from("inv_campaigns").select("id").eq("mail_kind", "invite").eq("group_code", "winwinner").in("status", ["draft", "sending"]).order("created_at").limit(1).maybeSingle();
-    if (!camp) ({ data: camp } = await a.from("inv_campaigns").insert({ name: "Uitnodiging Winwinner – eerste uitnodiging", group_code: "winwinner", mail_kind: "invite", subject: "Uitnodiging voor het Investeerdersportaal EVChargeking", body: "Persoonlijke uitnodigingsmail met persoonlijke link.", status: "sending" }).select("id").single());
+    let { data: camp } = await a.from("inv_campaigns").select("id").eq("mail_kind", "invite").eq("group_code", gcode).in("status", ["draft", "sending"]).order("created_at").limit(1).maybeSingle();
+    if (!camp) ({ data: camp } = await a.from("inv_campaigns").insert({ name: `Uitnodiging ${grp.name} – eerste uitnodiging`, group_code: gcode, mail_kind: "invite", subject: "Uitnodiging voor het Investeerdersportaal EVChargeking", body: "Persoonlijke uitnodigingsmail met persoonlijke link.", status: "sending" }).select("id").single());
     if (camp?.id) await a.from("inv_campaigns").update({ status: "sending" }).eq("id", camp.id);
     for (const i of todo.slice(0, 20)) { if (await sendInvite(a, i, { cc: true, campaign: camp?.id })) ok++; else failed++; }
     if (camp?.id && todo.length - ok - failed <= 0) await a.from("inv_campaigns").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", camp.id);

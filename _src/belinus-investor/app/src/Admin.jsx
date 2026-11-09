@@ -42,7 +42,6 @@ function AdmInvestors() {
   const trName = (c) => d.tranches.find((t) => t.code === c)?.name || c;
   const exp = () => csvDownload('investeerders.csv', [['Naam', 'Bedrijf', 'E-mail', 'Platform', 'Tranche', 'Bedrag', 'Keuze', 'Datum keuze', 'Reden C', 'Wensen B', 'Status account', 'Addendum'], ...rows.filter((i) => !i.is_demo).map((i) => [[i.first_name, i.last_name].filter(Boolean).join(' '), i.company_name, i.email, platformName(plCode(i.tranche)), trName(i.tranche), i.invested, i.choice?.choice, i.choice?.confirmed_at, i.choice?.reason, i.choice?.wish, i.status, i.choice?.addendum_status])]);
   return <>
-    {d.role === 'belinus' && <InviteAll reload={load} />}
     <div className="page-head"><div><h1 className="page-title">Investeerders</h1><p className="page-sub">{rows.length} van {d.investors.length}</p></div><div className="row">{d.investors.some((i) => i.is_demo) && <button className="btn ghost sm" onClick={() => viewAs(d.investors.find((i) => i.is_demo).id)}>Open demo-investeerder</button>}<button className="btn ghost sm" onClick={exp}>Exporteer CSV</button></div></div>
     <div className="card"><div className="grid2" style={{ marginBottom: 14 }}><input type="search" placeholder="Zoek op naam of e-mail" value={q} onChange={(e) => setQ(e.target.value)} /><div className="row"><select value={pl} onChange={(e) => setPl(e.target.value)}><option value="">Alle platformen</option>{Object.keys(PLATFORMS).map((k) => <option key={k} value={k}>{PLATFORMS[k]}</option>)}</select><select value={tr} onChange={(e) => setTr(e.target.value)}><option value="">Alle tranches</option>{d.tranches.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}</select><select value={ch} onChange={(e) => setCh(e.target.value)}><option value="">Alle keuzes</option><option>A</option><option>B</option><option>C</option><option value="none">Geen antwoord</option></select></div></div>
       <div className="tblw"><table className="tbl cards"><thead><tr><th>Investeerder</th><th>Platform</th><th>Tranche</th><th className="n">Bedrag</th><th>Keuze</th><th>Account</th><th>Laatst aangemeld</th></tr></thead><tbody>{rows.map((i) => <tr key={i.id} className="click" onClick={() => { location.hash = '#/investeerders/' + i.id; }}><td data-l="Investeerder"><b>{nameOf(i)}</b>{d.unread?.[i.id] ? <span className="chip info" style={{ marginLeft: 6 }}>{d.unread[i.id]} nieuw bericht{d.unread[i.id] > 1 ? 'en' : ''}</span> : null}{i.is_demo ? <span className="chip info" style={{ marginLeft: 6 }}>demo</span> : i.is_test && <span className="chip warn" style={{ marginLeft: 6 }}>test</span>}<br /><span className="hint">{i.email}</span> <button className="link" style={{ fontSize: 13 }} onClick={(e) => { e.stopPropagation(); viewAs(i.id); }}>Bekijk als</button></td><td data-l="Platform">{platformName(plCode(i.tranche))}</td><td data-l="Tranche">{trName(i.tranche)}</td><td data-l="Bedrag" className="n">{eur(i.invested)}</td><td data-l="Keuze">{i.choice ? <span className="chip info">{i.choice.choice}</span> : <span className="chip warn">—</span>}</td><td data-l="Account"><span className={'chip ' + (i.status === 'active' ? 'ok' : i.invited_at ? 'info' : '')}>{i.status === 'active' ? 'actief' : i.invited_at ? 'uitgenodigd ' + dayNl(i.invited_at) : 'nog niet uitgenodigd'}</span></td><td data-l="Laatst aangemeld">{i.last_login_at ? dayNl(i.last_login_at) : '—'}</td></tr>)}</tbody></table></div></div>
@@ -60,16 +59,19 @@ function InvitePreview({ id, onClose }) {
   </div></div>;
 }
 // Mass send of the personal invitation (Belinus only). Test accounts are never included; they get it from their own detail.
-function InviteAll({ reload }) {
-  const [p, setP] = useState(null), [sure, setSure] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [show, setShow] = useState(false);
-  const get = () => adm('invite_pending').then(setP).catch((x) => setErr(errText(x)));
-  useEffect(() => { get(); }, []);
+function InviteAll() {
+  const [groups, setGroups] = useState([]), [grp, setGrp] = useState('winwinner'), [p, setP] = useState(null), [sure, setSure] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [show, setShow] = useState(false);
+  const get = (g) => adm('invite_pending', { group: g }).then(setP).catch((x) => setErr(errText(x)));
+  useEffect(() => { adm('groups').then((r) => setGroups(r.groups)).catch(() => {}); }, []);
+  useEffect(() => { setP(null); setMsg(''); setSure(''); get(grp); }, [grp]);
   async function go() { setBusy(true); setErr(''); setMsg(''); let total = 0, failed = 0;
-    try { for (let n = 0; n < 20; n++) { const r = await adm('invite_batch', { confirm: 'VERSTUREN' }); total += r.sent; failed += r.failed; setMsg(`Verstuurd: ${total}${failed ? ' · mislukt: ' + failed : ''} · nog te doen: ${r.left}`); if (!r.left || !r.sent) break; } } catch (x) { setErr(errText(x)); }
-    setBusy(false); setSure(''); await get(); reload(); }
-  if (!p) return null;
-  return <div className="card stack" style={{ marginBottom: 18 }}><h2 style={{ fontSize: 18, margin: 0 }}>Persoonlijke uitnodigingen</h2>
-    <p style={{ margin: 0 }}>{p.pending ? `${p.pending} investeerders hebben nog geen uitnodiging gekregen.` : 'Alle investeerders zijn uitgenodigd.'} {p.invited ? `${p.invited} al uitgenodigd.` : ''} De mail gaat van noreply@belinus.com; antwoorden is niet mogelijk. Test eerst via een testaccount: open het en kies "Stuur persoonlijke uitnodiging". <button className="link" onClick={() => setShow(true)}>Bekijk de uitnodiging</button></p>{show && <InvitePreview onClose={() => setShow(false)} />}
+    try { for (let n = 0; n < 20; n++) { const r = await adm('invite_batch', { confirm: 'VERSTUREN', group: grp }); total += r.sent; failed += r.failed; setMsg(`Verstuurd: ${total}${failed ? ' · mislukt: ' + failed : ''} · nog te doen: ${r.left}`); if (!r.left || !r.sent) break; } } catch (x) { setErr(errText(x)); }
+    setBusy(false); setSure(''); await get(grp); }
+  if (!p) return <Wait err={err} />;
+  const gname = groups.find((x) => x.code === grp)?.name || grp;
+  return <div className="card stack"><h2 style={{ fontSize: 18, margin: 0 }}>Persoonlijke uitnodigingen versturen</h2>
+    <Field label="Groep"><select value={grp} onChange={(e) => setGrp(e.target.value)}>{(groups.length ? groups : [{ code: 'winwinner', name: 'Winwinner' }]).map((x) => <option key={x.code} value={x.code}>{x.name}</option>)}</select></Field>
+    <p style={{ margin: 0 }}>{p.pending ? `${p.pending} investeerders uit ${gname} hebben nog geen uitnodiging gekregen.` : `Alle investeerders uit ${gname} zijn uitgenodigd.`} {p.invited ? `${p.invited} al uitgenodigd.` : ''} De mail gaat van noreply@belinus.com; antwoorden is niet mogelijk. Test eerst via een testaccount: open het en kies "Stuur persoonlijke uitnodiging". <button className="link" onClick={() => setShow(true)}>Bekijk de uitnodiging</button></p>{show && <InvitePreview onClose={() => setShow(false)} />}
     {!!p.pending && <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ flex: '0 1 260px' }}><Field label={'Typ VERSTUREN om te bevestigen'}><input value={sure} onChange={(e) => setSure(e.target.value)} /></Field></div><Btn busy={busy} disabled={sure !== 'VERSTUREN'} onClick={go}>{`Verstuur naar ${p.pending} investeerders`}</Btn></div>}
     <Note kind="ok">{msg}</Note><Note kind="error">{err}</Note></div>;
 }
@@ -318,14 +320,58 @@ function BoleroImport() {
   return <div className="card stack"><h2>Bolero-lijst importeren</h2><p className="hint">Kies het bestand bondholders.xls. Er worden geen e-mails verstuurd; de records krijgen status "opgeschort" tot de uitnodiging wordt verstuurd. Het schema volgt de aflossingstabel (voorlopig).</p><input type="file" accept=".xls,.xlsx" onChange={pick} />{rows && <><p style={{ margin: 0 }}>{rows.length} investeerders, totaal € {total.toLocaleString('nl-BE')}. Met tweede houder: {rows.filter((r) => r.holders.length > 1).length}.</p><Btn onClick={run} disabled={busy}>{busy ? 'Bezig…' : 'Importeer'}</Btn></>}{msg && <Note kind="ok">{msg}</Note>}{err && <Note kind="error">{err}</Note>}</div>;
 }
 const CAMP_ST = { draft: 'concept', sending: 'wordt verstuurd', sent: 'verstuurd' };
+// Investeerdersgroepen: overview and creation of groups.
+function AdmGroups() {
+  const [gs, setGs] = useState(null), [err, setErr] = useState(''), [name, setName] = useState(''), [desc, setDesc] = useState(''), [busy, setBusy] = useState(false);
+  const load = () => adm('groups').then((r) => setGs(r.groups)).catch((x) => setErr(errText(x)));
+  useEffect(() => { load(); }, []);
+  async function create() {
+    setBusy(true); setErr('');
+    try { const r = await adm('group_create', { name, description: desc }); location.hash = '#/investeerdersgroepen/' + r.code; }
+    catch (x) { setErr(errText(x)); setBusy(false); }
+  }
+  if (!gs) return <Wait err={err} />;
+  return <><div className="page-head"><div><h1 className="page-title">Investeerdersgroepen</h1><p className="page-sub">Groepen investeerders. Een groep wordt gebruikt voor e-mailcampagnes.</p></div></div>
+    <Note kind="error">{err}</Note><div style={{ height: 12 }} />
+    <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Groep</th><th>Omschrijving</th><th className="n">Leden</th></tr></thead><tbody>{gs.map((x) => <tr key={x.code} className="click" style={{ cursor: 'pointer' }} onClick={() => { location.hash = '#/investeerdersgroepen/' + x.code; }}><td data-l="Groep"><b>{x.name}</b></td><td data-l="Omschrijving">{x.description}</td><td data-l="Leden" className="n">{x.members}</td></tr>)}</tbody></table></div></div>
+    <div style={{ height: 12 }} />
+    <div className="card stack"><h2 style={{ margin: 0 }}>Nieuwe groep</h2>
+      <div className="grid2"><label>Naam<input value={name} onChange={(e) => setName(e.target.value)} placeholder="bv. Investeerders 2027" /></label><label>Omschrijving<input value={desc} onChange={(e) => setDesc(e.target.value)} /></label></div>
+      <div><Btn onClick={create} disabled={busy || !name.trim()}>{busy ? 'Bezig…' : 'Groep aanmaken'}</Btn></div></div>
+  </>;
+}
+// One group: members, add investors, remove investors.
+function AdmGroup({ code }) {
+  const [g, setG] = useState(null), [inv, setInv] = useState([]), [tr, setTr] = useState([]), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [q, setQ] = useState(''), [sel, setSel] = useState([]), [msg, setMsg] = useState('');
+  const load = () => Promise.all([adm('group_detail', { code }), adm('dashboard')]).then(([gd, db]) => { setG(gd); setInv(db.investors || []); setTr(db.tranches || []); setSel([]); }).catch((x) => setErr(errText(x)));
+  useEffect(() => { load(); }, [code]);
+  const trName = (c) => tr.find((t) => t.code === c)?.name || c;
+  async function run(action, ids) {
+    setBusy(true); setErr(''); setMsg('');
+    try { const r = await adm(action, { code, investor_ids: ids }); setMsg(action === 'group_members_add' ? r.changed + ' toegevoegd.' : r.changed + ' verwijderd.'); await load(); }
+    catch (x) { setErr(errText(x)); } finally { setBusy(false); }
+  }
+  if (!g) return <Wait err={err} />;
+  const memberIds = new Set(g.members.map((m) => m.id));
+  const candidates = inv.filter((i) => !i.is_demo && !i.is_test && !memberIds.has(i.id) && (!q || (nameOf(i) + ' ' + i.email).toLowerCase().includes(q.toLowerCase()))).slice(0, 300);
+  const toggle = (id) => setSel((x) => x.includes(id) ? x.filter((y) => y !== id) : [...x, id]);
+  return <><div className="page-head"><div><h1 className="page-title">{g.group.name}</h1><p className="page-sub"><a href="#/investeerdersgroepen">← Alle groepen</a> · {g.members.length} leden{g.group.description ? ' · ' + g.group.description : ''}</p></div></div>
+    <Note kind="error">{err}</Note>{msg && <Note kind="ok">{msg}</Note>}<div style={{ height: 12 }} />
+    <div className="card"><h2 style={{ marginTop: 0 }}>Leden</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Investeerder</th><th>Tranche</th><th className="n">Bedrag</th><th>Account</th><th></th></tr></thead><tbody>{g.members.map((m) => <tr key={m.id}><td data-l="Investeerder"><b>{nameOf(m)}</b><br /><span className="hint">{m.email}</span></td><td data-l="Tranche">{trName(m.tranche)}</td><td data-l="Bedrag" className="n">{eur(m.invested)}</td><td data-l="Account">{m.status === 'active' ? 'actief' : m.status}</td><td data-l=""><button className="link" disabled={busy} onClick={() => run('group_members_remove', [m.id])}>Verwijder uit groep</button></td></tr>)}</tbody></table>{!g.members.length && <p className="hint">Nog geen leden.</p>}</div></div>
+    <div style={{ height: 12 }} />
+    <div className="card stack"><h2 style={{ margin: 0 }}>Investeerders toevoegen</h2>
+      <input type="search" placeholder="Zoek op naam of e-mail" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--line, #ddd)', borderRadius: 8, padding: 8 }}>{candidates.map((i) => <label key={i.id} className="row" style={{ padding: '4px 0', gap: 8 }}><input type="checkbox" checked={sel.includes(i.id)} onChange={() => toggle(i.id)} /><span>{nameOf(i)} <span className="hint">{i.email} · {trName(i.tranche)}</span></span></label>)}{!candidates.length && <p className="hint">Geen investeerders om toe te voegen.</p>}</div>
+      <div className="row"><Btn onClick={() => run('group_members_add', sel)} disabled={busy || !sel.length}>{busy ? 'Bezig…' : 'Voeg ' + sel.length + ' toe'}</Btn></div></div>
+  </>;
+}
 function AdmCampaigns() {
-  const [d, setD] = useState(null), [g, setG] = useState([]), [err, setErr] = useState('');
-  useEffect(() => { adm('campaigns').then(setD).catch((x) => setErr(errText(x))); adm('groups').then((r) => setG(r.groups)).catch(() => {}); }, []);
+  const [d, setD] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { adm('campaigns').then(setD).catch((x) => setErr(errText(x))); }, []);
   if (!d) return <Wait err={err} />;
   return <><div className="page-head"><div><h1 className="page-title">E-mailcampagnes</h1><p className="page-sub">Campagnes naar groepen investeerders. Automatische e-mails staan onder "Automatische e-mails".</p></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
-    <div className="card stack"><h2 style={{ margin: 0 }}>Groepen</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Groep</th><th>Omschrijving</th><th className="n">Leden</th></tr></thead><tbody>{g.map((x) => <tr key={x.code}><td data-l="Groep"><b>{x.name}</b></td><td data-l="Omschrijving">{x.description}</td><td data-l="Leden" className="n">{x.members}</td></tr>)}</tbody></table></div></div>
-    <div style={{ height: 12 }} />
+    {d.role === 'belinus' && <><InviteAll /><div style={{ height: 12 }} /></>}
     <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Campagne</th><th>Groep</th><th>Status</th><th className="n">Verstuurd</th><th className="n">Geopend</th><th className="n">Link geklikt</th></tr></thead><tbody>{d.campaigns.map((c) => <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => { location.hash = '#/campagnes/' + c.id; }}><td data-l="Campagne"><b>{c.name}</b></td><td data-l="Groep">{c.group_code || '—'}</td><td data-l="Status"><span className={'chip ' + (c.status === 'sent' ? 'ok' : c.status === 'draft' ? '' : 'warn')}>{CAMP_ST[c.status] || c.status}</span></td><td data-l="Verstuurd" className="n">{c.sent}</td><td data-l="Geopend" className="n">{c.events_loaded ? c.opened : '—'}</td><td data-l="Link geklikt" className="n">{c.events_loaded ? c.clicked : '—'}</td></tr>)}</tbody></table></div></div></>;
 }
 function AdmCampaign({ id }) {
@@ -335,14 +381,14 @@ function AdmCampaign({ id }) {
   async function refresh() { setBusy(true); setErr(''); try { await adm('campaign_refresh', { id }); await load(); } catch (x) { setErr(errText(x)); } finally { setBusy(false); } }
   if (!d) return <Wait err={err} />;
   const c = d.campaign, s = d.stats;
-  const cards = [['Verstuurd', s.sent], ['Afgeleverd', s.delivered], ['Geopend', s.opened], ['Niet geopend', s.not_opened], ['Link geklikt', s.clicked], ['Mislukt', s.failed]];
+  const cards = [['Verstuurd', s.sent], ['Afgeleverd', s.delivered], ['Geweigerd', s.refused], ['Tijdelijk mislukt', s.temporary], ['Geopend', s.opened], ['Niet geopend', s.not_opened], ['Link geklikt', s.clicked], ['Klacht', s.complained], ['Uitgeschreven', s.unsubscribed], ['Mislukt bij verzenden', s.failed]];
   return <><div className="page-head"><div><h1 className="page-title">{c.name}</h1><p className="page-sub"><a href="#/campagnes">← Alle campagnes</a> · Groep: {c.group_code || '—'} · {CAMP_ST[c.status] || c.status}{c.sent_at ? ' · ' + new Date(c.sent_at).toLocaleString('nl-BE') : ''}</p></div><div className="row"><Btn kind="ghost" onClick={refresh} disabled={busy}>{busy ? 'Bezig…' : 'Statistieken bijwerken'}</Btn></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
     <div className="seg" role="tablist">{[['stats', 'Resultaten'], ['recipients', 'Ontvangers'], ['template', 'E-mailtemplate']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={'seg-b' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}</div>
     <div style={{ height: 16 }} />
-    {tab === 'stats' && <div className="card"><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>{cards.map(([k, v]) => <div key={k}><div className="hint">{k}</div><div style={{ fontSize: 28 }}>{v}</div></div>)}</div><p className="hint" style={{ marginTop: 16 }}>Openen en klikken komen uit Mailgun-gebeurtenissen. Klik op "Statistieken bijwerken" om ze op te halen.</p></div>}
-    {tab === 'recipients' && <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Ontvanger</th><th>Status</th><th>Afgeleverd</th><th>Geopend</th><th>Links geklikt</th></tr></thead><tbody>{d.recipients.map((r) => <tr key={r.recipient}><td data-l="Ontvanger">{r.recipient}</td><td data-l="Status">{r.status}</td><td data-l="Afgeleverd">{r.delivered ? 'ja' : 'nee'}</td><td data-l="Geopend">{r.opened ? 'ja' : 'nee'}</td><td data-l="Links geklikt">{r.links.length ? r.links.join(', ') : '—'}</td></tr>)}</tbody></table></div></div>}
-    {tab === 'template' && <div className="card stack"><p style={{ margin: 0 }}><b>Onderwerp:</b> {d.template.subject}</p><iframe title="E-mailtemplate" srcDoc={d.template.html} style={{ width: '100%', height: 640, border: '1px solid var(--line, #ddd)', borderRadius: 8, background: '#fff' }} /></div>}
+    {tab === 'stats' && <div className="card"><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>{cards.map(([k, v]) => <div key={k}><div className="hint">{k}</div><div style={{ fontSize: 28 }}>{v}</div></div>)}</div><p className="hint" style={{ marginTop: 16 }}>Openen, klikken en afleverstatus komen uit Mailgun-gebeurtenissen. Klik op "Statistieken bijwerken" om ze op te halen. Geweigerd = de server van de ontvanger of Mailgun heeft het adres definitief geweigerd; die mail is niet aangekomen. Mailgun bewaart gebeurtenissen beperkt in de tijd.</p></div>}
+    {tab === 'recipients' && <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Ontvanger</th><th>Verzending</th><th>Aflevering</th><th>Geopend</th><th>Links geklikt</th></tr></thead><tbody>{d.recipients.map((r) => <tr key={r.recipient}><td data-l="Ontvanger">{r.recipient}{r.complained ? <span className="chip warn" style={{ marginLeft: 6 }}>klacht</span> : null}{r.unsubscribed ? <span className="chip" style={{ marginLeft: 6 }}>uitgeschreven</span> : null}</td><td data-l="Verzending">{r.status}</td><td data-l="Aflevering"><span className={'chip ' + (r.delivered ? 'ok' : r.refused ? 'warn' : '')}>{r.delivery}</span></td><td data-l="Geopend">{r.opened ? 'ja' : 'nee'}</td><td data-l="Links geklikt">{r.links.length ? r.links.join(', ') : '—'}</td></tr>)}</tbody></table></div></div>}
+    {tab === 'template' && <div className="card stack"><p style={{ margin: 0 }}><b>Onderwerp:</b> {d.template.subject}</p><div><Btn kind="ghost" onClick={() => openHtml(d.template.html)}>Open in nieuw venster</Btn></div><iframe title="E-mailtemplate" srcDoc={d.template.html} style={{ width: '100%', height: 640, border: '1px solid var(--line, #ddd)', borderRadius: 8, background: '#fff' }} /></div>}
   </>;
 }
 const AUTO_MAILS = [
@@ -359,12 +405,13 @@ const AUTO_MAILS = [
   ['message', 'Bericht van beheerder', 'Beheerder stuurt een bericht in het portaal', 'Melding aan de investeerder; het bericht zelf staat in het portaal.', 'Melding dat er een nieuw bericht is'],
   ['message-in', 'Nieuw bericht van investeerder', 'Investeerder stuurt een bericht in het portaal', 'Interne melding naar het ingestelde meldingsadres.', 'Korte interne melding met de tekst van het bericht'],
 ];
+function openHtml(html) { const u = URL.createObjectURL(new Blob([html], { type: 'text/html' })); window.open(u, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(u), 60000); }
 function AutoPreview({ kind }) {
   const [p, setP] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
   async function show() { setBusy(true); setErr(''); try { setP(await adm('automated_preview', { kind })); } catch (x) { setErr(errText(x)); } finally { setBusy(false); } }
   if (!p) return <div><Btn kind="ghost" onClick={show} disabled={busy}>{busy ? 'Bezig…' : 'Voorbeeld'}</Btn>{err && <Note kind="error">{err}</Note>}</div>;
   if (!p.ok) return <p className="hint" style={{ margin: 0 }}>Volledig voorbeeld volgt; tekst staat in de kolom Inhoud.</p>;
-  return <div className="stack"><div className="mail-meta"><span>Van</span><b>{p.from}</b><span>Onderwerp</span><b>{p.subject}</b></div><iframe className="mail-frame" title={'Voorbeeld ' + kind} sandbox="" srcDoc={p.html} /></div>;
+  return <div className="stack"><div className="mail-meta"><span>Van</span><b>{p.from}</b><span>Onderwerp</span><b>{p.subject}</b></div><div><Btn kind="ghost" onClick={() => openHtml(p.html)}>Open in nieuw venster</Btn></div><iframe className="mail-frame" title={'Voorbeeld ' + kind} sandbox="" srcDoc={p.html} /></div>;
 }
 function AdmAutomated() {
   return <><div className="page-head"><div><h1 className="page-title">Automatische e-mails</h1><p className="page-sub">Alle e-mails die het systeem zelf verstuurt, met trigger en regels. Campagnes staan onder E-mailcampagnes.</p></div></div>
