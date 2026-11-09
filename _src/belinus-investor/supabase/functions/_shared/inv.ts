@@ -299,3 +299,45 @@ export async function bookingPreview(a: SupabaseClient, kind: string): Promise<{
   const m = bookingMail(kind, b, sl?.start_time || "10:00", 1, null, s, "Jan", "nl");
   return { subject: m.subject, html: html(m.text, undefined, "nl", false, ""), from: `${FROM_NAME} <${FROM_ADDR}>`, to: "jan@voorbeeld.be", replyTo: REPLY, attachment: "afspraak.ics" };
 }
+
+// ---- Full previews of the automated mails (Beheer > Automatische e-mails). The texts follow the same wording as the
+// mails above, filled with sample data. Keep in step with the mail that is actually sent when the wording changes.
+export async function automatedPreview(a: SupabaseClient, kind: string): Promise<{ subject: string; html: string; from: string; to: string } | null> {
+  const L = "nl" as Lang, to = "voorbeeld@investeerder.be";
+  const fromFull = `${FROM_NAME} <${FROM_ADDR}>`, noreplyFrom = `${FROM_NAME} <${NOREPLY}>`;
+  const st = await settings(a);
+  const notify = st.notify_email || "erwin@evchargeking.com";
+  const when = dateIn(new Date(Date.now() + 7 * 86400_000).toISOString(), true, L);
+  const K = KIND_L[L].video, link: string | null = st.video_url || null;
+  switch (kind) {
+    case "access-link": {
+      const url = `${APP_URL}/#/wachtwoord?code=VOORBEELD`, T = ACCESS.nl;
+      return { subject: T.first, html: html(`${hello("Jan", L)}\n\n${T.body(url)}\n\n${T.thanks}`, { url, label: T.label }, L, true), from: noreplyFrom, to };
+    }
+    case "login-code":
+      return { subject: "Uw aanmeldcode: 123456", html: html("Uw aanmeldcode voor het Investeerdersportaal EVChargeking is:\n\n123456\n\nDe code is 10 minuten geldig en kan één keer gebruikt worden.\n\nHebt u zich niet net aangemeld? Deel deze code dan niet en wijzig uw wachtwoord.", undefined, L), from: fromFull, to };
+    case "choice": {
+      const T = CONFIRM_L.nl;
+      return { subject: T.subject, html: html(`${hello("Jan", L)}\n\n${T.got}\n\n${CHOICE_L.nl.A}\n\n${T.next.A}\n\n${T.thank}\n\n${T.change}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus`, undefined, L), from: fromFull, to };
+    }
+    case "booking-moved": {
+      const MV = ["Uw afspraak is verplaatst: " + K, `Uw afspraak is verplaatst naar ${when}.`, "Afspraak verplaatsen of annuleren kan in het portaal:", "Met vriendelijke groeten,"];
+      const det = `${K}: ${when}${link ? "\nLink: " + link : ""}`;
+      return { subject: MV[0], html: html(`${hello("Jan", L)}\n\n${MV[1]}\n\n${det}\n\n${MV[2]} ${APP_URL}/afspraak\n\n${MV[3]}\nEVChargeking`, undefined, L), from: fromFull, to };
+    }
+    case "booking-cancel":
+      return { subject: "Uw afspraak is geannuleerd – EVChargeking", html: html(`Uw afspraak (${K}, ${when}) is geannuleerd.\n\nEen nieuwe afspraak maken kan via ${APP_URL}/afspraak`, undefined, L), from: fromFull, to };
+    case "booking-reminder":
+      return { subject: "Herinnering: uw afspraak begint over 15 minuten – EVChargeking", html: html(`${hello("Jan", L)}\n\nUw afspraak begint over 15 minuten.\n\n${K}: ${when}${link ? "\nLink: " + link : ""}\n\nMet vriendelijke groeten,\nEVChargeking`, undefined, L), from: fromFull, to };
+    case "booking-notice":
+      return { subject: "Nieuwe afspraak: Jan Janssen (Videogesprek)", html: html(`Nieuwe afspraak via het investeerdersportaal.\n\nInvesteerder: Jan Janssen (${to})\nVideogesprek\nDatum en uur: ${when}\nOnderwerp: Voorbeeld\nBericht: Voorbeeldbericht`, undefined, L), from: fromFull, to: notify };
+    case "message": {
+      const url = `${APP_URL}/#/berichten`;
+      const text = `${hello("Jan", L)}\n\nU hebt een nieuw bericht in het investeerdersportaal:\n\nDit is een voorbeeldbericht van de beheerder.\n\nU kunt gewoon op deze e-mail antwoorden, of antwoorden in het portaal.\n\n${url}`;
+      return { subject: "Nieuw bericht van EVChargeking", html: html(text, { url, label: "Bekijk in het portaal" }, L, false, `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>U kunt op deze e-mail antwoorden. Uw antwoord komt bij uw berichten in het portaal.`), from: `${FROM_NAME} <${MSG_FROM}>`, to };
+    }
+    case "message-in":
+      return { subject: "Nieuw bericht van Jan Janssen", html: html(`Jan Janssen antwoordde in het investeerdersportaal:\n\nVoorbeeldbericht\n\nBekijk en antwoord: ${APP_URL}/#/investeerders/VOORBEELD`, undefined, L), from: fromFull, to: notify };
+    default: return null;
+  }
+}

@@ -1,7 +1,7 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor } from "../_shared/finance.ts";
-import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, APP_URL } from "../_shared/inv.ts";
+import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, APP_URL, automatedPreview } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -298,6 +298,8 @@ Deno.serve(async (req) => {
       const p = await bookingPreview(a, "visit");
       return json({ ok: true, subject: p.subject, from: p.from, html: p.html });
     }
+    const p = await automatedPreview(a, k);
+    if (p) return json({ ok: true, ...p });
     return json({ ok: false, reason: "not-available" });
   }
   if (action === "campaign_refresh") {
