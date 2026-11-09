@@ -36,7 +36,7 @@ const go = (p) => { location.hash = '#/' + p; };
 const asView = () => { try { return JSON.parse(sessionStorage.getItem('bel_as') || 'null'); } catch (e) { return null; } };
 const startAs = (c, page) => { try { sessionStorage.setItem('bel_as', JSON.stringify(c)); } catch (e) {} location.hash = '#/' + page; location.reload(); };
 const stopAs = () => { try { sessionStorage.removeItem('bel_as'); } catch (e) {} location.hash = '#/customers'; location.reload(); };
-const AS_ALLOWED = { 'bel-odoo': ['orders', 'invoices'], 'bel-services': ['list', 'products', 'documents', 'attachment'], 'bel-view-as': ['recall'], 'bel-hub': ['recall_info'], 'bel-switch': ['targets'], 'bel-mfa': ['status'] };
+const AS_ALLOWED = { 'bel-odoo': ['orders', 'invoices'], 'bel-services': ['list', 'products', 'documents', 'attachment'], 'bel-view-as': ['recall'], 'bel-clavoris': ['mine'], 'bel-hub': ['recall_info'], 'bel-switch': ['targets'], 'bel-mfa': ['status'] };
 const AS_EMPTY = { 'bel-hub': { messages: { ok: true, messages: [] } }, 'bel-support': { list: { ok: true, tickets: [] } } };
 async function fn(name, bodyIn) {
   const as = asView();
@@ -288,6 +288,7 @@ function SwitchIn({ route }) {
 const MENU = ['products', 'library', 'recall', 'orders', 'invoices', 'support', 'assistant'];
 const ICON = {
   products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', library: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
+  contracts: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4',
   desk: 'M3 5h18v14H3zM3 10h18M8 15h3', services: 'M12 3l2.5 5.5L20 9.3l-4 4 1 5.7-5-2.8L7 19l1-5.7-4-4 5.5-.8z', messages: 'M3 6h18v12H3zM3 7l9 6 9-6', dashboard: 'M4 20V10M10 20V4M16 20v-7M22 20H2', customers: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
 const Icon = ({ n }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON[n]} /></svg>;
@@ -317,7 +318,7 @@ function Shell({ me, route, children, counts }) {
   const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
   const secs = [];
   if (staff) secs.push([t.secManage, me.role === 'super' ? ['dashboard', 'desk', 'customers'] : ['desk'], 'manage']);
-  secs.push([t.secInstall, ['products', 'services', 'library', 'recall'], 'install'], [t.secOrders, ['orders', 'invoices'], 'orders'], [t.secHelp, ['messages', 'support', 'assistant'], 'help']);
+  secs.push([t.secInstall, ['products', 'services', 'library', 'recall'], 'install'], [t.secOrders, ['orders', 'invoices', 'contracts'], 'orders'], [t.secHelp, ['messages', 'support', 'assistant'], 'help']);
   const filt = (m) => !q || t.menu[m].toLowerCase().includes(q.toLowerCase());
   const tabs = staff ? ['desk', 'products', 'support'] : ['products', 'support', 'assistant'];
   const toggleRail = () => { const on = document.documentElement.classList.toggle('rail'); safeSet('inv_rail', on ? '1' : ''); };
@@ -704,9 +705,64 @@ function ImportedCustomers({ tab }) {
         {rows.map((c) => { const k = d.cases.find((x) => x.odoo_partner_id === c.odoo_partner_id), [tone, label] = portalState(c, R); return (
           <tr key={c.odoo_partner_id} className={c.profile_id ? 'click' : ''} onClick={() => { if (c.profile_id) go('customers/' + c.profile_id); }}><td>{c.name}<small className="ref">{c.email || R.noMail}{c.phone ? ' · ' + c.phone : ''}</small></td><td>{c.city || '—'}</td><td className="num">{c.orders}</td><td className="num">{eur(c.invoiced, lang)}</td>
             <td>{k ? <Badge tone={k.disconnect_status === 'confirmed' ? 'amber' : 'red'}>{k.disconnect_status === 'confirmed' ? R.confirmed : R.pending}</Badge> : '—'}</td><td><Badge tone={tone}>{label}</Badge></td>
-            <td onClick={(e) => e.stopPropagation()}><span className="acts"><button className="link" onClick={() => startAs({ partner_id: c.odoo_partner_id, name: k ? k.contact_name : c.name, email: c.email, recall: !!k }, k ? 'recall' : 'orders')}>{R.viewAs}</button>{' '}{c.email && !c.bel_profiles?.last_login_at ? <Btn kind="ghost" busy={busy === 'i' + c.odoo_partner_id} disabled={!!busy} onClick={() => invite(c)}>{c.invited_at ? R.reinvite : R.invite}</Btn> : null}</span></td></tr>
+            <td onClick={(e) => e.stopPropagation()}><span className="acts"><button className="link" onClick={() => startAs({ partner_id: c.odoo_partner_id, name: k ? k.contact_name : c.name, email: c.email, recall: !!k }, k ? 'recall' : 'orders')}>{R.viewAs}</button>{' '}<a className="link" href={'#/contracts?partner=' + c.odoo_partner_id + '&name=' + encodeURIComponent(c.name)}>{CT[lang === 'fr' ? 'fr' : lang === 'en' ? 'en' : 'nl'].menuAdm}</a>{' '}{c.email && !c.bel_profiles?.last_login_at ? <Btn kind="ghost" busy={busy === 'i' + c.odoo_partner_id} disabled={!!busy} onClick={() => invite(c)}>{c.invited_at ? R.reinvite : R.invite}</Btn> : null}</span></td></tr>
         ); })}
       </tbody></table></div>
+    </>
+  );
+}
+// ---------- Contracts (qualified signature through Clavoris) ----------
+const CT = {
+  nl: { lead: 'Uw overeenkomsten met Belinus. U ondertekent ze hier met een gekwalificeerde elektronische handtekening via itsme.', leadAdm: 'Contracten voor {n}. Na het opladen ziet de klant het contract in zijn portaal; er wordt geen e-mail verstuurd.', menuAdm: 'Contract', empty: 'Er zijn geen contracten om te ondertekenen.', ready: 'Te ondertekenen', signing: 'Bezig', signed: 'Ondertekend', view: 'Bekijken', sign: 'Ondertekenen met itsme', resume: 'Verder ondertekenen', download: 'Ondertekend exemplaar', mobile: 'Gsm-nummer van uw itsme-account', start: 'Naar itsme', cancel: 'Annuleren', title: 'Titel van het contract', file: 'PDF-bestand', upload: 'Contract opladen', ask: 'Dit contract annuleren?', wait: 'Uw handtekening wordt verwerkt. Dit kan even duren.', signedOn: 'Ondertekend op {d} door {n}', mismatch: 'Naam wijkt af van het account', keys: 'Sleutels in Clavoris: {b} · {c} per handtekening', noConn: 'Clavoris is nog niet gekoppeld: de API-sleutel ontbreekt of is niet geldig. Contracten kunnen al opgeladen worden, ondertekenen kan nog niet.', err: { 'mobile-required': 'Vul een geldig gsm-nummer in, bijvoorbeeld +32 470 12 34 56.', 'signing-unavailable': 'Ondertekenen is op dit moment niet mogelijk. Probeer later opnieuw of mail service@belinus.com.', 'already-signed': 'Dit contract is al ondertekend.', 'not-pdf': 'Kies een PDF-bestand.', 'file-too-large': 'Het bestand is te groot (maximum 14 MB).', 'preview-readonly': 'Alleen lezen in deze weergave.', generic: 'Dit is niet gelukt. Probeer opnieuw.' } },
+  fr: { lead: 'Vos contrats avec Belinus. Vous les signez ici avec une signature électronique qualifiée via itsme.', leadAdm: 'Contrats pour {n}. Après le chargement, le client voit le contrat dans son portail ; aucun e-mail n’est envoyé.', menuAdm: 'Contrat', empty: 'Aucun contrat à signer.', ready: 'À signer', signing: 'En cours', signed: 'Signé', view: 'Consulter', sign: 'Signer avec itsme', resume: 'Continuer la signature', download: 'Exemplaire signé', mobile: 'Numéro de GSM de votre compte itsme', start: 'Vers itsme', cancel: 'Annuler', title: 'Titre du contrat', file: 'Fichier PDF', upload: 'Charger le contrat', ask: 'Annuler ce contrat ?', wait: 'Votre signature est en cours de traitement. Cela peut prendre un instant.', signedOn: 'Signé le {d} par {n}', mismatch: 'Le nom diffère du compte', keys: 'Clés dans Clavoris : {b} · {c} par signature', noConn: 'Clavoris n’est pas encore connecté : la clé API manque ou n’est pas valable. Les contrats peuvent déjà être chargés, la signature n’est pas encore possible.', err: { 'mobile-required': 'Indiquez un numéro de GSM valable, par exemple +32 470 12 34 56.', 'signing-unavailable': 'La signature n’est pas possible pour le moment. Réessayez plus tard ou écrivez à service@belinus.com.', 'already-signed': 'Ce contrat est déjà signé.', 'not-pdf': 'Choisissez un fichier PDF.', 'file-too-large': 'Le fichier est trop volumineux (maximum 14 Mo).', 'preview-readonly': 'Lecture seule dans cette vue.', generic: 'Cela n’a pas abouti. Veuillez réessayer.' } },
+  en: { lead: 'Your agreements with Belinus. You sign them here with a qualified electronic signature through itsme.', leadAdm: 'Contracts for {n}. After upload the customer sees the contract in the portal; no e-mail is sent.', menuAdm: 'Contract', empty: 'There are no contracts to sign.', ready: 'To sign', signing: 'In progress', signed: 'Signed', view: 'View', sign: 'Sign with itsme', resume: 'Continue signing', download: 'Signed copy', mobile: 'Mobile number of your itsme account', start: 'Go to itsme', cancel: 'Cancel', title: 'Contract title', file: 'PDF file', upload: 'Upload contract', ask: 'Cancel this contract?', wait: 'Your signature is being processed. This can take a moment.', signedOn: 'Signed on {d} by {n}', mismatch: 'Name differs from the account', keys: 'Keys in Clavoris: {b} · {c} per signature', noConn: 'Clavoris is not connected yet: the API key is missing or not valid. Contracts can already be uploaded; signing is not possible yet.', err: { 'mobile-required': 'Enter a valid mobile number, for example +32 470 12 34 56.', 'signing-unavailable': 'Signing is not possible right now. Please try later or email service@belinus.com.', 'already-signed': 'This contract is already signed.', 'not-pdf': 'Choose a PDF file.', 'file-too-large': 'The file is too large (14 MB at most).', 'preview-readonly': 'Read-only in this view.', generic: 'That did not work. Please try again.' } },
+};
+function Contracts({ me, route }) {
+  const { t, lang } = useT();
+  const C = CT[lang] || CT.nl, partner = me.role === 'super' && !asView() ? route.q.get('partner') : null, pName = route.q.get('name') || '', focus = route.parts[1];
+  const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(''), [open, setOpen] = useState(''), [mobile, setMobile] = useState(''), [acc, setAcc] = useState(null), [up, setUp] = useState({ title: '', file: null }), [waiting, setWaiting] = useState(false);
+  const fail = (e) => setErr(C.err[e.message] || C.err.generic);
+  const load = useCallback(() => fn('bel-clavoris', partner ? { action: 'mine', as_partner: Number(partner) } : { action: 'mine' }).then((r) => { setD(r); setMobile((m) => m || r.mobile || ''); return r; }).catch(fail), [partner]);
+  useEffect(() => { load(); if (partner) fn('bel-clavoris', { action: 'account' }).then(setAcc).catch(() => setAcc({ connected: false })); }, [load]);
+  useEffect(() => {
+    if (!focus || asView()) return undefined;
+    let stop = false, n = 0; setWaiting(true);
+    const tick = async () => { if (stop) return; try { const r = await fn('bel-clavoris', { action: 'check', id: focus }); if (r.contract.status !== 'signing' || ++n > 24) { setWaiting(false); load(); return; } } catch (e) { setWaiting(false); return; } setTimeout(tick, 5000); };
+    tick(); return () => { stop = true; };
+  }, [focus]);
+  async function file(c, which) { setErr(''); try { const r = await fn('bel-clavoris', { action: 'file', id: c.id, which }); location.href = r.url; } catch (e) { fail(e); } }
+  async function sign(c) { setBusy(c.id); setErr(''); try { const r = await fn('bel-clavoris', { action: 'sign', id: c.id, mobile }); location.href = r.url; } catch (e) { fail(e); setBusy(''); } }
+  async function cancel(c) { if (!confirm(C.ask)) return; try { await fn('bel-clavoris', { action: 'cancel', id: c.id }); load(); } catch (e) { fail(e); } }
+  async function upload(e) {
+    e.preventDefault(); setBusy('up'); setErr('');
+    try {
+      const file_b64 = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = no; r.readAsDataURL(up.file); });
+      await fn('bel-clavoris', { action: 'prepare', partner_id: Number(partner), title: up.title, file_name: up.file.name, file_b64 });
+      setUp({ title: '', file: null }); e.target.reset(); await load();
+    } catch (x) { fail(x); }
+    setBusy('');
+  }
+  const tone = { ready: 'amber', signing: 'blue', signed: 'green' };
+  if (!d) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  return (
+    <>
+      <PageHead title={t.menu.contracts} lead={partner ? fmt(C.leadAdm, { n: pName }) : C.lead} />
+      <Note kind="error">{err}</Note>{waiting && <Note>{C.wait}</Note>}
+      {partner && acc && <Note kind={acc.connected ? 'info' : 'error'}>{acc.connected ? fmt(C.keys, { b: acc.account.keys_balance, c: acc.account.keys_per_signature }) : C.noConn}</Note>}
+      {partner && <form className="card stack" onSubmit={upload}><Field label={C.title}><input required maxLength={200} value={up.title} onChange={(e) => setUp({ ...up, title: e.target.value })} /></Field><Field label={C.file}><input required type="file" accept="application/pdf" onChange={(e) => setUp({ ...up, file: e.target.files[0] })} /></Field><div><Btn busy={busy === 'up'}>{C.upload}</Btn></div></form>}
+      {!d.contracts.length && !partner && <Empty>{C.empty}</Empty>}
+      {d.contracts.map((c) => (
+        <div key={c.id} className="card stack">
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><b>{c.title}</b><Badge tone={tone[c.status]}>{C[c.status]}</Badge></div>
+          {c.status === 'signed' && <small className="muted">{fmt(C.signedOn, { d: new Date(c.signed_at).toLocaleDateString(lang === 'en' ? 'en-GB' : lang + '-BE'), n: c.signer_name || '' })}{c.name_check === 'mismatch' ? ' · ' + C.mismatch : ''}</small>}
+          <div className="acts" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Btn kind="ghost" onClick={() => file(c, c.status === 'signed' ? 'signed' : 'original')}>{c.status === 'signed' ? C.download : C.view}</Btn>
+            {c.status !== 'signed' && !partner && !asView() && <Btn onClick={() => setOpen(open === c.id ? '' : c.id)}>{c.status === 'signing' ? C.resume : C.sign}</Btn>}
+            {c.status !== 'signed' && partner && <button className="link" onClick={() => cancel(c)}>{C.cancel}</button>}
+          </div>
+          {open === c.id && <div className="stack"><Field label={C.mobile}><input type="tel" autoComplete="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} /></Field><div><Btn busy={busy === c.id} onClick={() => sign(c)}>{C.start}</Btn></div></div>}
+        </div>
+      ))}
     </>
   );
 }
@@ -1464,7 +1520,7 @@ function App() {
   else {
     const me = state.me;
     if (['login', 'signup', 'forgot', ''].includes(page)) { go(me.role === 'super' ? 'dashboard' : isStaffUser(me) ? 'desk' : counts.recall ? 'recall' : 'products'); }
-    const P = { products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, desk: Desk, assistant: Assistant, account: Account, services: Services, messages: Messages, dashboard: Dashboard, customers: Customers }[page] || Products;
+    const P = { contracts: Contracts, products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, desk: Desk, assistant: Assistant, account: Account, services: Services, messages: Messages, dashboard: Dashboard, customers: Customers }[page] || Products;
     body = <Shell me={me} route={route} counts={counts}><P me={me} route={route} refresh={loadCounts} reloadMe={loadMe} /></Shell>;
   }
   return <LangCtx.Provider value={{ t, lang, setLang }}>{body}{remind && state.phase === 'in' && <Remind onClose={() => setRemind(false)} />}</LangCtx.Provider>;

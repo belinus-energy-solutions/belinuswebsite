@@ -10,3 +10,5 @@ Not deployed to the CDN (the deploy workflow skips `_src/`).
 Function secrets (set by Steve in Supabase › Edge Functions › Secrets): `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`
 (optional `MAILGUN_API_BASE`, default EU), `ANTHROPIC_API_KEY`, optional `BELINUS_APP_URL`, `BELINUS_SUPPORT_INBOX`,
 `BELINUS_AI_MODEL`.
+
+Contract signing: `bel-clavoris` starts qualified signatures through the Clavoris signing API; Belinus is a company account in Clavoris and each signature uses its keys. One more secret: `CLAVORIS_API_KEY` (Clavoris › Account › API access). Contracts are in `bel_contracts`, the PDFs in the private bucket `bel-docs` under `contracts/`. Nothing is mailed to the customer.
