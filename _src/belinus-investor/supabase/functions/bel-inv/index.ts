@@ -142,11 +142,11 @@ Deno.serve(async (req) => {
     await audit(a, u, "terms-accepted", inv.email, { version: TERMS_VERSION, ip });
     return json({ ok: true });
   }
-  if (inv && !asMode && action !== "me" && terms.pending) return json({ error: "terms-required" }, 403);
+  if (inv && !asMode && !acc.role && action !== "me" && terms.pending) return json({ error: "terms-required" }, 403);
 
   if (action === "me") {
     if (!inv) return json({ ok: true, admin: acc.role, investor: null });
-    if (terms.pending && !asMode) return json({ ok: true, admin: acc.role, as: null, terms, messages: [], investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email } });
+    if (terms.pending && !asMode && !acc.role) return json({ ok: true, admin: acc.role, as: null, terms, messages: [], investor: { lang: inv.lang, first_name: inv.first_name, last_name: inv.last_name, company_name: inv.company_name, email: inv.email } });
     const [{ data: tr }, { data: sch }, { data: ch }, { data: bk }, { data: ev }, { data: used }, { data: slotRows }] = await Promise.all([
       a.from("inv_tranches").select("*").eq("code", inv.tranche).single(),
       a.from("inv_schedule").select("scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status, paid_at").eq("investor_id", inv.id).order("period"),

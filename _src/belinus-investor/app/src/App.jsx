@@ -78,7 +78,9 @@ function App() {
     try { m = await fn('bel-inv', { action: 'mfa_status' }); } catch (e) { try { for (const k of Object.keys(sessionStorage)) if (k.startsWith('sb-')) sessionStorage.removeItem(k); } catch (x) {} sb.auth.signOut({ scope: 'local' }).catch(() => {}); setSt({ phase: 'out', denied: e.status === 403 }); return; }
     if (!m.verified) { setSt({ phase: 'mfa', status: m }); return; }
     setSt({ phase: 'in', email: s.session.user.email });
-    await loadData();
+    // The terms are asked once, just after login (not again while the session is open). Admins are exempt.
+    const d0 = await loadData();
+    if (d0 && d0.investor && d0.terms && d0.terms.pending && !d0.admin && !d0.as) setSt((s0) => ({ ...s0, gate: true }));
   }, [loadData]);
   useEffect(() => { try { if (localStorage.getItem('inv_rail')) document.documentElement.classList.add('rail'); } catch (e) {} providerReturn().catch(() => {}).then(() => load()); }, [load]);
   useEffect(() => { if (st.phase !== 'in') return; let last = Date.now(); const bump = () => { last = Date.now(); }; ['click', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true })); const iv = setInterval(() => { if (Date.now() - last > 30 * 60000) sb.auth.signOut({ scope: 'local' }).then(() => location.reload()); }, 60000); return () => { clearInterval(iv); ['click', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, bump)); }; }, [st.phase]);
@@ -90,7 +92,7 @@ function App() {
   if (st.phase === 'mfa') return <SecondFactor status={st.status} onDone={load} />;
   const d = st.d;
   if (!d) return <div className="boot"><span className="spin" /></div>;
-  if (d.investor && d.terms && d.terms.pending && !d.as) return <Terms d={d} reload={loadData} />;
+  if (st.gate && d.investor && d.terms && d.terms.pending && !d.as && !d.admin) return <Terms d={d} reload={loadData} />;
   const acting = d.as, role = d.admin, hasInv = !!d.investor && (!role || !!acting);
   const name = hasInv ? (d.investor.company_name || [d.investor.first_name, d.investor.last_name].filter(Boolean).join(' ')) : '';
   const P = { beheer: AdmOverview, investeerders: AdmInvestors, opvolging: AdmFollow, afspraken: AdmBookings, beschikbaarheid: AdmAvail, financieel: AdmFinancial, instellingen: AdmSettings };

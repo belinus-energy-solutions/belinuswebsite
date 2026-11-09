@@ -492,6 +492,6 @@ function Terms({ d, reload }) {
     {!read && <p className="note-it">{T.scroll}</p>}
     <label className="check"><input type="checkbox" checked={ok} disabled={!read || busy} onChange={(e) => setOk(e.target.checked)} /><span>{T.consent}</span></label>
     {err && <Note kind="error">{T.err}</Note>}
-    <Btn busy={busy || !read || !ok} onClick={accept}>{T.accept}</Btn>
+    <Btn busy={busy} disabled={busy || !read || !ok} onClick={accept}>{T.accept}</Btn>
   </div></div>;
 }
