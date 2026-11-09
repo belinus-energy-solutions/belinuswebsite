@@ -85,33 +85,36 @@ function InvDetail({ id, onClose }) {
     <div><h3 style={{ fontSize: 16, marginBottom: 8 }}>Geschiedenis van keuzes</h3>{d.log.length ? d.log.map((l) => <p key={l.id} style={{ margin: '0 0 4px', fontSize: 14 }}><b>{l.choice}</b> · {whenNl(l.created_at)}{l.by_admin ? ' · door beheerder: ' + l.note : ''}{l.reason ? ' · ' + l.reason : ''}</p>) : <p className="hint">Nog geen keuze.</p>}</div>
     <div className="stack"><h3 style={{ fontSize: 16 }}>Keuze registreren (ontvangen per telefoon of e-mail)</h3><div className="grid2"><select value={c} onChange={(e) => setC(e.target.value)}><option value="">Kies…</option><option>A</option><option>B</option><option>C</option></select><input placeholder="Notitie (verplicht)" value={note} onChange={(e) => setNote(e.target.value)} /></div>{c === 'C' && <input placeholder="Reden (verplicht)" value={reason} onChange={(e) => setReason(e.target.value)} />}<div className="row"><Btn kind="ghost" disabled={!c || !note.trim()} onClick={rec}>Registreren</Btn><Btn kind="ghost" onClick={invite}>{d.investor.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</Btn></div></div></>}</div></div>;
 }
+// Messaging list: one row per investor, showing the last message received. Opening a row goes to the investor page with the full history and reply.
 function AdmMessages() {
-  const [d, setD] = useState(null), [err, setErr] = useState(''), [sel, setSel] = useState(null), [txt, setTxt] = useState(''), [busy, setBusy] = useState(false);
-  const load = () => adm('messages_all').then(setD).catch((x) => setErr(errText(x)));
-  useEffect(() => { load(); }, []);
-  const threads = new Map();
-  for (const m of d ? d.messages : []) {
-    if (!threads.has(m.investor_id)) threads.set(m.investor_id, { id: m.investor_id, name: nameOf(m.inv_investors || {}), email: m.inv_investors?.email, items: [] });
-    threads.get(m.investor_id).items.push(m);
-  }
-  const list = [...threads.values()];
-  const cur = list.find((t) => t.id === sel) || list[0];
-  useEffect(() => { if (cur && cur.items.some((m) => m.direction === 'in' && !m.read_at)) adm('message_read', { id: cur.id }).then(load).catch(() => {}); }, [cur && cur.id]);
+  const [d, setD] = useState(null), [err, setErr] = useState(''), [q, setQ] = useState(''), [f, setF] = useState('all');
+  useEffect(() => { adm('messages_all').then(setD).catch((x) => setErr(errText(x))); }, []);
   if (!d) return <Wait err={err} />;
-  async function reply() {
-    if (!txt.trim() || !cur) return;
-    setBusy(true); setErr('');
-    try { await adm('message_send', { id: cur.id, body: txt.trim() }); setTxt(''); await load(); } catch (x) { setErr(errText(x)); } finally { setBusy(false); }
+  // Messages come newest first: the first message per investor is the last one received.
+  const threads = new Map();
+  for (const m of d.messages) {
+    if (!threads.has(m.investor_id)) threads.set(m.investor_id, { id: m.investor_id, name: nameOf(m.inv_investors || {}), email: m.inv_investors?.email, last: m, unread: 0, count: 0 });
+    const t = threads.get(m.investor_id); t.count++; if (m.direction === 'in' && !m.read_at) t.unread++;
   }
-  const unread = (t) => t.items.filter((m) => m.direction === 'in' && !m.read_at).length;
+  const stateOf = (t) => t.unread ? 'new' : t.last.direction === 'in' ? 'wait' : t.last.mail_status === 'failed' ? 'failed' : 'answered';
+  const ST = { new: ['Nieuw bericht', 'warn'], wait: ['Wacht op antwoord', 'info'], failed: ['Mail mislukt', 'warn'], answered: ['Beantwoord', 'ok'] };
+  const needle = q.trim().toLowerCase();
+  const list = [...threads.values()]
+    .filter((t) => (f === 'all' || (f === 'new' && t.unread > 0) || (f === 'wait' && t.last.direction === 'in')))
+    .filter((t) => !needle || (t.name + ' ' + (t.email || '')).toLowerCase().includes(needle));
+  const open = (t) => { if (t.unread) adm('message_read', { id: t.id }).catch(() => {}); location.hash = '#/investeerders/' + t.id; };
+  const snippet = (m) => (m.direction === 'in' ? '' : 'EVChargeking: ') + String(m.body || '').replace(/\s+/g, ' ').slice(0, 140);
   return <div className="card stack"><h2 style={{ margin: 0 }}>Berichten van investeerders</h2>
-    {!list.length ? <p className="hint" style={{ margin: 0 }}>Nog geen berichten.</p> : <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) 2fr', gap: 16, alignItems: 'start' }}>
-      <div className="stack" style={{ gap: 8 }}>{list.map((t) => <button key={t.id} className={'btn ' + (cur && cur.id === t.id ? '' : 'ghost') + ' sm'} style={{ textAlign: 'left', display: 'block' }} onClick={() => setSel(t.id)}><b>{t.name}</b>{unread(t) > 0 && <span className="chip warn" style={{ marginLeft: 6 }}>{unread(t)} nieuw</span>}<br /><small>{new Date(t.items[0].created_at).toLocaleString('nl-BE')}</small></button>)}</div>
-      {cur && <div className="stack"><div><b>{cur.name}</b><br /><span className="hint">{cur.email}</span></div>
-        {cur.items.slice().reverse().map((m) => <div key={m.id} className="card" style={{ margin: 0 }}><small>{m.direction === 'in' ? 'Investeerder' : 'Belinus'} · {new Date(m.created_at).toLocaleString('nl-BE')}{m.direction === 'out' && m.mail_status ? ' · mail ' + m.mail_status : ''}</small><p style={{ whiteSpace: 'pre-wrap', margin: '6px 0 0' }}>{m.body}</p></div>)}
-        <textarea rows={4} value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Antwoord aan deze investeerder…" />
-        <div><Btn onClick={reply} disabled={busy || !txt.trim()}>{busy ? 'Versturen…' : 'Verstuur antwoord'}</Btn></div></div>}
-    </div>}
+    <div className="row" style={{ flexWrap: 'wrap' }}><input type="search" placeholder="Zoek op naam of e-mail" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: '1 1 240px' }} />
+      <div className="seg" role="tablist">{[['all', 'Alle'], ['new', 'Nieuw'], ['wait', 'Wacht op antwoord']].map(([k, l]) => <button key={k} role="tab" aria-selected={f === k} className={'seg-b' + (f === k ? ' on' : '')} onClick={() => setF(k)}>{l}</button>)}</div></div>
+    {!list.length ? <p className="hint" style={{ margin: 0 }}>{threads.size ? 'Geen berichten die aan deze selectie voldoen.' : 'Nog geen berichten.'}</p> :
+    <div className="tblw"><table className="tbl cards"><thead><tr><th>Investeerder</th><th>Laatste bericht</th><th>Ontvangen</th><th>Status</th><th className="n">Berichten</th></tr></thead><tbody>
+      {list.map((t) => <tr key={t.id} className="click" style={{ cursor: 'pointer' }} onClick={() => open(t)}>
+        <td data-l="Investeerder"><b>{t.name}</b><br /><span className="hint">{t.email}</span></td>
+        <td data-l="Laatste bericht">{snippet(t.last)}</td>
+        <td data-l="Ontvangen">{new Date(t.last.created_at).toLocaleString('nl-BE')}</td>
+        <td data-l="Status"><span className={'chip ' + ST[stateOf(t)][1]}>{ST[stateOf(t)][0]}</span>{t.unread > 0 && <span className="chip warn" style={{ marginLeft: 6 }}>{t.unread}</span>}</td>
+        <td data-l="Berichten" className="n">{t.count}</td></tr>)}</tbody></table></div>}
     <Note kind="error">{err}</Note></div>;
 }
 function AdmFollow() {
@@ -236,7 +239,7 @@ function AdmAvail() {
     <div className="card stack"><h2>Wekelijkse uren</h2>{w.map((x, i) => <div className="row" key={i} style={{ flexWrap: 'nowrap' }}><select value={x.weekday} onChange={(e) => set(i, { weekday: Number(e.target.value) })}>{WD.slice(1).map((n, k) => <option key={k} value={k + 1}>{n}</option>)}</select><input type="time" value={x.start_time} onChange={(e) => set(i, { start_time: e.target.value })} /><input type="time" value={x.end_time} onChange={(e) => set(i, { end_time: e.target.value })} /><select value={kindOf(x)} onChange={(e) => set(i, { kinds: e.target.value === 'both' ? ['video', 'callback'] : [e.target.value] })}><option value="both">Beide</option><option value="video">Video</option><option value="callback">Terugbellen</option></select><button className="btn danger sm" onClick={() => setW(w.filter((_, n) => n !== i))}>×</button></div>)}<div className="row"><Btn kind="ghost" onClick={() => setW([...w, { weekday: 1, start_time: '14:00', end_time: '17:00', kinds: ['video', 'callback'] }])}>Uren toevoegen</Btn><Btn onClick={() => run(adm('availability_save', { windows: w }))}>Opslaan</Btn></div></div>
     <div className="card stack"><h2>Instellingen van de afspraken</h2><div className="grid2"><Field label="Duur van een afspraak"><select value={cfg.slot_minutes} onChange={(e) => setCfg({ ...cfg, slot_minutes: Number(e.target.value) })}>{[10, 15, 20, 30].map((n) => <option key={n} value={n}>{n} minuten</option>)}</select></Field><Field label="Pauze tussen afspraken (min)"><input type="number" min="0" max="15" value={cfg.buffer_minutes} onChange={(e) => setCfg({ ...cfg, buffer_minutes: Number(e.target.value) })} /></Field><Field label="Minimale voorafgaande termijn (uren)"><input type="number" min="0" value={cfg.notice_hours} onChange={(e) => setCfg({ ...cfg, notice_hours: Number(e.target.value) })} /></Field><Field label="Boeken tot (dagen vooruit)"><input type="number" min="1" value={cfg.horizon_days} onChange={(e) => setCfg({ ...cfg, horizon_days: Number(e.target.value) })} /></Field></div><div><Btn onClick={() => run(adm('settings_save', { key: 'booking', value: cfg }))}>Opslaan</Btn></div></div>
     <div className="card stack"><h2>Geblokkeerde dagen</h2><div className="row" style={{ flexWrap: 'nowrap' }}><input type="date" value={day} onChange={(e) => setDay(e.target.value)} /><Btn kind="ghost" disabled={!day} onClick={() => run(adm('blocked', { day }))}>Blokkeren</Btn></div>{d.blocked.map((b) => <div className="row" key={b.day}><span>{dayNl(b.day + 'T12:00:00Z')}</span><button className="link" onClick={() => run(adm('blocked', { day: b.day, remove: true }))}>Verwijderen</button></div>)}</div>
-    <div className="grid2" style={{ alignItems: 'start' }}><div className="card stack"><h2>Investeerdersdagen</h2>{d.events.map((e) => <EventRow key={e.id} e={e} run={run} />)}</div><div className="card stack"><h2>Uitnodiging voor investeerders</h2><p className="hint" style={{ margin: 0 }}>Zo ontvangt een investeerder de uitnodiging. De knop in de mail is een voorbeeldlink.</p><InvitePreviewInline /><div><Btn kind="ghost" onClick={() => run(adm('test_invite', {}))}>Stuur testmail naar Erwin</Btn></div></div><div className="card stack"><h2>Bevestigingsmail afspraak</h2><p className="hint" style={{ margin: 0 }}>Zo ontvangt een investeerder de bevestiging na het boeken van een bezoek op een investeerdersdag. Voorbeeld: de eerste investeerdersdag, het eerste aankomstuur, één persoon. Met de bijlage: een agenda-uitnodiging (afspraak.ics).</p><BookingPreviewInline /></div></div></>;
+    <div className="grid2" style={{ alignItems: 'start' }}><div className="card stack"><h2>Investeerdersdagen</h2>{d.events.map((e) => <EventRow key={e.id} e={e} run={run} />)}</div><div className="card stack"><h2>Uitnodiging voor investeerders</h2><p className="hint" style={{ margin: 0 }}>Zo ontvangt een investeerder de uitnodiging. De knop in de mail is een voorbeeldlink.</p><InvitePreviewInline /><div><Btn kind="ghost" onClick={() => run(adm('test_invite', {}))}>Stuur testmail naar Erwin</Btn></div></div></div></>;
 }
 // One investor day: length of one appointment, and each arrival time with its own number of places.
 function EventRow({ e, run }) {
@@ -257,14 +260,6 @@ function InvitePreviewInline() {
   if (!p) return <Wait err={err} />;
   return <><div className="mail-meta"><span>Van</span><b>{p.from}</b><span>Onderwerp</span><b>{p.subject}</b></div><iframe className="mail-frame" title="Voorbeeld van de uitnodiging" sandbox="" srcDoc={p.html} /></>;
 }
-function BookingPreviewInline() {
-  const [p, setP] = useState(null), [err, setErr] = useState('');
-  useEffect(() => { adm('booking_preview', { kind: 'visit' }).then(setP).catch((x) => setErr(errText(x))); }, []);
-  if (!p) return <Wait err={err} />;
-  return <><div className="mail-meta"><span>Van</span><b>{p.from}</b><span>Aan</span><b>{p.to}</b><span>Onderwerp</span><b>{p.subject}</b><span>Bijlage</span><b>{p.attachment}</b></div><iframe className="mail-frame" title="Voorbeeld van de bevestigingsmail" sandbox="" srcDoc={p.html} /></>;
-}
-const FIN_ST = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['wacht op handtekening', 'warn'], cancelled: ['geannuleerd', 'bad'] };
-const FIN_F = [['all', 'Alle leningen'], ['bolero', 'Bolero'], ['winwinlening', 'Winwin'], ['winwin_raise', 'Winwin raise']];
 function loadXlsx() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = () => res(window.XLSX); s.onerror = () => rej(new Error('Excel-module kon niet geladen worden.')); document.head.appendChild(s); });
@@ -390,6 +385,8 @@ function AdmAutomated() {
   return <><div className="page-head"><div><h1 className="page-title">Automatische e-mails</h1><p className="page-sub">Alle e-mails die het systeem zelf verstuurt, met trigger en regels. Campagnes staan onder E-mailcampagnes.</p></div></div>
     <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>E-mail</th><th>Trigger</th><th>Regels</th><th>Inhoud</th></tr></thead><tbody>{AUTO_MAILS.map(([k, n, tr, rule, body]) => <tr key={k}><td data-l="E-mail"><b>{n}</b><br /><span className="hint">{k}</span></td><td data-l="Trigger">{tr}</td><td data-l="Regels">{rule}</td><td data-l="Inhoud">{body}<div style={{ marginTop: 8 }}><AutoPreview kind={k} /></div></td></tr>)}</tbody></table></div></div></>;
 }
+const FIN_ST = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['wacht op handtekening', 'warn'], cancelled: ['geannuleerd', 'bad'] };
+const FIN_F = [['all', 'Alle leningen'], ['bolero', 'Bolero'], ['winwinlening', 'Winwin'], ['winwin_raise', 'Winwin raise']];
 function AdmFinancial() {
   const [view, setView] = useState('planned'), [signed, setSigned] = useState(false), [filter, setFilter] = useState('all');
   const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
