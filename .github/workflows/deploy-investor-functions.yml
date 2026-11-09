@@ -1,0 +1,52 @@
+name: Deploy investor functions
+
+# Deploys the EVChargeking investor Supabase edge functions.
+# - On demand: Actions tab > "Deploy investor functions" > Run workflow (optionally change the function list).
+# - Automatically: on every push to main that changes the investor functions or their shared code.
+# Needs one repository secret: SUPABASE_ACCESS_TOKEN (a Supabase personal access token).
+
+on:
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: "Functions to deploy (space separated)"
+        required: false
+        default: "bel-inv bel-inv-admin"
+  push:
+    branches: [main]
+    paths:
+      - "_src/belinus-investor/supabase/functions/bel-inv/**"
+      - "_src/belinus-investor/supabase/functions/bel-inv-admin/**"
+      - "_src/belinus-investor/supabase/functions/_shared/**"
+      - ".github/workflows/deploy-investor-functions.yml"
+
+env:
+  SUPABASE_PROJECT_REF: cbykdhbqfgjzodldavvy
+
+# Two deploys close together must not overwrite each other.
+concurrency:
+  group: deploy-investor-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: _src/belinus-investor
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 3.1.0
+
+      - name: Deploy functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCTIONS: ${{ github.event.inputs.functions || 'bel-inv bel-inv-admin' }}
+        run: |
+          set -euo pipefail
+          echo "Deploying: $FUNCTIONS"
+          supabase functions deploy $FUNCTIONS --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
