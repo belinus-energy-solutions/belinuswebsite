@@ -72,7 +72,7 @@ const FROM_ADDR = Deno.env.get("INV_MAIL_FROM") || "investors@belinus.com", FROM
 const FONT = "'Arial Nova','Helvetica Neue',Helvetica,Arial,sans-serif";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const NOREPLY_FOOT = (u: string) => `EVChargeking (Some BV), Hooilaar 40, 2230 Herselt · a belinus group company<br>Dit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen. Vragen? Meld u aan op ${u} en maak een afspraak.`;
-function html(text: string, cta: { url: string; label: string } | undefined, L: Lang, noreply = false, foot = ""): string {
+export function html(text: string, cta: { url: string; label: string } | undefined, L: Lang, noreply = false, foot = ""): string {
   const parts = text.replace(/\r/g, "").split(/\n{2,}/).map((p) => {
     if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">${esc(MC[L].btn)}<br>${esc(cta.url)}</p>`;
     if (p.startsWith("## ")) return `<p style="margin:26px 0 10px;font-family:${FONT};font-size:13px;letter-spacing:.06em;font-weight:700;color:#0A0C0F">${esc(p.slice(3).trim())}</p>`;
@@ -276,4 +276,28 @@ const icsT = (d: Date | string) => new Date(d).toISOString().replace(/[-:]/g, ""
 export function icsEvent(b: { id: string; title: string; start: string; end: string; location?: string; url?: string; desc: string; sequence?: number; method?: "PUBLISH" | "REQUEST" }): string {
   const e = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Belinus//Investeerdersportaal//NL", `METHOD:${b.method || "PUBLISH"}`, "BEGIN:VEVENT", `UID:${b.id}@investor.belinus.com`, `DTSTAMP:${icsT(new Date())}`, ...(b.sequence ? [`SEQUENCE:${b.sequence}`] : []), `DTSTART:${icsT(b.start)}`, `DTEND:${icsT(b.end)}`, `SUMMARY:${e(b.title)}`, ...(b.location ? [`LOCATION:${e(b.location)}`] : []), ...(b.url ? [`URL:${b.url}`] : []), `DESCRIPTION:${e(b.desc)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+}
+
+// ---- booking confirmation (investor day, video call or call-back). bel-inv sends it; bookingPreview shows it in Beheer. ----
+export type BookingB = { starts_at: string; meet_url?: string | null; inv_events?: { title: string; address: string } | null };
+export function bookingDetail(kind: string, b: BookingB, arrival: string | null, persons: number, phone: string | null, s: Record<string, any>, l: Lang): string {
+  const when = dateIn(b.starts_at, true, l);
+  const W = { nl: { arr: "Aankomst", per: "Personen", adr: "Adres", sweet: "Met koffie en iets lekkers.", dt: "Datum en uur", link: "Link naar het gesprek", later: "U ontvangt de link naar het gesprek vóór de afspraak per e-mail.", call: "Wij bellen u op" }, fr: { arr: "Arrivée", per: "Personnes", adr: "Adresse", sweet: "Avec café et douceurs.", dt: "Date et heure", link: "Lien vers l'entretien", later: "Vous recevrez le lien vers l'entretien par e-mail avant le rendez-vous.", call: "Nous vous appellerons au" }, en: { arr: "Arrival", per: "People", adr: "Address", sweet: "With coffee and something sweet.", dt: "Date and time", link: "Link to the call", later: "You will receive the link to the call by e-mail before the appointment.", call: "We will call you on" } }[l];
+  return kind === "visit" ? `${eventTitle(b.inv_events!.title, l)}\n${W.arr}: ${arrival || "10:00"}\n${W.per}: ${persons}\n${W.adr}: ${b.inv_events!.address}\n${W.sweet}`
+    : kind === "video" ? `${W.dt}: ${when}\n${(b.meet_url || s.video_url) ? W.link + ": " + (b.meet_url || s.video_url) : W.later}`
+    : `${W.dt}: ${when}\n${W.call} ${phone}.`;
+}
+export function bookingMail(kind: string, b: BookingB, arrival: string | null, persons: number, phone: string | null, s: Record<string, any>, first: string | null | undefined, L: Lang): { subject: string; text: string } {
+  const K = KIND_L[L][kind];
+  const BT = { nl: [`Bevestiging van uw afspraak: ${K}`, "Uw afspraak is bevestigd.", "Afspraak verplaatsen of annuleren kan in het portaal:", "Met vriendelijke groeten,"], fr: [`Confirmation de votre rendez-vous : ${K}`, "Votre rendez-vous est confirmé.", "Vous pouvez déplacer ou annuler le rendez-vous dans le portail :", "Cordialement,"], en: [`Confirmation of your appointment: ${K}`, "Your appointment is confirmed.", "You can move or cancel the appointment in the portal:", "Kind regards,"] }[L];
+  return { subject: BT[0], text: `${hello(first, L)}\n\n${BT[1]}\n\n${K}\n${bookingDetail(kind, b, arrival, persons, phone, s, L)}\n\n${BT[2]} ${APP_URL}/afspraak\n\n${BT[3]}\nEVChargeking` };
+}
+// Preview in Beheer: a visit on the first active investor day, first arrival time, one person, sent from the investor-mail address.
+export async function bookingPreview(a: SupabaseClient, kind: string): Promise<{ subject: string; html: string; from: string; to: string; replyTo: string; attachment: string }> {
+  const s = await settings(a);
+  const { data: ev } = await a.from("inv_events").select("id, title, address, starts_at").eq("active", true).order("starts_at").limit(1).maybeSingle();
+  const { data: sl } = ev ? await a.from("inv_event_slots").select("start_time").eq("event_id", ev.id).order("start_time").limit(1).maybeSingle() : { data: null };
+  const b: BookingB = { starts_at: ev?.starts_at || new Date().toISOString(), inv_events: { title: ev?.title || "Investeerdersdag", address: ev?.address || "EVChargeking, Hooilaar 40, 2230 Herselt" } };
+  const m = bookingMail(kind, b, sl?.start_time || "10:00", 1, null, s, "Jan", "nl");
+  return { subject: m.subject, html: html(m.text, undefined, "nl", false, ""), from: `${FROM_NAME} <${FROM_ADDR}>`, to: "jan@voorbeeld.be", replyTo: REPLY, attachment: "afspraak.ics" };
 }

@@ -1,7 +1,7 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor } from "../_shared/finance.ts";
-import { icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview } from "../_shared/inv.ts";
+import { icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -119,6 +119,11 @@ Deno.serve(async (req) => {
     if (id) ({ data: inv } = await a.from("inv_investors").select("email, first_name, invested").eq("id", id).maybeSingle());
     if (!inv) { const { data } = await a.from("inv_investors").select("email, first_name, invested").eq("is_test", false).eq("status", "invited").order("last_name").limit(1); inv = data?.[0] || { email: "voorbeeld@investeerder.be", first_name: "Jan", invested: 5000 }; }
     return json({ ok: true, ...(await invitePreview(a, inv)) });
+  }
+  // Preview of the confirmation mail an investor gets after booking an investor day, video call or call-back (kind: visit, video, callback).
+  if (action === "booking_preview") {
+    const kind = ["visit", "video", "callback"].includes(body.kind) ? body.kind : "visit";
+    return json({ ok: true, ...(await bookingPreview(a, kind)) });
   }
   if (action === "invite_pending" || action === "invite_batch") {
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested").eq("is_test", false).eq("status", "invited").order("last_name");
