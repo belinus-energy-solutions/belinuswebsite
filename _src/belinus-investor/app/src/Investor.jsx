@@ -154,6 +154,13 @@ function choiceChip(d) {
   if (c.addendum_status === 'signed') return <span className="chip ok">{t('Addendum ondertekend')}</span>;
   return <span className="chip info">{t('Gekozen:')} {c.choice} ({dayNl(c.confirmed_at)})</span>;
 }
+// Join button for a video appointment: enabled from 10 minutes before the start until the end.
+function JoinLink({ url, starts }) {
+  const now = Date.now(), from = new Date(starts).getTime() - 10 * 60000, open = now >= from;
+  return open
+    ? <a className="btn sm" href={url} target="_blank" rel="noopener">{t('Deelnemen aan videogesprek')}</a>
+    : <p className="hint" style={{ margin: 0 }}>{t('De knop om deel te nemen wordt actief 10 minuten voor het begin.')}</p>;
+}
 function Home({ d }) {
   const end = d.original.length ? d.original[d.original.length - 1].due : null;
   const next = (d.bookings || []).filter((b) => b.status === 'confirmed' && new Date(b.ends_at) > new Date());
@@ -163,7 +170,7 @@ function Home({ d }) {
     <div className="tiles"><div className="tile"><b>{eur(d.investor.invested)}</b><span>{t('Geïnvesteerd bedrag')}{d.investor.invested_on ? ' ' + t('op') + ' ' + dayNl(d.investor.invested_on) : ''}</span></div><div className="tile"><b style={{ fontSize: 19, lineHeight: '36px' }}>{platformName(d.tranche.platform)}</b><span>{t('Platform van uw investering')}</span></div><div className="tile"><b>{pct(d.tranche.gross_rate)}</b><span>{t('Bruto rentevoet')}</span></div><div className="tile"><b>{d.tranche.term_years} {t('jaar')}</b><span>{t(d.tranche.structure)}</span></div><div className="tile"><b style={{ fontSize: 19, lineHeight: '36px' }}>{dayNl(end)}</b><span>{t('Oorspronkelijke einddatum')}</span></div></div>
     <div className="card"><h2>{t('Uw betaalplanning')}</h2><p className="hint">{t('De oorspronkelijke planning blijft geldig tot een addendum ondertekend is.')} {d.original.some((r) => Number(r.withholding) > 0) ? t('Op de interesten wordt 30% roerende voorheffing ingehouden.') : ''}</p><Schedule rows={d.original} /></div>
     {d.gift && <div className="card"><h2>{t(d.gift.title)}</h2><p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{d.gift.text}</p></div>}
-    <div className="card"><h2>{t('Afspraken')}</h2>{next.length ? next.map((b) => <p key={b.id} style={{ marginBottom: 6 }}><b>{t(KIND[b.kind])}</b> · {whenNl(b.starts_at)}</p>) : <p>{t('U hebt nog geen afspraak.')}</p>}<div className="row" style={{ marginTop: 10 }}><a className="btn ghost sm" href="#/afspraak">{t('Maak een afspraak')}</a><a className="btn ghost sm" href="mailto:info@evchargeking.com">info@evchargeking.com</a></div></div>
+    <div className="card"><h2>{t('Afspraken')}</h2>{next.length ? next.map((b) => <div key={b.id} style={{ marginBottom: 10 }}><p style={{ marginBottom: 6 }}><b>{t(KIND[b.kind])}</b> · {whenNl(b.starts_at)}</p>{b.kind === 'video' && b.meet_url && <JoinLink url={b.meet_url} starts={b.starts_at} />}</div>) : <p>{t('U hebt nog geen afspraak.')}</p>}<div className="row" style={{ marginTop: 10 }}><a className="btn ghost sm" href="#/afspraak">{t('Maak een afspraak')}</a><a className="btn ghost sm" href="mailto:info@evchargeking.com">info@evchargeking.com</a></div></div>
   </>;
 }
 const OPT = [

@@ -1,6 +1,7 @@
 // bel-inv — signed-in investor actions of the EVChargeking investor area.
 // Second factor (as in Clavoris: a code by e-mail, or the authenticator app): mfa_status, mfa_send, mfa_verify, mfa_totp_done.
 // After it: me, choose, slots, book, cancel, set_phone.
+import { createMeeting, deleteMeeting } from "../_shared/teams.ts";
 import { access, adminClient, APP_URL, applyChoice, audit, claims, clientIp, cors, currentUser, dateIn, eventTitle, hello, json, KIND_L, nlDate, pickLang, sendMail, settings, sha256, str, strong } from "../_shared/inv.ts";
 
 const TOPICS = ["keuze", "terugbetaling", "andere"];
@@ -15,9 +16,9 @@ function offsetMin(d: Date): number {
 function toUtc(day: string, hm: string): Date { const g = new Date(`${day}T${hm.slice(0, 5)}:00Z`); return new Date(g.getTime() - offsetMin(g) * 60000); }
 const localDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(d);
 const icsT = (d: Date | string) => new Date(d).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z/, "Z");
-function ics(b: { id: string; title: string; start: string; end: string; location?: string; desc: string }): string {
+function ics(b: { id: string; title: string; start: string; end: string; location?: string; url?: string; desc: string }): string {
   const e = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Belinus//Investeerdersportaal//NL", "METHOD:PUBLISH", "BEGIN:VEVENT", `UID:${b.id}@investor.belinus.com`, `DTSTAMP:${icsT(new Date())}`, `DTSTART:${icsT(b.start)}`, `DTEND:${icsT(b.end)}`, `SUMMARY:${e(b.title)}`, ...(b.location ? [`LOCATION:${e(b.location)}`] : []), `DESCRIPTION:${e(b.desc)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Belinus//Investeerdersportaal//NL", "METHOD:PUBLISH", "BEGIN:VEVENT", `UID:${b.id}@investor.belinus.com`, `DTSTAMP:${icsT(new Date())}`, `DTSTART:${icsT(b.start)}`, `DTEND:${icsT(b.end)}`, `SUMMARY:${e(b.title)}`, ...(b.location ? [`LOCATION:${e(b.location)}`] : []), ...(b.url ? [`URL:${b.url}`] : []), `DESCRIPTION:${e(b.desc)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
 }
 
 // One agenda: every video call and call-back is handled by Erwin, so a taken moment is taken for both kinds and an investor day blocks its hours.
@@ -142,7 +143,7 @@ Deno.serve(async (req) => {
       a.from("inv_tranches").select("*").eq("code", inv.tranche).single(),
       a.from("inv_schedule").select("scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status, paid_at").eq("investor_id", inv.id).order("period"),
       a.from("inv_choices").select("choice, wish, reason, confirmed_at, addendum_status").eq("investor_id", inv.id).maybeSingle(),
-      a.from("inv_bookings").select("id, kind, starts_at, ends_at, arrival, persons, phone, topic, status, event_id").eq("investor_id", inv.id).order("starts_at"),
+      a.from("inv_bookings").select("id, kind, starts_at, ends_at, arrival, persons, phone, topic, status, event_id, meet_url").eq("investor_id", inv.id).order("starts_at"),
       a.from("inv_events").select("id, title, starts_at, ends_at, address, capacity, arrival_slots, description").eq("active", true).gte("ends_at", new Date().toISOString()).order("starts_at"),
       a.from("inv_bookings").select("event_id, persons").eq("kind", "visit").eq("status", "confirmed"),
     ]);
@@ -234,28 +235,36 @@ Deno.serve(async (req) => {
     const { data: id, error } = await a.rpc("inv_book", { p_investor: inv.id, p_kind: kind, p_event: eventId, p_arrival: arrival, p_starts: starts, p_ends: ends, p_persons: persons, p_phone: phone || null, p_topic: topic, p_message: message || null });
     if (error) { const m = /already-booked|event-full|slot-taken|no-event/.exec(error.message); if (m) return json({ error: m[0] }, 409); console.error("inv book", error.message); return json({ error: "server-error" }, 500); }
     const { data: b } = await a.from("inv_bookings").select("*, inv_events(title, address)").eq("id", id).single();
+    if (kind === "video") {
+      // One Teams meeting per video appointment. If Teams is unavailable the booking still goes ahead with the manual link.
+      try {
+        const m = await createMeeting(`EVChargeking: videogesprek – ${[inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email}`, b.starts_at, b.ends_at);
+        if (m) { b.meet_url = m.joinUrl; await a.from("inv_bookings").update({ meet_url: m.joinUrl, meet_id: m.id }).eq("id", id); }
+      } catch (err) { console.error("teams create", err); }
+    }
     if (phone && phone !== inv.phone) await a.from("inv_investors").update({ phone }).eq("id", inv.id);
     const detailIn = (l: "nl" | "fr" | "en") => {
       const when = dateIn(b.starts_at, true, l);
       const W = { nl: { arr: "Aankomst", per: "Personen", adr: "Adres", sweet: "Met koffie en iets lekkers.", dt: "Datum en uur", link: "Link naar het gesprek", later: "U ontvangt de link naar het gesprek vóór de afspraak per e-mail.", call: "Wij bellen u op" }, fr: { arr: "Arrivée", per: "Personnes", adr: "Adresse", sweet: "Avec café et douceurs.", dt: "Date et heure", link: "Lien vers l'entretien", later: "Vous recevrez le lien vers l'entretien par e-mail avant le rendez-vous.", call: "Nous vous appellerons au" }, en: { arr: "Arrival", per: "People", adr: "Address", sweet: "With coffee and something sweet.", dt: "Date and time", link: "Link to the call", later: "You will receive the link to the call by e-mail before the appointment.", call: "We will call you on" } }[l];
       return kind === "visit" ? `${eventTitle(b.inv_events.title, l)}\n${W.arr}: ${arrival || "10:00"}\n${W.per}: ${persons}\n${W.adr}: ${b.inv_events.address}\n${W.sweet}`
-        : kind === "video" ? `${W.dt}: ${when}\n${s.video_url ? W.link + ": " + s.video_url : W.later}`
+        : kind === "video" ? `${W.dt}: ${when}\n${(b.meet_url || s.video_url) ? W.link + ": " + (b.meet_url || s.video_url) : W.later}`
         : `${W.dt}: ${when}\n${W.call} ${phone}.`;
     };
     const detail = detailIn("nl");
     const L = pickLang(inv.lang), K = KIND_L[L][kind], BT = { nl: [`Bevestiging van uw afspraak: ${K}`, "Uw afspraak is bevestigd.", "Afspraak verplaatsen of annuleren kan in het portaal:", "Met vriendelijke groeten,"], fr: [`Confirmation de votre rendez-vous : ${K}`, "Votre rendez-vous est confirmé.", "Vous pouvez déplacer ou annuler le rendez-vous dans le portail :", "Cordialement,"], en: [`Confirmation of your appointment: ${K}`, "Your appointment is confirmed.", "You can move or cancel the appointment in the portal:", "Kind regards,"] }[L];
-    await sendMail(a, { to: inv.email, kind: "booking", lang: L, subject: BT[0], ics: ics({ id, title: `EVChargeking: ${K}`, start: b.starts_at, end: b.ends_at, location: kind === "visit" ? b.inv_events.address : undefined, desc: detailIn(L) }), text: `${hello(inv.first_name, L)}\n\n${BT[1]}\n\n${K}\n${detailIn(L)}\n\n${BT[2]} ${APP_URL}/afspraak\n\n${BT[3]}\nEVChargeking` });
+    await sendMail(a, { to: inv.email, kind: "booking", lang: L, subject: BT[0], ics: ics({ id, title: `EVChargeking: ${K}`, start: b.starts_at, end: b.ends_at, location: kind === "visit" ? b.inv_events.address : undefined, url: b.meet_url || undefined, desc: detailIn(L) }), text: `${hello(inv.first_name, L)}\n\n${BT[1]}\n\n${K}\n${detailIn(L)}\n\n${BT[2]} ${APP_URL}/afspraak\n\n${BT[3]}\nEVChargeking` });
     const name = inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email;
-    await sendMail(a, { to: notifyTo(s), kind: "booking-notice", subject: `Nieuwe afspraak: ${name} (${KIND_NL[kind]})`, ics: ics({ id, title: `Investeerder ${name}: ${KIND_NL[kind]}`, start: b.starts_at, end: b.ends_at, location: kind === "visit" ? b.inv_events.address : undefined, desc: `${detail}\nOnderwerp: ${topic}\n${message}` }), text: `Nieuwe afspraak via het investeerdersportaal.\n\nInvesteerder: ${name} (${inv.email})\n${KIND_NL[kind]}\n${detail}\nOnderwerp: ${topic}${message ? "\nBericht: " + message : ""}` });
+    await sendMail(a, { to: notifyTo(s), kind: "booking-notice", subject: `Nieuwe afspraak: ${name} (${KIND_NL[kind]})`, ics: ics({ id, title: `Investeerder ${name}: ${KIND_NL[kind]}`, start: b.starts_at, end: b.ends_at, url: b.meet_url || undefined, location: kind === "visit" ? b.inv_events.address : undefined, desc: `${detail}\nOnderwerp: ${topic}\n${message}` }), text: `Nieuwe afspraak via het investeerdersportaal.\n\nInvesteerder: ${name} (${inv.email})\n${KIND_NL[kind]}\n${detail}\nOnderwerp: ${topic}${message ? "\nBericht: " + message : ""}` });
     await audit(a, u, "booking", inv.email, { id, kind });
     return json({ ok: true, id });
   }
 
   if (action === "cancel") {
-    const { data: b } = await a.from("inv_bookings").select("id, kind, starts_at, status").eq("id", String(body.id || "")).eq("investor_id", inv.id).maybeSingle();
+    const { data: b } = await a.from("inv_bookings").select("id, kind, starts_at, status, meet_id").eq("id", String(body.id || "")).eq("investor_id", inv.id).maybeSingle();
     if (!b || b.status !== "confirmed") return json({ error: "not-found" }, 404);
     if (new Date(b.starts_at).getTime() - Date.now() < s.booking.cancel_hours * 3600_000) return json({ error: "too-late" }, 400);
     await a.from("inv_bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", b.id);
+    if (b.meet_id) await deleteMeeting(b.meet_id).catch((err) => console.error("teams delete", err));
     const CL = pickLang(inv.lang), CK = KIND_L[CL][b.kind], CW = dateIn(b.starts_at, true, CL), CT = { nl: ["Uw afspraak is geannuleerd – EVChargeking", `Uw afspraak (${CK}, ${CW}) is geannuleerd.\n\nEen nieuwe afspraak maken kan via ${APP_URL}/afspraak`], fr: ["Votre rendez-vous est annulé – EVChargeking", `Votre rendez-vous (${CK}, ${CW}) est annulé.\n\nVous pouvez prendre un nouveau rendez-vous via ${APP_URL}/afspraak`], en: ["Your appointment has been cancelled – EVChargeking", `Your appointment (${CK}, ${CW}) has been cancelled.\n\nYou can make a new appointment at ${APP_URL}/afspraak`] }[CL];
     await sendMail(a, { to: inv.email, kind: "booking-cancel", lang: CL, subject: CT[0], text: CT[1] });
     await sendMail(a, { to: notifyTo(s), kind: "booking-notice", subject: `Afspraak geannuleerd: ${inv.email}`, text: `${inv.email} annuleerde: ${KIND_NL[b.kind]}, ${nlDate(b.starts_at, true)}.` });
