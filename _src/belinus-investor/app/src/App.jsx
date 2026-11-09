@@ -94,7 +94,7 @@ function App() {
   const name = hasInv ? (d.investor.company_name || [d.investor.first_name, d.investor.last_name].filter(Boolean).join(' ')) : '';
   const P = { beheer: AdmOverview, investeerders: AdmInvestors, opvolging: AdmFollow, afspraken: AdmBookings, beschikbaarheid: AdmAvail, financieel: AdmFinancial, instellingen: AdmSettings };
   let body;
-  if (role && page === 'investeerdersgroepen') body = route.parts[1] ? <AdmGroup code={route.parts[1]} key={route.parts[1]} /> : <AdmGroups />;
+  if (role && page === 'investeerdersgroepen') body = route.parts[1] === 'nieuw' ? <AdmGroupNew /> : route.parts[1] ? <AdmGroup code={route.parts[1]} key={route.parts[1]} /> : <AdmGroups />;
   else if (role && page === 'campagnes') body = route.parts[1] ? <AdmCampaign id={route.parts[1]} key={route.parts[1]} /> : <AdmCampaigns />;
   else if (role && page === 'automatisch') body = <AdmAutomated />;
   else if (page === 'account') body = <Account d={d} reload={loadData} email={st.email} />;

@@ -269,23 +269,28 @@ function loadXlsx() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = () => res(window.XLSX); s.onerror = () => rej(new Error('Excel-module kon niet geladen worden.')); document.head.appendChild(s); });
 }
+// Investeerdersgroepen: overview. Creating a group has its own page (#/investeerdersgroepen/nieuw).
 function AdmGroups() {
-  const [gs, setGs] = useState(null), [err, setErr] = useState(''), [name, setName] = useState(''), [desc, setDesc] = useState(''), [busy, setBusy] = useState(false), [creating, setCreating] = useState(false);
-  const load = () => adm('groups').then((r) => setGs(r.groups)).catch((x) => setErr(errText(x)));
-  useEffect(() => { load(); }, []);
-  async function create() {
-    setBusy(true); setErr('');
-    try { const r = await adm('group_create', { name, description: desc }); location.hash = '#/investeerdersgroepen/' + r.code; }
-    catch (x) { setErr(errText(x)); setBusy(false); }
-  }
+  const [gs, setGs] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { adm('groups').then((r) => setGs(r.groups)).catch((x) => setErr(errText(x))); }, []);
   if (!gs) return <Wait err={err} />;
-  return <><div className="page-head"><div><h1 className="page-title">Investeerdersgroepen</h1><p className="page-sub">Groepen investeerders. Een groep wordt gebruikt voor e-mailcampagnes.</p></div><div className="row"><Btn onClick={() => setCreating((x) => !x)}>{creating ? 'Sluiten' : 'Nieuwe groep'}</Btn></div></div>
+  return <><div className="page-head"><div><h1 className="page-title">Investeerdersgroepen</h1><p className="page-sub">Groepen investeerders. Een groep wordt gebruikt voor e-mailcampagnes.</p></div><div className="row"><Btn onClick={() => { location.hash = '#/investeerdersgroepen/nieuw'; }}>Nieuwe groep</Btn></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
     <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Groep</th><th>Omschrijving</th><th className="n">Leden</th></tr></thead><tbody>{gs.map((x) => <tr key={x.code} className="click" style={{ cursor: 'pointer' }} onClick={() => { location.hash = '#/investeerdersgroepen/' + x.code; }}><td data-l="Groep"><b>{x.name}</b></td><td data-l="Omschrijving">{x.description}</td><td data-l="Leden" className="n">{x.members}</td></tr>)}</tbody></table></div></div>
-    {creating && <><div style={{ height: 12 }} />
-    <div className="card stack"><h2 style={{ margin: 0 }}>Nieuwe groep</h2>
-      <div className="grid2"><label>Naam<input value={name} onChange={(e) => setName(e.target.value)} placeholder="bv. Investeerders 2027" /></label><label>Omschrijving<input value={desc} onChange={(e) => setDesc(e.target.value)} /></label></div>
-      <div><Btn onClick={create} disabled={busy || !name.trim()}>{busy ? 'Bezig…' : 'Groep aanmaken'}</Btn></div></div></>}
+  </>;
+}
+// New group page: after creating, back to the list.
+function AdmGroupNew() {
+  const [name, setName] = useState(''), [desc, setDesc] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('');
+  async function create() {
+    setBusy(true); setErr('');
+    try { await adm('group_create', { name, description: desc }); location.hash = '#/investeerdersgroepen'; }
+    catch (x) { setErr(errText(x)); setBusy(false); }
+  }
+  return <><div className="page-head"><div><h1 className="page-title">Nieuwe groep</h1><p className="page-sub"><a href="#/investeerdersgroepen">← Alle groepen</a></p></div></div>
+    <Note kind="error">{err}</Note>
+    <div className="card stack"><div className="grid2"><label>Naam<input value={name} onChange={(e) => setName(e.target.value)} placeholder="bv. Investeerders 2027" /></label><label>Omschrijving<input value={desc} onChange={(e) => setDesc(e.target.value)} /></label></div>
+      <div className="row"><Btn onClick={create} disabled={busy || !name.trim()}>{busy ? 'Bezig…' : 'Groep aanmaken'}</Btn><a href="#/investeerdersgroepen">Annuleren</a></div></div>
   </>;
 }
 // One group: members, add investors, remove investors.
