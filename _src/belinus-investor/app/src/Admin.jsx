@@ -288,6 +288,59 @@ function BoleroImport() {
   const total = rows ? rows.reduce((s, r) => s + r.invested, 0) : 0;
   return <div className="card stack"><h2>Bolero-lijst importeren</h2><p className="hint">Kies het bestand bondholders.xls. Er worden geen e-mails verstuurd; de records krijgen status "opgeschort" tot de uitnodiging wordt verstuurd. Het schema volgt de aflossingstabel (voorlopig).</p><input type="file" accept=".xls,.xlsx" onChange={pick} />{rows && <><p style={{ margin: 0 }}>{rows.length} investeerders, totaal € {total.toLocaleString('nl-BE')}. Met tweede houder: {rows.filter((r) => r.holders.length > 1).length}.</p><Btn onClick={run} disabled={busy}>{busy ? 'Bezig…' : 'Importeer'}</Btn></>}{msg && <Note kind="ok">{msg}</Note>}{err && <Note kind="error">{err}</Note>}</div>;
 }
+const CAMP_ST = { draft: 'concept', sending: 'wordt verstuurd', sent: 'verstuurd' };
+function AdmCampaigns() {
+  const [d, setD] = useState(null), [g, setG] = useState([]), [err, setErr] = useState('');
+  useEffect(() => { adm('campaigns').then(setD).catch((x) => setErr(errText(x))); adm('groups').then((r) => setG(r.groups)).catch(() => {}); }, []);
+  if (!d) return <Wait err={err} />;
+  return <><div className="page-head"><div><h1 className="page-title">E-mailcampagnes</h1><p className="page-sub">Campagnes naar groepen investeerders. Automatische e-mails staan onder "Automatische e-mails".</p></div></div>
+    <Note kind="error">{err}</Note><div style={{ height: 12 }} />
+    <div className="card stack"><h2 style={{ margin: 0 }}>Groepen</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Groep</th><th>Omschrijving</th><th className="n">Leden</th></tr></thead><tbody>{g.map((x) => <tr key={x.code}><td data-l="Groep"><b>{x.name}</b></td><td data-l="Omschrijving">{x.description}</td><td data-l="Leden" className="n">{x.members}</td></tr>)}</tbody></table></div></div>
+    <div style={{ height: 12 }} />
+    <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Campagne</th><th>Groep</th><th>Status</th><th className="n">Verstuurd</th><th className="n">Geopend</th><th className="n">Link geklikt</th></tr></thead><tbody>{d.campaigns.map((c) => <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => { location.hash = '#/campagnes/' + c.id; }}><td data-l="Campagne"><b>{c.name}</b></td><td data-l="Groep">{c.group_code || '—'}</td><td data-l="Status"><span className={'chip ' + (c.status === 'sent' ? 'ok' : c.status === 'draft' ? '' : 'warn')}>{CAMP_ST[c.status] || c.status}</span></td><td data-l="Verstuurd" className="n">{c.sent}</td><td data-l="Geopend" className="n">{c.events_loaded ? c.opened : '—'}</td><td data-l="Link geklikt" className="n">{c.events_loaded ? c.clicked : '—'}</td></tr>)}</tbody></table></div></div></>;
+}
+function AdmCampaign({ id }) {
+  const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [tab, setTab] = useState('stats');
+  const load = () => adm('campaign', { id }).then(setD).catch((x) => setErr(errText(x)));
+  useEffect(() => { load(); }, [id]);
+  async function refresh() { setBusy(true); setErr(''); try { await adm('campaign_refresh', { id }); await load(); } catch (x) { setErr(errText(x)); } finally { setBusy(false); } }
+  if (!d) return <Wait err={err} />;
+  const c = d.campaign, s = d.stats;
+  const cards = [['Verstuurd', s.sent], ['Afgeleverd', s.delivered], ['Geopend', s.opened], ['Niet geopend', s.not_opened], ['Link geklikt', s.clicked], ['Mislukt', s.failed]];
+  return <><div className="page-head"><div><h1 className="page-title">{c.name}</h1><p className="page-sub"><a href="#/campagnes">← Alle campagnes</a> · Groep: {c.group_code || '—'} · {CAMP_ST[c.status] || c.status}{c.sent_at ? ' · ' + new Date(c.sent_at).toLocaleString('nl-BE') : ''}</p></div><div className="row"><Btn kind="ghost" onClick={refresh} disabled={busy}>{busy ? 'Bezig…' : 'Statistieken bijwerken'}</Btn></div></div>
+    <Note kind="error">{err}</Note><div style={{ height: 12 }} />
+    <div className="seg" role="tablist">{[['stats', 'Resultaten'], ['recipients', 'Ontvangers'], ['template', 'E-mailtemplate']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={'seg-b' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}</div>
+    <div style={{ height: 16 }} />
+    {tab === 'stats' && <div className="card"><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>{cards.map(([k, v]) => <div key={k}><div className="hint">{k}</div><div style={{ fontSize: 28 }}>{v}</div></div>)}</div><p className="hint" style={{ marginTop: 16 }}>Openen en klikken komen uit Mailgun-gebeurtenissen. Klik op "Statistieken bijwerken" om ze op te halen.</p></div>}
+    {tab === 'recipients' && <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Ontvanger</th><th>Status</th><th>Afgeleverd</th><th>Geopend</th><th>Links geklikt</th></tr></thead><tbody>{d.recipients.map((r) => <tr key={r.recipient}><td data-l="Ontvanger">{r.recipient}</td><td data-l="Status">{r.status}</td><td data-l="Afgeleverd">{r.delivered ? 'ja' : 'nee'}</td><td data-l="Geopend">{r.opened ? 'ja' : 'nee'}</td><td data-l="Links geklikt">{r.links.length ? r.links.join(', ') : '—'}</td></tr>)}</tbody></table></div></div>}
+    {tab === 'template' && <div className="card stack"><p style={{ margin: 0 }}><b>Onderwerp:</b> {d.template.subject}</p><iframe title="E-mailtemplate" srcDoc={d.template.html} style={{ width: '100%', height: 640, border: '1px solid var(--line, #ddd)', borderRadius: 8, background: '#fff' }} /></div>}
+  </>;
+}
+const AUTO_MAILS = [
+  ['invite', 'Persoonlijke uitnodiging', 'Beheerder klikt "Uitnodigen", of verzending van de uitnodigingsbatch', 'Alleen investeerders met status uitgenodigd. Bij de eerste uitnodiging cc naar info@winwinner.be. Persoonlijke link tot de uiterste datum.', 'Uitnodigingstekst met persoonlijke link en uiterste datum (NL)'],
+  ['invite-test', 'Testmail uitnodiging', 'Knop "Stuur testmail naar Erwin" op Beschikbaarheid', 'Alleen naar erwin@evchargeking.com. Geen cc.', 'Uitnodigingstekst met voorbeeldlink, onderwerp begint met "TEST"'],
+  ['access-link', 'Wachtwoordlink', 'Investeerder vraagt een nieuwe link, of beheerder stuurt opnieuw', 'Eén persoonlijke link; geldig tot de uiterste datum.', 'Stel-uw-wachtwoord-tekst (NL/FR/EN)'],
+  ['login-code', 'Aanmeldcode', 'Aanmelding op het portaal (tweede stap)', '6 cijfers, 10 minuten geldig, één keer te gebruiken.', 'Korte e-mail met de code'],
+  ['choice', 'Bevestiging van uw keuze', 'Investeerder bevestigt keuze A, B of C in het portaal', 'Verstuurd bij elke bevestiging. De keuze is daarna definitief. Bij keuze A/B: aankondiging van een e-mail van info@winwinner.be om het contract aan te passen. Bedankt voor uw vertrouwen.', 'Bevestiging met gekozen optie, vervolgstap en bedankje (NL/FR/EN)'],
+  ['booking', 'Bevestiging afspraak', 'Investeerder boekt een afspraak (bezoek, video of terugbellen)', 'Kalenderbestand (.ics) bijgevoegd. Bezoek toont aankomsttijd en adres.', 'Afspraakbevestiging met details en link om te verplaatsen of annuleren'],
+  ['booking-moved', 'Afspraak verplaatst', 'Beheerder verplaatst een afspraak (met melding)', 'Nieuw kalenderbestand bijgevoegd.', 'Melding van de nieuwe datum en tijd'],
+  ['booking-cancel', 'Afspraak geannuleerd', 'Investeerder of beheerder annuleert een afspraak', 'Bevestiging van de annulering aan de investeerder.', 'Annuleringsbevestiging'],
+  ['booking-reminder', 'Herinnering afspraak', 'Automatisch 15 minuten voor de afspraak (bel-inv-reminders)', 'Naar de investeerder en het interne contact. Voor video en bezoek met link.', 'Korte herinnering met tijdstip en link'],
+  ['booking-notice', 'Interne melding afspraak', 'Nieuwe, geannuleerde of verplaatste afspraak', 'Naar het ingestelde meldingsadres (instellingen).', 'Korte interne melding'],
+  ['message', 'Bericht van beheerder', 'Beheerder stuurt een bericht in het portaal', 'Melding aan de investeerder; het bericht zelf staat in het portaal.', 'Melding dat er een nieuw bericht is'],
+  ['message-in', 'Nieuw bericht van investeerder', 'Investeerder stuurt een bericht in het portaal', 'Interne melding naar het ingestelde meldingsadres.', 'Korte interne melding met de tekst van het bericht'],
+];
+function AutoPreview({ kind }) {
+  const [p, setP] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+  async function show() { setBusy(true); setErr(''); try { setP(await adm('automated_preview', { kind })); } catch (x) { setErr(errText(x)); } finally { setBusy(false); } }
+  if (!p) return <div><Btn kind="ghost" onClick={show} disabled={busy}>{busy ? 'Bezig…' : 'Voorbeeld'}</Btn>{err && <Note kind="error">{err}</Note>}</div>;
+  if (!p.ok) return <p className="hint" style={{ margin: 0 }}>Volledig voorbeeld volgt; tekst staat in de kolom Inhoud.</p>;
+  return <div className="stack"><div className="mail-meta"><span>Van</span><b>{p.from}</b><span>Onderwerp</span><b>{p.subject}</b></div><iframe className="mail-frame" title={'Voorbeeld ' + kind} sandbox="" srcDoc={p.html} /></div>;
+}
+function AdmAutomated() {
+  return <><div className="page-head"><div><h1 className="page-title">Automatische e-mails</h1><p className="page-sub">Alle e-mails die het systeem zelf verstuurt, met trigger en regels. Campagnes staan onder E-mailcampagnes.</p></div></div>
+    <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>E-mail</th><th>Trigger</th><th>Regels</th><th>Inhoud</th></tr></thead><tbody>{AUTO_MAILS.map(([k, n, tr, rule, body]) => <tr key={k}><td data-l="E-mail"><b>{n}</b><br /><span className="hint">{k}</span></td><td data-l="Trigger">{tr}</td><td data-l="Regels">{rule}</td><td data-l="Inhoud">{body}<div style={{ marginTop: 8 }}><AutoPreview kind={k} /></div></td></tr>)}</tbody></table></div></div></>;
+}
 function AdmFinancial() {
   const [view, setView] = useState('planned'), [signed, setSigned] = useState(false), [filter, setFilter] = useState('all');
   const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);

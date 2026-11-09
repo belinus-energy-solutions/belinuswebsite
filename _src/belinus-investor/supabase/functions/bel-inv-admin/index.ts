@@ -1,7 +1,7 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor } from "../_shared/finance.ts";
-import { icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, APP_URL } from "../_shared/inv.ts";
+import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, APP_URL } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -107,7 +107,9 @@ Deno.serve(async (req) => {
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested").eq("id", id).single();
     if (inv.status !== "invited") return json({ error: "already-active" }, 400);
-    const ok = await sendInvite(a, inv);
+    // Winwinner is in cc only on the very first invitation to this investor.
+    const firstTime = !(await invitedMap(a)).has(inv.email);
+    const ok = await sendInvite(a, inv, { cc: firstTime });
     await audit(a, u, "invite-sent", inv.email);
     return ok ? json({ ok: true }) : json({ error: "mail-failed" }, 503);
   }
@@ -172,6 +174,83 @@ Deno.serve(async (req) => {
     await flush();
     return json({ ok: true, imported, skipped });
   }
+  if (action === "groups") {
+    const { data: gs } = await a.from("inv_groups").select("code, name, description").order("name");
+    const { data: ms } = await a.from("inv_group_members").select("group_code");
+    const n = new Map<string, number>();
+    for (const m of ms || []) n.set(m.group_code, (n.get(m.group_code) || 0) + 1);
+    return json({ ok: true, groups: (gs || []).map((g: any) => ({ ...g, members: n.get(g.code) || 0 })) });
+  }
+  if (action === "campaigns") {
+    const { data: cs } = await a.from("inv_campaigns").select("*").order("created_at", { ascending: false });
+    const { data: logs } = await a.from("inv_mail_log").select("campaign_id, status").not("campaign_id", "is", null);
+    const { data: ev } = await a.from("inv_mail_events").select("campaign_id, recipient, event");
+    const out = (cs || []).map((c: any) => {
+      const l = (logs || []).filter((x: any) => x.campaign_id === c.id);
+      const e = (ev || []).filter((x: any) => x.campaign_id === c.id);
+      const uniq = (k: string) => new Set(e.filter((x: any) => x.event === k).map((x: any) => x.recipient)).size;
+      return { ...c, sent: l.filter((x: any) => x.status === "sent").length, failed: l.filter((x: any) => x.status === "failed").length, opened: uniq("opened"), clicked: uniq("clicked"), events_loaded: e.length > 0 };
+    });
+    return json({ ok: true, campaigns: out });
+  }
+  if (action === "campaign") {
+    const { data: c } = await a.from("inv_campaigns").select("*").eq("id", body.id).single();
+    if (!c) return json({ error: "not-found" }, 404);
+    const { data: logs } = await a.from("inv_mail_log").select("recipient, status, created_at").eq("campaign_id", c.id);
+    const { data: ev } = await a.from("inv_mail_events").select("recipient, event, url, at").eq("campaign_id", c.id).order("at");
+    const per = new Map<string, any>();
+    for (const l of logs || []) per.set(l.recipient, { recipient: l.recipient, status: l.status, sent_at: l.created_at, events: [] });
+    for (const x of ev || []) { const r = per.get(x.recipient) || { recipient: x.recipient, status: "onbekend", sent_at: null, events: [] }; r.events.push(x); per.set(x.recipient, r); }
+    const rows = [...per.values()].map((r: any) => ({ recipient: r.recipient, status: r.status, sent_at: r.sent_at, delivered: r.events.some((e: any) => e.event === "delivered"), opened: r.events.some((e: any) => e.event === "opened"), clicked: r.events.some((e: any) => e.event === "clicked"), links: r.events.filter((e: any) => e.event === "clicked").map((e: any) => e.url) }));
+    const cnt = (f: (r: any) => boolean) => rows.filter(f).length;
+    const stats = { sent: cnt((r) => r.status === "sent"), failed: cnt((r) => r.status === "failed"), delivered: cnt((r) => r.delivered), opened: cnt((r) => r.opened), not_opened: cnt((r) => r.status === "sent" && !r.opened), clicked: cnt((r) => r.clicked) };
+    let tpl: { subject: string; html: string; text: string } = { subject: c.subject, text: c.body, html: mailHtml(c.body, undefined, "nl", false, "") };
+    if (c.mail_kind === "invite") {
+      const st = await settings(a);
+      const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
+      const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
+      const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
+      tpl = { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, "") };
+    }
+    return json({ ok: true, campaign: c, stats, recipients: rows, template: tpl });
+  }
+  if (action === "automated_preview") {
+    // Full rendered preview for the automated mails that have a live renderer; the others are shown as text only.
+    const k = String(body.kind || "");
+    if (k === "invite" || k === "invite-test") {
+      const p = await invitePreview(a, { email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 });
+      return json({ ok: true, subject: p.subject, from: p.from, html: p.html });
+    }
+    if (k === "booking") {
+      const p = await bookingPreview(a, "visit");
+      return json({ ok: true, subject: p.subject, from: p.from, html: p.html });
+    }
+    return json({ ok: false, reason: "not-available" });
+  }
+  if (action === "campaign_refresh") {
+    // Pulls delivery, open and click events from Mailgun for this campaign (tag campaign:<id>).
+    const { data: c } = await a.from("inv_campaigns").select("id").eq("id", body.id).single();
+    if (!c) return json({ error: "not-found" }, 404);
+    const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN");
+    if (!key || !domain) return json({ error: "mail-not-configured" }, 503);
+    const base = (Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "");
+    const got: any[] = [];
+    for (const event of ["delivered", "opened", "clicked", "failed"]) {
+      let next: string | null = `${base}/v3/${encodeURIComponent(domain)}/events?event=${event}&tags=${encodeURIComponent("campaign:" + c.id)}&limit=300`;
+      let pages = 0;
+      while (next && pages < 10) {
+        const r: Response = await fetch(next, { headers: { Authorization: "Basic " + btoa("api:" + key) } });
+        if (!r.ok) return json({ error: "mailgun-events-failed", status: r.status }, 502);
+        const j: any = await r.json();
+        for (const e of j.items || []) got.push({ campaign_id: c.id, message_id: e.message?.headers?.["message-id"] || null, recipient: e.recipient, event: e.event, url: e.url || null, at: new Date(e.timestamp * 1000).toISOString() });
+        next = (j.items || []).length && j.paging?.next ? j.paging.next : null;
+        pages++;
+      }
+    }
+    await a.from("inv_mail_events").delete().eq("campaign_id", c.id);
+    for (let i = 0; i < got.length; i += 500) await a.from("inv_mail_events").insert(got.slice(i, i + 500));
+    return json({ ok: true, events: got.length });
+  }
   if (action === "invite_pending" || action === "invite_batch") {
     // Only Winwinner subscribers (crowd-/winwin- tranches). Bolero investors never receive these mails.
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested, tranche").eq("is_test", false).eq("status", "invited").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name");
@@ -182,7 +261,12 @@ Deno.serve(async (req) => {
     if (body.confirm !== "VERSTUREN") return json({ error: "bad-input" }, 400);
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
     let ok = 0, failed = 0;
-    for (const i of todo.slice(0, 20)) { if (await sendInvite(a, i)) ok++; else failed++; }
+    // One campaign per batch; every mail of this batch is linked to it (tracking, status, detail page).
+    let { data: camp } = await a.from("inv_campaigns").select("id").eq("mail_kind", "invite").eq("group_code", "winwinner").in("status", ["draft", "sending"]).order("created_at").limit(1).maybeSingle();
+    if (!camp) ({ data: camp } = await a.from("inv_campaigns").insert({ name: "Uitnodiging Winwinner – eerste uitnodiging", group_code: "winwinner", mail_kind: "invite", subject: "Uitnodiging voor het Investeerdersportaal EVChargeking", body: "Persoonlijke uitnodigingsmail met persoonlijke link.", status: "sending" }).select("id").single());
+    if (camp?.id) await a.from("inv_campaigns").update({ status: "sending" }).eq("id", camp.id);
+    for (const i of todo.slice(0, 20)) { if (await sendInvite(a, i, { cc: true, campaign: camp?.id })) ok++; else failed++; }
+    if (camp?.id && todo.length - ok - failed <= 0) await a.from("inv_campaigns").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", camp.id);
     await audit(a, u, "invite-batch", "investors", { ok, failed });
     return json({ ok: true, sent: ok, failed, left: Math.max(0, todo.length - ok - failed) });
   }
