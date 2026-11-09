@@ -154,12 +154,18 @@ function choiceChip(d) {
   if (c.addendum_status === 'signed') return <span className="chip ok">{t('Addendum ondertekend')}</span>;
   return <span className="chip info">{t('Gekozen:')} {c.choice} ({dayNl(c.confirmed_at)})</span>;
 }
-// Join button for a video appointment: enabled from 10 minutes before the start until the end.
+// Join button for a video appointment. Always visible; before the window it shows a message instead of opening the meeting.
 function JoinLink({ url, starts }) {
-  const now = Date.now(), from = new Date(starts).getTime() - 10 * 60000, open = now >= from;
-  return open
-    ? <a className="btn sm" href={url} target="_blank" rel="noopener">{t('Deelnemen aan videogesprek')}</a>
-    : <p className="hint" style={{ margin: 0 }}>{t('De knop om deel te nemen wordt actief 10 minuten voor het begin.')}</p>;
+  const [msg, setMsg] = useState('');
+  const from = new Date(starts).getTime() - 10 * 60000;
+  function join(e) {
+    if (Date.now() < from) { e.preventDefault(); setMsg(t('Dit videogesprek is nog niet beschikbaar. U kunt deelnemen vanaf 10 minuten voor het geplande tijdstip ({time}). Kom dan terug op deze pagina.').replace('{time}', whenNl(starts))); return; }
+    setMsg('');
+  }
+  return <div>
+    <a className={'btn sm' + (Date.now() < from ? ' ghost' : '')} href={url} target="_blank" rel="noopener" onClick={join}>{t('Deelnemen aan videogesprek')}</a>
+    {msg && <p className="hint" style={{ margin: '8px 0 0' }}>{msg}</p>}
+  </div>;
 }
 function Home({ d }) {
   const end = d.original.length ? d.original[d.original.length - 1].due : null;
