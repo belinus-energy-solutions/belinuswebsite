@@ -212,8 +212,11 @@ De rentevoet blijft dezelfde. U ontvangt dus één jaar extra interest.
 A – Ik ga akkoord met de verlenging. Binnen de drie maanden ontvang ik enkel de interesten, geen kapitaal.
 B – Ik ga akkoord dat binnen de drie maanden enkel de interesten worden betaald, geen kapitaal. Ik kies het stijgend terugbetalingsplan: vanaf 2027 wordt mijn kapitaal in stappen terugbetaald volgens de planning in het portaal, en de interesten worden betaald op het resterende kapitaal.
 C – Ik ga niet akkoord. Vermeld kort waarom; we nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft dan ongewijzigd van toepassing.
+${isWinwinlening(inv.tranche) ? "\n**Behoud van uw fiscaal voordeel op optie A en B is gegarandeerd.**\n" : ""}
 
 ## UW ACCOUNT STAAT KLAAR – UW KEUZE UITERLIJK OP ${D.toUpperCase()}
+
+We vragen u om binnen 7 kalenderdagen te antwoorden, uiterlijk op ${D}. U bent daartoe niet verplicht. Onze eerstvolgende geplande betaling (14 november 2026) valt echter vóór die datum en blijft in afwachting van uw antwoord.
 
 U hebt al een account in ons investeerdersportaal. Uw gebruikersnaam is het e-mailadres waarop u deze e-mail ontving: ${inv.email}
 
