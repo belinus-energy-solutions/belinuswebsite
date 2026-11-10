@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
   if (action === "invite_preview") {
     let inv: any = null;
     if (id) ({ data: inv } = await a.from("inv_investors").select("email, first_name, invested, tranche").eq("id", id).maybeSingle());
-    if (!inv) { const { data } = await a.from("inv_investors").select("email, first_name, invested").eq("is_test", false).eq("status", "invited").order("last_name").limit(1); inv = data?.[0] || { email: "voorbeeld@investeerder.be", first_name: "Jan", invested: 5000 }; }
+    if (!inv) { const { data } = await a.from("inv_investors").select("email, first_name, invested").eq("is_test", false).eq("status", "invited").order("last_name").limit(1); inv = data?.[0] || { email: "[e-mailadres investeerder]", first_name: "Jan", invested: 5000 }; }
     // The first invitation to each investor carries a copy to info@winwinner.be (see sendInvite).
     return json({ ok: true, ...(await invitePreview(a, inv)), cc: "info@winwinner.be" });
   }
@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
       const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
       const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
       const sample = (tranche: string) => {
-        const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000, tranche }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
+        const m = inviteContent({ email: "[e-mailadres investeerder]", first_name: "Jan", invested: 1000, tranche }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
         return { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, ""), cc: "info@winwinner.be" };
       };
       // Two versions of the same campaign: Crowdlening (no Winwinlening text) and Winwinlening (state-backed: tax-benefit line and Winwinner execution note).
@@ -306,13 +306,13 @@ Deno.serve(async (req) => {
         const st = await settings(a);
         const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
         const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
-        const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
+        const m = inviteContent({ email: "[e-mailadres investeerder]", first_name: "Jan", invested: 1000 }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
         subject = m.subject; htmlOut = mailHtml(m.text, m.cta, "nl", true, "");
       } else { subject = c.subject; htmlOut = mailHtml(c.body, undefined, "nl", false, ""); }
     } else {
       const k = String(body.kind || "");
       let p: any = null;
-      if (k === "invite" || k === "invite-test") p = await invitePreview(a, { email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 });
+      if (k === "invite" || k === "invite-test") p = await invitePreview(a, { email: "[e-mailadres investeerder]", first_name: "Jan", invested: 1000 });
       else if (k === "booking") p = await bookingPreview(a, "visit");
       else p = await automatedPreview(a, k);
       if (!p) return json({ error: "not-available" }, 400);
@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
     // Full rendered preview for the automated mails that have a live renderer; the others are shown as text only.
     const k = String(body.kind || "");
     if (k === "invite" || k === "invite-test") {
-      const p = await invitePreview(a, { email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 });
+      const p = await invitePreview(a, { email: "[e-mailadres investeerder]", first_name: "Jan", invested: 1000 });
       return json({ ok: true, subject: p.subject, from: p.from, html: p.html });
     }
     if (k === "booking") {

@@ -218,7 +218,7 @@ ${isWinwinlening(inv.tranche) ? "\n**Behoud van uw fiscaal voordeel op optie A e
 
 We vragen u om binnen 7 kalenderdagen te antwoorden, uiterlijk op ${D}. U bent daartoe niet verplicht. Onze eerstvolgende geplande betaling (14 november 2026) valt echter vóór die datum en blijft in afwachting van uw antwoord.
 
-U hebt al een account in ons investeerdersportaal. Uw gebruikersnaam is het e-mailadres waarop u deze e-mail ontving: ${inv.email}
+U hebt al een account in ons investeerdersportaal. Uw gebruikersnaam is het e-mailadres waarop deze e-mail is gericht: ${inv.email}
 
 Klik op de knop hieronder, kies een wachtwoord en u komt meteen bij uw investering${inv.invested ? ` (${eur0(Number(inv.invested))})` : ""}, uw betaalschema en uw keuze.
 
