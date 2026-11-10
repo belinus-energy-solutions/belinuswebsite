@@ -294,9 +294,9 @@ Deno.serve(async (req) => {
         { label: "Winwinlening (door de staat gesteund)", ...sample("winwin-1411") },
       ];
       tpl = templates[0] as any;
-      return json({ ok: true, role: acc.role, campaign: c, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl, templates });
+      return json({ ok: true, role: acc.role, campaign: c, limit_until: (await a.from("inv_settings").select("value").eq("key", "mail_limit_until").maybeSingle()).data?.value || null, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl, templates });
     }
-    return json({ ok: true, role: acc.role, campaign: c, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl });
+    return json({ ok: true, role: acc.role, campaign: c, limit_until: (await a.from("inv_settings").select("value").eq("key", "mail_limit_until").maybeSingle()).data?.value || null, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl });
   }
   if (action === "messages_all") {
     const { data: ms, error } = await a.from("inv_messages").select("id, investor_id, direction, body, created_at, read_at, mail_status, author_email, inv_investors(email, first_name, last_name, company_name)").order("created_at", { ascending: false }).limit(1000);
@@ -410,11 +410,16 @@ Deno.serve(async (req) => {
     const left = Math.max(0, todo.length - ok - failed);
     // Mailgun free plan: 100 requests a day per domain. When that is hit, the rest is sent after the reset.
     const dayLimit = failed > 0 && /daily request limit/i.test(lastMailError);
-    let resetAt = "";
+    let resetAt = "", resetIso = "";
     const m = lastMailError.match(/try again after ([^"\\]+?UTC)/i);
-    if (m) resetAt = new Date(m[1]).toLocaleTimeString("nl-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
+    if (m && !isNaN(new Date(m[1]).getTime())) {
+      resetIso = new Date(m[1]).toISOString();
+      resetAt = new Date(m[1]).toLocaleTimeString("nl-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
+    }
+    // Remember the reset time, so the send button stays disabled until then, also after a page reload.
+    if (dayLimit && resetIso) await a.from("inv_settings").upsert({ key: "mail_limit_until", value: resetIso });
     const limit = dayLimit ? `Mailgun heeft het dagelijkse maximum van 100 verzendingen bereikt. De mails die niet zijn verstuurd (${failed} mislukt, ${left} nog te doen) worden automatisch verstuurd${resetAt ? " na " + resetAt + " (Belgische tijd)" : " de volgende dag"}. Druk daarvoor opnieuw op de verzendknop; investeerders die al een uitnodiging hebben, worden overgeslagen.` : "";
-    return json({ ok: true, sent: ok, failed, left, limit });
+    return json({ ok: true, sent: ok, failed, left, limit, reset_at: resetIso || null });
   }
   if (action === "resend_invite") {
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, lang").eq("id", id).single();
