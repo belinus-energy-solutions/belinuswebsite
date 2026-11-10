@@ -273,8 +273,17 @@ Deno.serve(async (req) => {
       const st = await settings(a);
       const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
       const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
-      const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000 }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
-      tpl = { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, ""), cc: "info@winwinner.be" } as any;
+      const sample = (tranche: string) => {
+        const m = inviteContent({ email: "voorbeeld@voorbeeld.be", first_name: "Jan", invested: 1000, tranche }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
+        return { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, ""), cc: "info@winwinner.be" };
+      };
+      // Two versions of the same campaign: Crowdlening (no Winwinlening text) and Winwinlening (state-backed: tax-benefit line and Winwinner execution note).
+      const templates = [
+        { label: "Crowdlening (zonder Winwinlening-tekst)", ...sample("crowd-1411") },
+        { label: "Winwinlening (door de staat gesteund)", ...sample("winwin-1411") },
+      ];
+      tpl = templates[0] as any;
+      return json({ ok: true, role: acc.role, campaign: c, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl, templates });
     }
     return json({ ok: true, role: acc.role, campaign: c, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: tpl });
   }
