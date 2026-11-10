@@ -172,7 +172,7 @@ function InvPage({ id }) {
     <Note kind="ok">{ok}</Note><Note kind="error">{err}</Note>{prev && <InvitePreview id={i.id} onClose={() => setPrev(false)} />}
     <div className="inv-grid">
       <div className="card stack"><h2 style={{ margin: 0 }}>Gegevens</h2>{[
-        ['Type', isCompany(i) ? 'Bedrijf' : 'Privé'], ['Bedrijfsnaam', i.company_name || '—'], ['Naam', [i.first_name, i.last_name].filter(Boolean).join(' ') || '—'],
+        ['Type', isCompany(i) ? 'Bedrijf' : 'Privé'], ['Roerende voorheffing', `${Math.round(Number(i.withholding_rate ?? 0.3) * 100)}%`], ['Bedrijfsnaam', i.company_name || '—'], ['Naam', [i.first_name, i.last_name].filter(Boolean).join(' ') || '—'],
         ['E-mail', i.email], ['Telefoon', i.phone || '—'], ['IBAN', i.iban || '—'], ['Taal', i.lang || '—'],
         ['Tranche', trName(i.tranche)], ['Bedrag', eur(i.invested)], ['Investering op', i.invested_on ? dayNl(i.invested_on) : '—'],
         ['Status account', i.status === 'active' ? 'actief sinds ' + dayNl(i.activated_at) : i.status === 'suspended' ? 'geschorst' : 'nog geen wachtwoord'],

@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   // Full investor page: loan, choices, appointments with their notes (admins only), messages and the mails sent.
   if (action === "investor_page") {
     const [{ data: inv }, { data: sch }, { data: log }, { data: bk }, { data: notes }, { data: msgs }, { data: ch }, { data: tr }] = await Promise.all([
-      a.from("inv_investors").select("id, email, first_name, last_name, company_name, phone, iban, tranche, invested, invested_on, status, is_test, is_demo, activated_at, last_login_at, created_at, lang, terms_version, terms_accepted_at, terms_email_consent").eq("id", id).single(),
+      a.from("inv_investors").select("id, email, first_name, last_name, company_name, phone, iban, tranche, invested, invested_on, status, is_test, is_demo, activated_at, last_login_at, created_at, lang, terms_version, terms_accepted_at, terms_email_consent, withholding_rate").eq("id", id).single(),
       a.from("inv_schedule").select("*").eq("investor_id", id).order("period"),
       a.from("inv_choice_log").select("*").eq("investor_id", id).order("created_at", { ascending: false }),
       a.from("inv_bookings").select("*, inv_events(title)").eq("investor_id", id).order("starts_at", { ascending: false }),
@@ -468,7 +468,7 @@ Deno.serve(async (req) => {
       return out;
     };
     const [invs, tr, sch, chs] = await Promise.all([
-      page(() => a.from("inv_investors").select("id, email, first_name, last_name, company_name, tranche, invested, is_test, is_demo").order("id")),
+      page(() => a.from("inv_investors").select("id, email, first_name, last_name, company_name, tranche, invested, is_test, is_demo, withholding_rate").order("id")),
       a.from("inv_tranches").select("code, gross_rate, platform"),
       page(() => a.from("inv_schedule").select("investor_id, scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status").order("investor_id").order("period")),
       page(() => a.from("inv_choices").select("investor_id, choice, addendum_status").order("investor_id")),
@@ -499,7 +499,7 @@ Deno.serve(async (req) => {
         lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch?.choice || "—", source: "original", gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal), status: origStatus(r) });
       }
       if (applyNew) {
-        const newRows = ch.choice === "A" ? g.A.map((r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) })) : bSched(Number(inv.invested), g.original, Number(t?.gross_rate || 0), kind);
+        const newRows = ch.choice === "A" ? g.A.map((r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) })) : bSched(Number(inv.invested), g.original, Number(t?.gross_rate || 0), kind, Number(inv.withholding_rate ?? 0.3));
         for (const r of newRows) {
           lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch.choice, source: "option " + ch.choice, gross_interest: r.gross_interest, withholding: r.withholding, net_interest: r.net_interest, principal: r.principal, status: signed ? "planned" : "pending" });
         }
