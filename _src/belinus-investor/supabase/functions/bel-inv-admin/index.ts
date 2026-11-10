@@ -1,5 +1,6 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
+import { lastMailError } from "../_shared/inv.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor } from "../_shared/finance.ts";
 import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, APP_URL, automatedPreview } from "../_shared/inv.ts";
 
@@ -396,7 +397,14 @@ Deno.serve(async (req) => {
     for (const i of todo.slice(0, 20)) { if (await sendInvite(a, i, { cc: true, campaign: camp?.id })) ok++; else failed++; }
     if (camp?.id && todo.length - ok - failed <= 0) await a.from("inv_campaigns").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", camp.id);
     await audit(a, u, "invite-batch", "investors", { ok, failed });
-    return json({ ok: true, sent: ok, failed, left: Math.max(0, todo.length - ok - failed) });
+    const left = Math.max(0, todo.length - ok - failed);
+    // Mailgun free plan: 100 requests a day per domain. When that is hit, the rest is sent after the reset.
+    const dayLimit = failed > 0 && /daily request limit/i.test(lastMailError);
+    let resetAt = "";
+    const m = lastMailError.match(/try again after ([^"\\]+?UTC)/i);
+    if (m) resetAt = new Date(m[1]).toLocaleTimeString("nl-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
+    const limit = dayLimit ? `Mailgun heeft het dagelijkse maximum van 100 verzendingen bereikt. De mails die niet zijn verstuurd (${failed} mislukt, ${left} nog te doen) worden automatisch verstuurd${resetAt ? " na " + resetAt + " (Belgische tijd)" : " de volgende dag"}. Druk daarvoor opnieuw op de verzendknop; investeerders die al een uitnodiging hebben, worden overgeslagen.` : "";
+    return json({ ok: true, sent: ok, failed, left, limit });
   }
   if (action === "resend_invite") {
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, lang").eq("id", id).single();

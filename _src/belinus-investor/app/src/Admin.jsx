@@ -330,15 +330,16 @@ function AdmCampaigns() {
 }
 // Bulk send of an invitation campaign to the investors of its group who still await an invitation.
 function CampaignSend({ c, pending, groupName, groupCount, onDone }) {
-  const [sure, setSure] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [show, setShow] = useState(false);
-  async function go() { setBusy(true); setErr(''); setMsg(''); let total = 0, failed = 0;
-    try { for (let n = 0; n < 20; n++) { const r = await adm('invite_batch', { confirm: 'VERSTUREN', campaign: c.id }); total += r.sent; failed += r.failed; setMsg(`Verstuurd: ${total}${failed ? ' · mislukt: ' + failed : ''} · nog te doen: ${r.left}`); if (!r.left || !r.sent) break; } } catch (x) { setErr(errText(x)); }
+  const [sure, setSure] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [show, setShow] = useState(false), [limit, setLimit] = useState(''), [left, setLeft] = useState(0);
+  async function go() { setBusy(true); setErr(''); setMsg(''); setLimit(''); let total = 0, failed = 0;
+    try { for (let n = 0; n < 20; n++) { const r = await adm('invite_batch', { confirm: 'VERSTUREN', campaign: c.id }); total += r.sent; failed += r.failed; setMsg(`Verstuurd: ${total}${failed ? ' · mislukt: ' + failed : ''} · nog te doen: ${r.left}`); if (r.limit) setLimit(r.limit); setLeft(r.left); if (!r.left || !r.sent) break; } } catch (x) { setErr(errText(x)); }
     setBusy(false); setSure(''); onDone(); }
+  function resend() { if (!window.confirm(`Nu opnieuw versturen? Er zijn nog ${left} uitnodigingen te verzenden. Enkel investeerders zonder uitnodiging ontvangen een mail. Controleer dat de Mailgun-limiet van vandaag is gereset.`)) return; go(); }
   return <div className="card stack"><h2 style={{ fontSize: 18, margin: 0 }}>Campagne versturen</h2>
     <p style={{ margin: 0 }}>Groep: <b>{groupName}</b> ({groupCount} leden). {pending ? `${pending} investeerders hebben nog geen uitnodiging gekregen.` : 'Alle investeerders van deze groep hebben de uitnodiging al gekregen.'} De mail gaat van noreply@belinus.com; antwoorden is niet mogelijk. <button className="link" onClick={() => setShow(true)}>Bekijk de uitnodiging</button></p>
     {show && <InvitePreview onClose={() => setShow(false)} />}
     {!!pending && <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ flex: '0 1 260px' }}><Field label={'Typ VERSTUREN om te bevestigen'}><input value={sure} onChange={(e) => setSure(e.target.value)} /></Field></div><Btn busy={busy} disabled={sure !== 'VERSTUREN'} onClick={go}>{`Verstuur naar ${pending} investeerders`}</Btn></div>}
-    <Note kind="ok">{msg}</Note><Note kind="error">{err}</Note></div>;
+    <Note kind="ok">{msg}{limit && <><br /><br />{limit}</>}{left > 0 && !busy && <div style={{ marginTop: 10 }}><Btn kind="ghost" onClick={resend}>{`Opnieuw versturen (${left} nog te doen)`}</Btn></div>}</Note><Note kind="error">{err}</Note></div>;
 }
 function AdmCampaign({ id }) {
   const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [tab, setTab] = useState('stats');

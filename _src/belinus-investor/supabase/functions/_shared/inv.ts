@@ -84,7 +84,10 @@ export function html(text: string, cta: { url: string; label: string } | undefin
     + `<tr><td style="padding:30px 36px 14px">${parts.join("")}</td></tr>`
     + `<tr><td bgcolor="#F5F6F7" style="padding:18px 36px;font-family:${FONT};font-size:12px;line-height:1.6;color:#7A828C">${foot || (noreply ? NOREPLY_FOOT(APP_URL) : MC[L].foot(APP_URL))}</td></tr></table></td></tr></table></body></html>`;
 }
+// Last provider error of sendMail (read by the invitation batch to explain a daily limit to the admin).
+export let lastMailError = "";
 export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; htmlOverride?: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang; noreply?: boolean; from?: string; replyTo?: string; foot?: string; cc?: string; campaign?: string }): Promise<boolean> {
+  lastMailError = "";
   const L = pickLang(m.lang);
   const log = (provider: string, status: string, msgId?: string | null) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status, campaign_id: m.campaign || null, message_id: msgId || null }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
@@ -105,7 +108,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
       const jb: any = await r.json().catch(() => ({})); await log("brevo", "sent", jb.messageId); return true;
     }
     await log("none", "no-provider"); return false;
-  } catch (e) { console.error("inv mail", m.kind, (e as Error).message); await log(key ? "mailgun" : "brevo", "failed"); return false; }
+  } catch (e) { lastMailError = (e as Error).message; console.error("inv mail", m.kind, (e as Error).message); await log(key ? "mailgun" : "brevo", "failed"); return false; }
 }
 
 const ACCESS: Record<Lang, { first: string; again: string; label: string; body: (u: string) => string; thanks: string }> = {
