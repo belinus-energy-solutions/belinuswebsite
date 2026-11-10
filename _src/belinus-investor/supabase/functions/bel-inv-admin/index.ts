@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
   // Personal invitation (the investor letter with a one-click activation button), to one investor: for tests, or again.
   if (action === "invite") {
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
-    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested").eq("id", id).single();
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested, tranche").eq("id", id).single();
     if (inv.status !== "invited") return json({ error: "already-active" }, 400);
     // Winwinner is in cc only on the very first invitation to this investor.
     const firstTime = !(await invitedMap(a)).has(inv.email);
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
   // Preview of the invitation, exactly as rendered for the chosen (or first pending) investor; the button link is a dummy.
   if (action === "invite_preview") {
     let inv: any = null;
-    if (id) ({ data: inv } = await a.from("inv_investors").select("email, first_name, invested").eq("id", id).maybeSingle());
+    if (id) ({ data: inv } = await a.from("inv_investors").select("email, first_name, invested, tranche").eq("id", id).maybeSingle());
     if (!inv) { const { data } = await a.from("inv_investors").select("email, first_name, invested").eq("is_test", false).eq("status", "invited").order("last_name").limit(1); inv = data?.[0] || { email: "voorbeeld@investeerder.be", first_name: "Jan", invested: 5000 }; }
     // The first invitation to each investor carries a copy to info@winwinner.be (see sendInvite).
     return json({ ok: true, ...(await invitePreview(a, inv)), cc: "info@winwinner.be" });

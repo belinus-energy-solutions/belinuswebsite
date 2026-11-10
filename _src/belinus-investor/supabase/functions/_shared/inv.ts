@@ -147,7 +147,7 @@ export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: stri
     else await a.from("inv_followups").update({ status: "cancelled" }).eq("investor_id", inv.id).eq("kind", kind);
   }
   const L = pickLang(inv.lang), T = CONFIRM_L[L];
-  await sendMail(a, { to: inv.email, kind: "choice", lang: L, subject: T.subject, text: `${hello(inv.first_name, L)}\n\n${T.got}\n\n${CHOICE_L[L][c.choice]}\n\n${T.next[c.choice]}\n\n${T.thank}\n\n${T.change}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
+  await sendMail(a, { to: inv.email, kind: "choice", lang: L, subject: T.subject, text: `${hello(inv.first_name, L)}\n\n${T.got}\n\n${CHOICE_L[L][c.choice]}\n\n${T.next[c.choice]}${isWinwinlening(inv.tranche) ? `\n\n${WIN_NOTE[L]}` : ""}\n\n${T.thank}\n\n${T.change}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
 }
 
 export function strong(p: string): boolean {
@@ -171,7 +171,14 @@ export async function sendInvite(a: SupabaseClient, inv: { id: string; email: st
   return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, cc: opts.cc ? "info@winwinner.be" : undefined, campaign: opts.campaign, subject: m.subject, cta: m.cta, text: m.text });
 }
 // The invitation exactly as it is sent; also used for the preview in Beheer (with a dummy link).
-export function inviteContent(inv: { email: string; first_name?: string | null; invested?: number | string | null }, url: string, deadline: Date, expires: Date): { subject: string; text: string; cta: { url: string; label: string } } {
+// Winwinlening (state-backed) investors: Winwinner executes the choice; subject to signing via the Winwinner platform and possibly PMV validation.
+const WIN_NOTE: Record<Lang, string> = {
+  nl: "Voor de Winwinlening (door de staat gesteund) wordt u door Winwinner gecontacteerd om uw keuze uit te voeren. Dit gebeurt onder alle voorbehoud van de ondertekening van de definitieve overeenkomst via het Winwinner-platform, en mogelijk onder voorbehoud van validatie door PMV.",
+  fr: "Pour le prêt Winwinlening (soutenu par l'État), Winwinner vous contactera pour exécuter votre choix. Cela se fait sous réserve de la signature de l'accord définitif via la plateforme Winwinner et, le cas échéant, sous réserve de validation par PMV.",
+  en: "For the Winwinlening (state-backed loan), Winwinner will contact you to execute your choice. This is subject to the signing of the definitive agreement via the Winwinner platform and possibly subject to validation by PMV.",
+};
+export const isWinwinlening = (tranche?: string | null): boolean => String(tranche || "").startsWith("winwin");
+export function inviteContent(inv: { email: string; first_name?: string | null; invested?: number | string | null; tranche?: string | null }, url: string, deadline: Date, expires: Date): { subject: string; text: string; cta: { url: string; label: string } } {
   const D = nlDate(deadline);
   const text = `${hello(inv.first_name, "nl")}
 
@@ -218,7 +225,7 @@ Deze knop is persoonlijk en werkt tot en met ${nlDate(expires)}. Stuur deze e-ma
 
 Daarna meldt u zich aan op ${APP_URL} met uw e-mailadres en wachtwoord. Voor uw veiligheid vragen we vanaf de volgende keer bij elke aanmelding ook een code van 6 cijfers, die u per e-mail ontvangt.
 
-U ontvangt een e-mail ter bevestiging van uw keuze. Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.
+U ontvangt een e-mail ter bevestiging van uw keuze. Zodra alle investeerders hun keuze hebben bevestigd, ontvangt u een e-mail van Winwinner om het addendum bij uw contract te ondertekenen, met daarin uw keuze.${isWinwinlening(inv.tranche) ? `\n\n${WIN_NOTE.nl}` : ""}
 
 ## VRAGEN? MAAK EEN AFSPRAAK IN HET PORTAAL
 
@@ -245,7 +252,7 @@ Steve Van Beirs
 CEO, Belinus`;
   return { subject: `EVChargeking wordt deel van de Belinus-groep – uw keuze uiterlijk op ${D}`, cta: { url, label: "Activeer uw account en maak uw keuze" }, text };
 }
-export async function invitePreview(a: SupabaseClient, inv: { email: string; first_name?: string | null; invested?: number | string | null }): Promise<{ subject: string; html: string; from: string; to: string }> {
+export async function invitePreview(a: SupabaseClient, inv: { email: string; first_name?: string | null; invested?: number | string | null; tranche?: string | null }): Promise<{ subject: string; html: string; from: string; to: string }> {
   const st = await settings(a);
   const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
   const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
