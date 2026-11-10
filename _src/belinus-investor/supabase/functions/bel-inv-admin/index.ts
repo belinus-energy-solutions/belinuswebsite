@@ -33,10 +33,16 @@ Deno.serve(async (req) => {
       a.from("inv_tranches").select("*").order("code"),
     ]);
     const byC = new Map((ch || []).map((c: any) => [c.investor_id, c]));
+    // Invitation campaigns with their mail counts, shown under the platform table on the overview.
+    const { data: camps } = await a.from("inv_campaigns").select("id, name, group_code, mail_kind, status").eq("mail_kind", "invite").order("created_at", { ascending: false }).limit(10);
+    const campaigns = await Promise.all((camps || []).map(async (c: any) => {
+      const count = async (st: string) => (await a.from("inv_mail_log").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", st)).count || 0;
+      return { ...c, sent: await count("sent"), failed: await count("failed") };
+    }));
     const sent = await invitedMap(a);
     const { data: unread } = await a.from("inv_messages").select("investor_id").eq("direction", "in").is("read_at", null);
     const un = new Map<string, number>(); for (const r of unread || []) un.set(r.investor_id, (un.get(r.investor_id) || 0) + 1);
-    return json({ ok: true, role: acc.role, unread: Object.fromEntries(un), investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });
+    return json({ ok: true, role: acc.role, campaigns, unread: Object.fromEntries(un), investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });
   }
   if (action === "detail") {
     const [{ data: inv }, { data: sch }, { data: log }, { data: bk }] = await Promise.all([
