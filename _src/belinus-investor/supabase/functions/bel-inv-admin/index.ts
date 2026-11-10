@@ -35,11 +35,15 @@ Deno.serve(async (req) => {
     const byC = new Map((ch || []).map((c: any) => [c.investor_id, c]));
     // Invitation campaigns with their mail counts, shown under the platform table on the overview.
     const { data: camps } = await a.from("inv_campaigns").select("id, name, group_code, mail_kind, status").eq("mail_kind", "invite").order("created_at", { ascending: false }).limit(10);
+    const sent = await invitedMap(a);
+    // Per campaign: mails sent and failed (exact counts), and invitations still to send for its group.
     const campaigns = await Promise.all((camps || []).map(async (c: any) => {
       const count = async (st: string) => (await a.from("inv_mail_log").select("id", { count: "exact", head: true }).eq("campaign_id", c.id).eq("status", st)).count || 0;
-      return { ...c, sent: await count("sent"), failed: await count("failed") };
+      const { data: gm } = await a.from("inv_group_members").select("investor_id").eq("group_code", c.group_code);
+      const ids = new Set((gm || []).map((m: any) => m.investor_id));
+      const pending = (inv || []).filter((i: any) => ids.has(i.id) && !i.is_test && i.status === "invited" && /^(winwin|crowd)/.test(String(i.tranche || "")) && !sent.has(i.email)).length;
+      return { ...c, sent: await count("sent"), failed: await count("failed"), pending };
     }));
-    const sent = await invitedMap(a);
     const { data: unread } = await a.from("inv_messages").select("investor_id").eq("direction", "in").is("read_at", null);
     const un = new Map<string, number>(); for (const r of unread || []) un.set(r.investor_id, (un.get(r.investor_id) || 0) + 1);
     return json({ ok: true, role: acc.role, campaigns, unread: Object.fromEntries(un), investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });

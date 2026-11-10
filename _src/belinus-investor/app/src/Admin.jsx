@@ -30,10 +30,11 @@ function AdmOverview() {
     <div className="card"><h2>Per platform</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Platform</th><th className="n">Investeerders</th><th className="n">Bedrag</th><th className="n">Account actief</th><th className="n">A</th><th className="n">B</th><th className="n">C</th><th className="n">Geen antwoord</th></tr></thead><tbody>
       {Object.keys(PLATFORMS).map((k) => plRow(PLATFORMS[k], list.filter((i) => plOf(i) === k)))}{plRow('Totaal', list, true)}
     </tbody></table></div>
-      <div style={{ marginTop: 12 }}>
-        {(d.campaigns || []).map((c) => <p key={c.id} style={{ margin: '4px 0' }}><b>Uitnodigingscampagne {c.name}</b> (groep {c.group_code}): {CAMP_ST[c.status] || c.status} · verstuurd {c.sent} · mislukt {c.failed}</p>)}
-        {!(d.campaigns || []).some((c) => c.group_code === 'bolero') && <p style={{ margin: '4px 0' }}><b>Bolero Crowdfunding (KBC):</b> geen uitnodigingscampagne ingesteld; er worden geen uitnodigingen verstuurd.</p>}
-      </div></div>
+    </div>
+    <div className="card"><h2>Campagnes</h2>
+      {(d.campaigns || []).length ? (d.campaigns || []).map((c, ci) => <details key={c.id} open={ci === 0} style={{ borderTop: '1px solid var(--line, #eee)', padding: '10px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600 }}>{c.name} · groep {c.group_code} · {CAMP_ST[c.status] || c.status}</summary><div style={{ padding: '8px 0 0 16px' }}><p style={{ margin: '4px 0' }}>Verstuurd: {c.sent} · Mislukt: {c.failed} · Nog te versturen: {c.pending}</p><p style={{ margin: '4px 0' }}><a href={'#/campagnes/' + c.id}>Open campagne</a></p></div></details>) : <p style={{ margin: '4px 0' }}>Er zijn nog geen uitnodigingscampagnes.</p>}
+      {!(d.campaigns || []).some((c) => c.group_code === 'bolero') && <details style={{ borderTop: '1px solid var(--line, #eee)', padding: '10px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600 }}>Bolero Crowdfunding (KBC) · geen campagne</summary><div style={{ padding: '8px 0 0 16px' }}><p style={{ margin: '4px 0' }}>Er is geen uitnodigingscampagne ingesteld voor Bolero; er worden geen uitnodigingen verstuurd.</p></div></details>}
+    </div>
     <div className="card"><h2>Per tranche</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Tranche</th><th className="n">Investeerders</th><th className="n">Bedrag</th><th className="n">A</th><th className="n">B</th><th className="n">C</th><th className="n">Geen antwoord</th></tr></thead><tbody>
       {d.tranches.map((t) => { const inT = list.filter((i) => i.tranche === t.code), c = (k) => inT.filter((i) => i.choice?.choice === k).length; return <tr key={t.code}><td data-l="Tranche">{t.name}</td><td data-l="Investeerders" className="n">{inT.length}</td><td data-l="Bedrag" className="n">{eur(inT.reduce((n, i) => n + Number(i.invested), 0))}</td><td data-l="A" className="n">{c('A')}</td><td data-l="B" className="n">{c('B')}</td><td data-l="C" className="n">{c('C')}</td><td data-l="Geen antwoord" className="n">{inT.filter((i) => !i.choice).length}</td></tr>; })}
     </tbody></table></div></div></>;
