@@ -258,13 +258,14 @@ const OPT = [
   ['C', 'C – Ik ga niet akkoord.', 'Vermeld kort waarom. We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing.'],
 ];
 function Keuze({ d, reload }) {
-  const locked = d.closed || !!d.choice?.choice;
+  const locked = d.choice?.choice === 'A' || d.choice?.choice === 'B';
   const [c, setC] = useState(d.choice?.choice || ''), [wish, setWish] = useState(d.choice?.wish || ''), [reason, setReason] = useState(d.choice?.reason || ''), [ok, setOk] = useState(false), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [done, setDone] = useState(false);
   async function save() { setErr(''); setBusy(true); try { await fn('bel-inv', { action: 'choose', choice: c, wish, reason, confirm: ok }); await reload(); setDone(true); setOk(false); window.scrollTo(0, 0); } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <>
     <div className="page-head"><div><h1 className="page-title">{t('Uw keuze')}</h1><p className="page-sub">{t('We rekenen verder op uw steun en vragen uw vertrouwen in EVChargeking. Maak hieronder uw keuze.')}</p></div>{choiceChip(d)}</div>
     {done && <div style={{ marginBottom: 16 }}><Note kind="ok">{t('Uw keuze is bewaard. U ontvangt een bevestiging per e-mail.')}</Note></div>}
     {locked && <div style={{ marginBottom: 16 }}><Note kind="warn">{t('Uw keuze kan niet meer gewijzigd worden.')}</Note></div>}
+    {d.choice?.choice === 'C' && !locked && <div style={{ marginBottom: 16 }}><Note>{t('U kunt uw keuze op elk moment wijzigen. Kiest u alsnog keuze A of B, dan ligt die keuze daarna vast.')}</Note></div>}
     {d.choice?.choice && <div style={{ marginBottom: 16 }}><Note kind="ok">{t('Hartelijk dank voor uw vertrouwen en uw steun aan EVChargeking.')}</Note></div>}
     {/* Accordion: the selected option expands under its own block (one open at a time). After confirming, only the chosen option is shown. */}
     <div className="stack" style={{ marginBottom: 18 }}>{OPT.filter(([k]) => !locked || c === k).map(([k, ti, x]) => <div key={k} className="stack" style={{ gap: 8 }}>
@@ -274,7 +275,7 @@ function Keuze({ d, reload }) {
       {c === k && k === 'B' && <div className="card"><Field label={t('Uw wensen voor het voorstel (niet verplicht)')}><textarea disabled={locked} maxLength="2000" value={wish} onChange={(e) => setWish(e.target.value)} /></Field></div>}
       {c === k && k === 'C' && <div className="card"><Field label={t('Waarom gaat u niet akkoord? (verplicht)')}><textarea disabled={locked} maxLength="2000" value={reason} onChange={(e) => setReason(e.target.value)} /></Field></div>}
     </div>)}</div>
-    {c && !locked && <div className="card stack" style={{ border: '2px solid #2EB9EA', boxShadow: '0 0 0 4px rgba(46,185,234,.18)' }}><h2>{t('Bevestig uw keuze')}</h2><p className="hint" style={{ margin: 0 }}>{t('Vink het vakje aan en klik daarna op “Bevestig mijn keuze”.')}</p><label className="check"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} /><span>{t('Ik bevestig mijn keuze. Ik begrijp dat Winwinner mij een addendum ter ondertekening zal bezorgen.')}</span></label><Note kind="error">{err}</Note><div><Btn busy={busy} disabled={!ok || (c === 'C' && !reason.trim())} onClick={save}>{t('Bevestig mijn keuze')}</Btn></div></div>}
+    {c && !locked && <div className="card stack" style={{ border: '2px solid #2EB9EA', boxShadow: '0 0 0 4px rgba(46,185,234,.18)' }}><h2>{t('Bevestig uw keuze')}</h2><p className="hint" style={{ margin: 0 }}>{t('Vink het vakje aan en klik daarna op “Bevestig mijn keuze”.')}</p><label className="check"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} /><span>{t('Ik bevestig mijn keuze. Ik begrijp dat Winwinner mij een addendum ter ondertekening zal bezorgen.')}</span></label><Note kind="error">{err}</Note><div><Btn busy={busy} disabled={!ok || (c === 'C' && !reason.trim())} onClick={save}>{t(d.choice?.choice ? 'Wijzig mijn keuze' : 'Bevestig mijn keuze')}</Btn></div></div>}
   </>;
 }
 const dayLong = (k) => new Date(k + 'T12:00:00Z').toLocaleDateString(LOC[LANG], { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
