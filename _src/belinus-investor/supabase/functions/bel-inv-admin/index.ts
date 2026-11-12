@@ -503,12 +503,14 @@ Deno.serve(async (req) => {
     await audit(a, u, "availability", "windows", { n: rows.length });
     return json({ ok: true });
   }
-  // Financieel: planned payments per payment date (original schedule), or the live planning from the registered choices.
-  // Option B is calculated here from the original schedule (rising repayment, see Steve's table); option A uses scenario 'A'.
-  if (action === "financial") {
-    const view = body.view === "registered" ? "registered" : "planned";
-    const signedOnly = body.signed_only === true;
-    const filt = ["all", "bolero", "winwinlening", "winwin_raise"].includes(body.filter) ? String(body.filter) : "all";
+  // Betalingstabel (financial) and Grafieken (financial_totals): the same book, filtered by bond type.
+  // Original = scenario 'original'; option A = scenario 'A'; option B = rising repayment from the original schedule (bSched).
+  if (action === "financial" || action === "financial_totals") {
+    const KINDS = ["bolero", "winwinlening", "winwin_raise"];
+    const kinds = new Set((Array.isArray(body.kinds) ? body.kinds.map(String) : KINDS).filter((k: string) => KINDS.includes(k)));
+    const view = body.view === "signed" ? "signed" : body.view === "confirmed" || body.view === "registered" ? "confirmed" : "planned";
+    const futureOnly = body.future_only === true;
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Brussels" });
     const page = async (build: () => any) => {
       const out: any[] = [];
       for (let p = 0; ; p++) {
@@ -533,43 +535,87 @@ Deno.serve(async (req) => {
       const g = schBy.get(r.investor_id)!;
       if (r.scenario === "original") g.original.push(r); else if (r.scenario === "A") g.A.push(r);
     }
-    const kindOf = kindFor;
     const name = (i: any) => i.company_name || [i.first_name, i.last_name].filter(Boolean).join(" ") || i.email;
     const STATUS: Record<string, string> = { paid: "paid", planned: "planned", deferred: "planned" };
+    const year = (due: string) => Number(String(due).slice(0, 4));
+    const plain = (r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) });
+    // Option B: the paid 2025 rows of the original schedule, then the rising repayment plan from 2026.
+    const optionBRows = (inv: any, g: any, t: any, kind: string) => [
+      ...g.original.filter((r: any) => year(r.due) < 2026).map((r: any) => ({ ...plain(r), st: r.status })),
+      ...bSched(Number(inv.invested), g.original, Number(t?.gross_rate || 0), kind, Number(inv.withholding_rate ?? 0.3)).map((r: any) => ({ ...r, st: "planned" })),
+    ];
+    if (action === "financial_totals") {
+      const tot: Record<string, { capital: number; gross_interest: number; withholding: number; net_interest: number; total: number }> = {};
+      for (const k of ["original", "A", "B"]) tot[k] = { capital: 0, gross_interest: 0, withholding: 0, net_interest: 0, total: 0 };
+      // Per year and scenario: interest, principal, withholding and net interest, stored as <scenario>_<field>.
+      const blank = () => { const o: Record<string, number> = {}; for (const k of ["original", "A", "B"]) for (const f of ["interest", "principal", "withholding", "net"]) o[`${k}_${f}`] = 0; return o; };
+      const yrs = new Map<number, Record<string, number>>();
+      let investors = 0;
+      for (const inv of invs || []) {
+        if (inv.is_test || inv.is_demo) continue;
+        const t = trMap.get(inv.tranche);
+        const kind = t ? kindFor(t.code) : "bolero";
+        if (!kinds.has(kind)) continue;
+        const g = schBy.get(inv.id);
+        if (!g || !g.original.length) continue;
+        investors++;
+        const sets: Record<string, any[]> = { original: g.original.map(plain), A: g.A.map(plain), B: optionBRows(inv, g, t, kind) };
+        for (const k of Object.keys(sets)) {
+          for (const r of sets[k]) {
+            const y = year(r.due);
+            if (!yrs.has(y)) yrs.set(y, blank());
+            const yr = yrs.get(y)!;
+            yr[`${k}_interest`] = cent(yr[`${k}_interest`] + r.gross_interest);
+            yr[`${k}_principal`] = cent(yr[`${k}_principal`] + r.principal);
+            yr[`${k}_withholding`] = cent(yr[`${k}_withholding`] + r.withholding);
+            yr[`${k}_net`] = cent(yr[`${k}_net`] + r.net_interest);
+            const amount = cent(r.gross_interest + r.principal);
+            const s = tot[k];
+            s.capital = cent(s.capital + r.principal);
+            s.gross_interest = cent(s.gross_interest + r.gross_interest);
+            s.withholding = cent(s.withholding + r.withholding);
+            s.net_interest = cent(s.net_interest + r.net_interest);
+            s.total = cent(s.total + amount);
+          }
+        }
+      }
+      const years = [...yrs.entries()].sort((x, y) => x[0] - y[0]).map(([yy, v]) => ({ year: yy, ...v }));
+      return json({ ok: true, kinds: [...kinds], investors, scenarios: tot, years });
+    }
     const lines: any[] = [];
     for (const inv of invs || []) {
       if (inv.is_test || inv.is_demo) continue;
       const t = trMap.get(inv.tranche);
-      const kind = t ? kindOf(t.code) : "bolero";
-      if (filt !== "all" && filt !== kind) continue;
+      const kind = t ? kindFor(t.code) : "bolero";
+      if (!kinds.has(kind)) continue;
       const g = schBy.get(inv.id) || { original: [], A: [] };
       const ch: any = chMap.get(inv.id);
       const signed = ch?.addendum_status === "signed";
-      const applyNew = view === "registered" && ch && (ch.choice === "A" || ch.choice === "B") && (!signedOnly || signed);
-      const origStatus = (r: any) => (applyNew && signed && r.status !== "paid" ? "cancelled" : STATUS[r.status] || "planned");
-      for (const r of g.original) {
-        lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch?.choice || "—", source: "original", gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal), status: origStatus(r) });
+      // confirmed view: choice A/B made; signed view: only choices with a signed addendum. Otherwise the original contract.
+      const applyNew = view !== "planned" && !!ch && (ch.choice === "A" || ch.choice === "B") && (view === "confirmed" || signed);
+      const add = (r: any, source: string, status: string) => lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch?.choice || "—", source, gross_interest: r.gross_interest, withholding: r.withholding, net_interest: r.net_interest, principal: r.principal, status });
+      if (!applyNew) {
+        for (const r of g.original) add(plain(r), "original", STATUS[r.status] || "planned");
+        continue;
       }
-      if (applyNew) {
-        const newRows = ch.choice === "A" ? g.A.map((r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) })) : bSched(Number(inv.invested), g.original, Number(t?.gross_rate || 0), kind, Number(inv.withholding_rate ?? 0.3));
-        for (const r of newRows) {
-          lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch.choice, source: "option " + ch.choice, gross_interest: r.gross_interest, withholding: r.withholding, net_interest: r.net_interest, principal: r.principal, status: signed ? "planned" : "pending" });
-        }
-      }
+      const newStatus = (st: string) => (st === "paid" ? "paid" : signed ? "planned" : "pending");
+      const rows = ch.choice === "A" ? g.A.map((r: any) => ({ ...plain(r), st: r.status })) : optionBRows(inv, g, t, kind);
+      for (const r of rows) add(r, "option " + ch.choice, newStatus(r.st));
     }
+    const shown = futureOnly ? lines.filter((l) => l.due >= today) : lines;
     const byDate = new Map<string, any>();
-    for (const l of lines) {
-      if (!byDate.has(l.due)) byDate.set(l.due, { due: l.due, gross_interest: 0, withholding: 0, net_interest: 0, principal: 0, total: 0, investors: new Set(), status: { paid: 0, planned: 0, pending: 0, cancelled: 0 } });
+    for (const l of shown) {
+      if (!byDate.has(l.due)) byDate.set(l.due, { due: l.due, gross_interest: 0, withholding: 0, net_interest: 0, principal: 0, total: 0, investors: new Set() });
       const d = byDate.get(l.due);
-      const tot = cent(l.gross_interest + l.principal);
-      if (l.status === "cancelled") { d.status.cancelled = cent(d.status.cancelled + tot); continue; }
-      d.gross_interest = cent(d.gross_interest + l.gross_interest); d.withholding = cent(d.withholding + l.withholding); d.net_interest = cent(d.net_interest + l.net_interest); d.principal = cent(d.principal + l.principal);
-      d.total = cent(d.total + tot);
+      d.gross_interest = cent(d.gross_interest + Number(l.gross_interest));
+      d.withholding = cent(d.withholding + Number(l.withholding));
+      d.net_interest = cent(d.net_interest + Number(l.net_interest));
+      d.principal = cent(d.principal + Number(l.principal));
+      d.total = cent(d.total + cent(Number(l.gross_interest) + Number(l.principal)));
       d.investors.add(l.email);
-      d.status[l.status] = cent(d.status[l.status] + tot);
     }
     const dates = [...byDate.values()].sort((x, y) => (x.due < y.due ? -1 : 1)).map((d) => ({ ...d, investors: d.investors.size }));
-    return json({ ok: true, view, signed_only: signedOnly, filter: filt, dates, lines: lines.sort((x, y) => (x.due < y.due ? -1 : x.due > y.due ? 1 : x.investor.localeCompare(y.investor))) });
+    return json({ ok: true, view, future_only: futureOnly, kinds: [...kinds], dates, lines: shown.sort((x, y) => (x.due < y.due ? -1 : x.due > y.due ? 1 : x.investor.localeCompare(y.investor))) });
   }
   if (action === "blocked") {
     const day = String(body.day || "");

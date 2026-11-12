@@ -416,34 +416,70 @@ function AdmAutomated() {
     <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>E-mail</th><th>Trigger</th><th>Regels</th><th>Inhoud</th></tr></thead><tbody>{AUTO_MAILS.map(([k, n, tr, rule, body]) => <tr key={k}><td data-l="E-mail"><b>{n}</b><br /><span className="hint">{k}</span></td><td data-l="Trigger">{tr}</td><td data-l="Regels">{rule}</td><td data-l="Inhoud">{body}<div style={{ marginTop: 8 }}><AutoPreview kind={k} /></div></td></tr>)}</tbody></table></div></div></>;
 }
 const FIN_ST = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['wacht op handtekening', 'warn'], cancelled: ['geannuleerd', 'bad'] };
-const FIN_F = [['all', 'Alle leningen'], ['bolero', 'Bolero'], ['winwinlening', 'Winwin'], ['winwin_raise', 'Winwin raise']];
+const FIN_VIEW = [['planned', 'Origineel contract'], ['confirmed', 'Bevestigde keuzes'], ['signed', 'Getekende keuzes']];
+const FIN_KIND = [['bolero', 'Bolero'], ['winwinlening', 'Winwinlening'], ['winwin_raise', 'Crowdlening (winwin raise)']];
+const FIN_ALL = FIN_KIND.map(([k]) => k);
+function FinKinds({ kinds, setKinds }) {
+  const flip = (k) => setKinds(kinds.includes(k) ? kinds.filter((x) => x !== k) : [...kinds, k]);
+  return <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>{FIN_KIND.map(([k, l]) => <label className="check" key={k}><input type="checkbox" checked={kinds.includes(k)} onChange={() => flip(k)} /><span>{l}</span></label>)}</div>;
+}
 function AdmFinancial() {
-  const [view, setView] = useState('planned'), [signed, setSigned] = useState(false), [filter, setFilter] = useState('all'), [pick, setPick] = useState('all');
+  const [view, setView] = useState('planned'), [kinds, setKinds] = useState(FIN_ALL), [future, setFuture] = useState(false);
   const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
-  useEffect(() => { let live = true; setErr(''); adm('financial', { view, signed_only: signed, filter }).then((r) => { if (live) setD(r); }).catch((x) => { if (live) setErr(errText(x)); }); return () => { live = false; }; }, [view, signed, filter]);
+  const kk = kinds.join(',');
+  useEffect(() => { let live = true; setErr(''); adm('financial', { view, kinds, future_only: future }).then((r) => { if (live) setD(r); }).catch((x) => { if (live) setErr(errText(x)); }); return () => { live = false; }; }, [view, kk, future]);
   if (!d) return <Wait err={err} />;
   const sum = (k) => d.dates.reduce((s, x) => s + x[k], 0);
-  const stText = (s) => Object.keys(FIN_ST).filter((k) => s[k]).map((k) => FIN_ST[k][0] + ' ' + eur(s[k])).join(' · ');
   async function exportXls() {
     setBusy(true); setErr('');
     try {
       const X = await loadXlsx(), wb = X.utils.book_new();
-      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.dates.map((x) => ({ Datum: x.due, 'Bruto rente': x.gross_interest, 'Roerende voorheffing': x.withholding, 'Netto rente': x.net_interest, Kapitaal: x.principal, Totaal: x.total, Investeerders: x.investors, 'Betaald': x.status.paid, 'Gepland': x.status.planned, 'Wacht op handtekening': x.status.pending, 'Geannuleerd': x.status.cancelled }))), 'Overzicht');
-      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.lines.map((l) => ({ Datum: l.due, Investeerder: l.investor, 'E-mail': l.email, Tranche: l.tranche, Keuze: l.choice, Bron: l.source, 'Bruto rente': l.gross_interest, 'Roerende voorheffing': l.withholding, 'Netto rente': l.net_interest, Kapitaal: l.principal, Totaal: Math.round((l.gross_interest + l.principal) * 100) / 100, Status: FIN_ST[l.status][0] }))), 'Details');
-      X.writeFile(wb, 'financieel-' + view + '-' + filter + '.xlsx');
+      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.dates.map((x) => ({ Datum: x.due, 'Bruto rente': x.gross_interest, 'Roerende voorheffing': x.withholding, 'Netto rente': x.net_interest, Kapitaal: x.principal, Totaal: x.total, Investeerders: x.investors }))), 'Betalingen');
+      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.lines.map((l) => ({ Datum: l.due, Investeerder: l.investor, 'E-mail': l.email, Tranche: l.tranche, Keuze: l.choice, Bron: l.source, 'Bruto rente': l.gross_interest, 'Roerende voorheffing': l.withholding, 'Netto rente': l.net_interest, Kapitaal: l.principal, Totaal: Math.round((l.gross_interest + l.principal) * 100) / 100, Status: (FIN_ST[l.status] || [l.status])[0] }))), 'Details');
+      X.writeFile(wb, 'betalingen-' + view + (future ? '-toekomst' : '') + '.xlsx');
     } catch (x) { setErr(errText(x)); }
     setBusy(false);
   }
-  return <><div className="page-head"><div><h1 className="page-title">Financieel</h1><p className="page-sub">{view === 'planned' ? 'Geplande betalingen volgens de oorspronkelijke leningen, ongewijzigd.' : 'Betalingen op basis van de geregistreerde keuzes van de investeerders.'}</p></div><div className="row"><Btn kind="ghost" busy={busy} onClick={exportXls}>Exporteer Excel</Btn></div></div>
+  return <><div className="page-head"><div><h1 className="page-title">Betalingstabel</h1></div><div className="row"><Btn kind="ghost" busy={busy} onClick={exportXls}>Exporteer Excel</Btn></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
-    <div className="row" style={{ marginBottom: 16, flexWrap: 'wrap' }}><div className="seg" role="tablist">{[['planned', 'Geplande betalingen'], ['registered', 'Geregistreerde keuzes']].map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={'seg-b' + (view === k ? ' on' : '')} onClick={() => setView(k)}>{l}</button>)}</div>
-      <select style={{ width: 'auto' }} value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Lening">{FIN_F.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-      <Btn kind="ghost" busy={pick === filter} onClick={() => setFilter(pick)}>Toepassen</Btn>
-      {view === 'registered' && <label className="check"><input type="checkbox" checked={signed} onChange={(e) => setSigned(e.target.checked)} /><span>Enkel getekende keuzes</span></label>}</div>
-    <div className="card">{!d.dates.length ? <p style={{ margin: 0 }}>{filter === 'bolero' ? 'Bolero-gegevens ontbreken nog. Er zijn nog geen betalingen geladen.' : 'Geen betalingen gevonden.'}</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Datum</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Kapitaal</th><th className="n">Totaal</th><th className="n">Investeerders</th><th>Status</th></tr></thead><tbody>
-      {d.dates.map((x) => <tr key={x.due}><td data-l="Datum">{dayNl(x.due + 'T12:00:00Z')}</td><td data-l="Bruto rente" className="n">{eur(x.gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(x.withholding)}</td><td data-l="Netto rente" className="n">{eur(x.net_interest)}</td><td data-l="Kapitaal" className="n">{eur(x.principal)}</td><td data-l="Totaal" className="n"><b>{eur(x.total)}</b></td><td data-l="Investeerders" className="n">{x.investors}</td><td data-l="Status"><span className="hint">{stText(x.status)}</span></td></tr>)}
-      <tr><td><b>Totaal</b></td><td className="n"><b>{eur(sum('gross_interest'))}</b></td><td className="n"><b>{eur(sum('withholding'))}</b></td><td className="n"><b>{eur(sum('net_interest'))}</b></td><td className="n"><b>{eur(sum('principal'))}</b></td><td className="n"><b>{eur(sum('total'))}</b></td><td /><td /></tr>
+    <div className="card stack"><div className="seg" role="tablist">{FIN_VIEW.map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={'seg-b' + (view === k ? ' on' : '')} onClick={() => setView(k)}>{l}</button>)}</div>
+      <FinKinds kinds={kinds} setKinds={setKinds} />
+      <label className="check"><input type="checkbox" checked={future} onChange={(e) => setFuture(e.target.checked)} /><span>Verberg vervallen betalingen</span></label></div>
+    <div style={{ height: 16 }} />
+    <div className="card">{!d.dates.length ? <p style={{ margin: 0 }}>Geen betalingen gevonden.</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Datum</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Kapitaal</th><th className="n">Totaal</th><th className="n">Investeerders</th></tr></thead><tbody>
+      {d.dates.map((x) => <tr key={x.due}><td data-l="Datum">{dayNl(x.due + 'T12:00:00Z')}</td><td data-l="Bruto rente" className="n">{eur(x.gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(x.withholding)}</td><td data-l="Netto rente" className="n">{eur(x.net_interest)}</td><td data-l="Kapitaal" className="n">{eur(x.principal)}</td><td data-l="Totaal" className="n"><b>{eur(x.total)}</b></td><td data-l="Investeerders" className="n">{x.investors}</td></tr>)}
+      <tr><td><b>Totaal</b></td><td className="n"><b>{eur(sum('gross_interest'))}</b></td><td className="n"><b>{eur(sum('withholding'))}</b></td><td className="n"><b>{eur(sum('net_interest'))}</b></td><td className="n"><b>{eur(sum('principal'))}</b></td><td className="n"><b>{eur(sum('total'))}</b></td><td /></tr>
       </tbody></table></div>}</div></>;
+}
+function AdmFinancialGraphs() {
+  const [kinds, setKinds] = useState(FIN_ALL), [d, setD] = useState(null), [err, setErr] = useState('');
+  const kk = kinds.join(',');
+  useEffect(() => { let live = true; setErr(''); adm('financial_totals', { kinds }).then((r) => { if (live) setD(r); }).catch((x) => { if (live) setErr(errText(x)); }); return () => { live = false; }; }, [kk]);
+  if (!d) return <Wait err={err} />;
+  // [scenario, label, colour of principal, colour of interest]
+  const SC = [['original', 'Origineel contract', '#4b5563', '#b8bec9'], ['A', 'Optie A', '#0e7490', '#9ad8e6'], ['B', 'Optie B', '#b45309', '#f3c991']];
+  const W = 760, H = 320, P = 48;
+  const cent2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
+  const totOf = (y, k) => cent2(y[`${k}_interest`] + y[`${k}_principal`]);
+  const max = Math.max(1, ...d.years.flatMap((y) => SC.map(([k]) => totOf(y, k))));
+  const gw = (W - P * 2) / Math.max(1, d.years.length), bw = gw / 4;
+  return <><div className="page-head"><div><h1 className="page-title">Grafieken</h1></div></div>
+    <Note kind="error">{err}</Note><div style={{ height: 12 }} />
+    <div className="card stack"><FinKinds kinds={kinds} setKinds={setKinds} /><span className="hint">{d.investors} investeerders in deze selectie</span></div>
+    <div style={{ height: 16 }} />
+    <div className="card"><h2>Totaal per scenario</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Scenario</th><th className="n">Kapitaal</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Totaal te betalen</th></tr></thead><tbody>
+      {SC.map(([k, l]) => <tr key={k}><td data-l="Scenario"><b>{l}</b></td><td data-l="Kapitaal" className="n">{eur(d.scenarios[k].capital)}</td><td data-l="Bruto rente" className="n">{eur(d.scenarios[k].gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(d.scenarios[k].withholding)}</td><td data-l="Netto rente" className="n">{eur(d.scenarios[k].net_interest)}</td><td data-l="Totaal te betalen" className="n"><b>{eur(d.scenarios[k].total)}</b></td></tr>)}
+      </tbody></table></div></div>
+    <div style={{ height: 16 }} />
+    <div className="card"><h2>Jaarlijks te betalen</h2>
+      <div className="row" style={{ gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>{SC.map(([k, l, cp, ci]) => <span key={k} className="hint"><span style={{ display: 'inline-block', width: 12, height: 12, background: cp, marginRight: 6 }} />{l}: kapitaal <span style={{ display: 'inline-block', width: 12, height: 12, background: ci, margin: '0 6px' }} />rente</span>)}</div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }} role="img" aria-label="Jaarlijks te betalen per scenario, kapitaal en rente">
+        <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="currentColor" opacity="0.3" />
+        {d.years.map((y, i) => <g key={y.year}>{SC.map(([k, l, cp, ci], j) => { const sc = (H - P * 2) / max; const hp = y[`${k}_principal`] * sc, hi = y[`${k}_interest`] * sc; const x = P + i * gw + bw * (0.5 + j); const base = H - P; return <g key={k}><rect x={x} y={base - hp} width={bw * 0.9} height={hp} fill={cp}><title>{`${y.year} · ${l} kapitaal: ${eur(y[`${k}_principal`])}`}</title></rect><rect x={x} y={base - hp - hi} width={bw * 0.9} height={hi} fill={ci}><title>{`${y.year} · ${l} rente: ${eur(y[`${k}_interest`])}`}</title></rect></g>; })}<text x={P + i * gw + gw / 2} y={H - P + 18} textAnchor="middle" fontSize="12" fill="currentColor">{y.year}</text></g>)}
+      </svg>
+      <div className="tblw" style={{ marginTop: 16 }}><table className="tbl cards"><thead><tr><th>Jaar</th><th>Scenario</th><th className="n">Kapitaal</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Totaal</th></tr></thead><tbody>
+        {d.years.flatMap((y) => SC.map(([k, l]) => <tr key={y.year + k}><td data-l="Jaar">{y.year}</td><td data-l="Scenario">{l}</td><td data-l="Kapitaal" className="n">{eur(y[`${k}_principal`])}</td><td data-l="Bruto rente" className="n">{eur(y[`${k}_interest`])}</td><td data-l="Voorheffing" className="n">{eur(y[`${k}_withholding`])}</td><td data-l="Netto rente" className="n">{eur(y[`${k}_net`])}</td><td data-l="Totaal" className="n"><b>{eur(totOf(y, k))}</b></td></tr>))}
+      </tbody></table></div></div></>;
 }
 function AdmSettings() {
   const [d, load, err] = useLoad('availability');
