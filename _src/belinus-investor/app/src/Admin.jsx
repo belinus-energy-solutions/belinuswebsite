@@ -73,12 +73,34 @@ function AsBanner({ d, reload }) {
   const [sure, setSure] = useState(false), [pw, setPw] = useState(''), [open, setOpen] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
   async function run(body, ok) { setBusy(true); setErr(''); setMsg(''); try { await fn('bel-inv', body); setMsg(ok); await reload(); } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <div className="as-banner">
-    <div className="as-top"><p><b>{demo ? 'Demo-investeerder' : 'U kijkt mee als'}: {who}</b><br /><span className="hint">{demo ? 'Alle e-mails van deze sessie gaan naar ' + d.as.admin_email + '.' : 'Alleen lezen: u kunt niets wijzigen en er worden geen e-mails verstuurd.'}</span></p>
+    <div className="as-top"><p><b>{demo ? 'Demo-investeerder' : 'U kijkt mee als'}: {who}</b><br /><span className="hint">{demo ? 'Alle e-mails van deze sessie gaan naar ' + d.as.admin_email + '.' : 'Alleen lezen. Het enige wat u hier kunt doen, is een keuze registreren die de investeerder per e-mail of telefoon heeft doorgegeven.'}</span></p>
       <div className="row">{demo && (sure ? <><button className="btn danger sm" disabled={busy} onClick={() => run({ action: 'demo_reset' }, 'De demo-investeerder is teruggezet.').then(() => setSure(false))}>Ja, wis alles</button><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Demo resetten</button>)}{demo && <button className="btn ghost sm" onClick={() => setOpen(!open)}>Demo-wachtwoord</button>}<button className="btn ghost sm" onClick={stopAs}>Stoppen</button></div></div>
+    {!demo && <RegisterChoice id={d.as.id} reload={reload} />}
     {sure && <p className="hint" style={{ margin: '10px 0 0' }}>Dit wist de keuze, afspraken, opvolging en historiek van de demo-investeerder.</p>}
     {demo && open && <form className="row" style={{ marginTop: 12 }} onSubmit={(e) => { e.preventDefault(); run({ action: 'demo_password', password: pw }, 'Het wachtwoord is ingesteld.').then(() => { setPw(''); setOpen(false); }); }}><div style={{ flex: '1 1 240px' }}><PwInput autoComplete="new-password" placeholder="Wachtwoord voor de demo-login" value={pw} onChange={(e) => setPw(e.target.value)} /></div><button className="btn ghost sm" disabled={busy || !pw} type="submit">Instellen</button></form>}
     {msg && <div style={{ marginTop: 10 }}><Note kind="ok">{msg}</Note></div>}{err && <div style={{ marginTop: 10 }}><Note kind="error">{err}</Note></div>}
   </div>;
+}
+// Admin only: records a choice the investor sent by e-mail or phone. Same rules as for the investor: A and B are final once recorded; the investor gets the confirmation mail.
+function RegisterChoice({ id, reload }) {
+  const [open, setOpen] = useState(false), [c, setC] = useState(''), [note, setNote] = useState(''), [reason, setReason] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  async function save() {
+    setBusy(true); setErr(''); setMsg('');
+    try { await adm('record_choice', { id, choice: c, note, reason }); setMsg('Keuze geregistreerd. De investeerder krijgt een bevestigingsmail.'); setC(''); setNote(''); setReason(''); setOpen(false); await reload(); } catch (x) { setErr(errText(x)); }
+    setBusy(false);
+  }
+  if (!open) return <div className="stack" style={{ marginTop: 12 }}><div className="row"><button className="btn ghost sm" onClick={() => { setOpen(true); setMsg(''); }}>Keuze registreren</button></div>{msg && <Note kind="ok">{msg}</Note>}</div>;
+  return <div className="stack" style={{ marginTop: 12 }}><p className="hint" style={{ margin: 0 }}>Alleen voor een keuze die de investeerder per e-mail of telefoon heeft doorgegeven. Een keuze van A of B ligt daarna vast.</p>
+    <div className="grid2"><select value={c} onChange={(e) => setC(e.target.value)}><option value="">Kies…</option><option>A</option><option>B</option><option>C</option></select><input placeholder="Bron en datum (verplicht), bv. e-mail van 12/11/2026" value={note} onChange={(e) => setNote(e.target.value)} /></div>
+    {c === 'C' && <input placeholder="Reden (verplicht)" value={reason} onChange={(e) => setReason(e.target.value)} />}
+    <div className="row"><Btn disabled={busy || !c || !note.trim() || (c === 'C' && !reason.trim())} onClick={save}>Keuze opslaan</Btn><button className="btn ghost sm" onClick={() => setOpen(false)}>Annuleren</button></div>
+    <Note kind="error">{err}</Note></div>;
+}
+// Sends the investor the information PDF (the three options, and the current schedule next to A and B) to their e-mail address.
+function SendInfo({ id, email }) {
+  const [sure, setSure] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  async function send() { setBusy(true); setErr(''); setMsg(''); try { await adm('send_info', { id, confirm: true }); setMsg('Overzicht verstuurd naar ' + email + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  return <div className="stack"><div className="row">{sure ? <><Btn disabled={busy} onClick={send}>Ja, verstuur naar {email}</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Stuur info (PDF)</button>}</div><Note kind="ok">{msg}</Note><Note kind="error">{err}</Note></div>;
 }
 function InvDetail({ id, onClose }) {
   const [d, setD] = useState(null), [c, setC] = useState(''), [note, setNote] = useState(''), [reason, setReason] = useState(''), [msg, setMsg] = useState(''), [err, setErr] = useState('');
@@ -92,6 +114,7 @@ function InvDetail({ id, onClose }) {
     <Note kind="ok">{msg}</Note><Note kind="error">{err}</Note>
     <Schedule rows={d.schedule.filter((r) => r.scenario === 'original')} />
     <div><h3 style={{ fontSize: 16, marginBottom: 8 }}>Geschiedenis van keuzes</h3>{d.log.length ? d.log.map((l) => <p key={l.id} style={{ margin: '0 0 4px', fontSize: 14 }}><b>{l.choice}</b> · {whenNl(l.created_at)}{l.by_admin ? ' · door beheerder: ' + l.note : ''}{l.reason ? ' · ' + l.reason : ''}</p>) : <p className="hint">Nog geen keuze.</p>}</div>
+    <SendInfo id={id} email={d.investor.email} />
     <div className="stack"><h3 style={{ fontSize: 16 }}>Keuze registreren (ontvangen per telefoon of e-mail)</h3><div className="grid2"><select value={c} onChange={(e) => setC(e.target.value)}><option value="">Kies…</option><option>A</option><option>B</option><option>C</option></select><input placeholder="Notitie (verplicht)" value={note} onChange={(e) => setNote(e.target.value)} /></div>{c === 'C' && <input placeholder="Reden (verplicht)" value={reason} onChange={(e) => setReason(e.target.value)} />}<div className="row"><Btn kind="ghost" disabled={!c || !note.trim()} onClick={rec}>Registreren</Btn><Btn kind="ghost" onClick={invite}>{d.investor.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</Btn></div></div></>}</div></div>;
 }
 // Messaging list: one row per investor, showing the last message received. Opening a row goes to the investor page with the full history and reply.

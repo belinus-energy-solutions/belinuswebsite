@@ -1,7 +1,8 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
 import { lastMailError } from "../_shared/inv.ts";
-import { bSchedule as bSched, cent, loanKind as kindFor } from "../_shared/finance.ts";
+import { bSchedule as bSched, cent, loanKind as kindFor, planRow, leadRows as leadRowsShared, optionBRows as optionBShared } from "../_shared/finance.ts";
+import { buildInfoPdf } from "../_shared/infopdf.ts";
 import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, reminderContent, sendReminder, APP_URL, automatedPreview } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
@@ -108,9 +109,45 @@ Deno.serve(async (req) => {
     const choice = String(body.choice || ""), note = str(body.note, 1000), reason = str(body.reason, 2000), wish = str(body.wish, 2000);
     if (!["A", "B", "C"].includes(choice) || !note) return json({ error: "bad-input" }, 400);
     if (choice === "C" && !reason) return json({ error: "reason-required" }, 400);
-    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang").eq("id", id).single();
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang, tranche").eq("id", id).single();
+    if (!inv) return json({ error: "not-found" }, 404);
+    // As for the investor: A and B are final once confirmed; only C can still be changed.
+    const { data: cur } = await a.from("inv_choices").select("choice").eq("investor_id", id).maybeSingle();
+    if (cur && (cur.choice === "A" || cur.choice === "B")) return json({ error: "already-chosen" }, 400);
     await applyChoice(a, inv, { choice, reason, wish, note, by_admin: u.id });
     await audit(a, u, "choice-by-admin", inv.email, { choice, note });
+    return json({ ok: true });
+  }
+  // Information e-mail with the PDF: the three options and the current schedule next to A and B (same figures as the portal).
+  if (action === "send_info") {
+    if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, last_name, company_name, tranche, invested, withholding_rate, lang").eq("id", id).single();
+    if (!inv) return json({ error: "not-found" }, 404);
+    const kind = kindFor(inv.tranche);
+    if (kind === "bolero") return json({ error: "not-applicable" }, 400);
+    const [{ data: t }, { data: rows }] = await Promise.all([
+      a.from("inv_tranches").select("gross_rate").eq("code", inv.tranche).single(),
+      a.from("inv_schedule").select("scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status").eq("investor_id", id).order("period"),
+    ]);
+    const orig = (rows || []).filter((r: any) => r.scenario === "original");
+    if (!orig.length) return json({ error: "no-schedule" }, 400);
+    const invested = Number(inv.invested), whRate = Number(inv.withholding_rate ?? 0.3), grossRate = Number(t?.gross_rate || 0);
+    const optionA = leadRowsShared((rows || []).filter((r: any) => r.scenario === "A").map(planRow), orig);
+    const optionB = leadRowsShared(optionBShared(invested, whRate, orig, grossRate, kind), orig);
+    const name = inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email;
+    const pdf = await buildInfoPdf({
+      name, loan: kind === "winwin_raise" ? "Crowdlening" : "Winwinlening", invested, grossRate, withholdingRate: whRate,
+      date: new Date().toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" }), appUrl: APP_URL,
+      original: orig.map(planRow), optionA, optionB,
+    });
+    const sent = await sendMail(a, {
+      to: inv.email, kind: "info-pdf", lang: "nl", subject: "Overzicht van uw opties – EVChargeking",
+      text: `${hello(inv.first_name, "nl")}\n\nIn de bijlage vindt u een overzicht van de drie opties (A, B en C). Het toont ook uw huidige betaalplanning naast keuze A en keuze B.\n\nU maakt uw keuze in het investeerdersportaal: ${APP_URL}. Heeft u vragen, antwoord dan gerust op deze e-mail.\n\nMet vriendelijke groeten,\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus`,
+      attachments: [{ name: "overzicht-uw-opties-EVChargeking.pdf", type: "application/pdf", data: pdf }],
+    });
+    if (!sent) return json({ error: "mail-failed" }, 502);
+    await audit(a, u, "info-pdf", inv.email, { bytes: pdf.length });
     return json({ ok: true });
   }
   // Personal invitation (the investor letter with a one-click activation button), to one investor: for tests, or again.

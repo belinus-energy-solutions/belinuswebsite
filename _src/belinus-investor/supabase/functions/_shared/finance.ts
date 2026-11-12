@@ -29,3 +29,26 @@ export function bSchedule(invested: number, orig: any[], rate: number, kind: str
   }
   return rows;
 }
+
+// Shared by the admin financial views and the information PDF, so both show the same dates and amounts.
+export const addMonths = (due: string, n: number): string => {
+  const x = new Date(String(due) + "T12:00:00Z");
+  x.setUTCMonth(x.getUTCMonth() + n);
+  return x.toISOString().slice(0, 10);
+};
+// Rows as {period, due, gross_interest, withholding, net_interest, principal, st}; st is the status of an original row.
+export const planRow = (r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal), st: r.status });
+// As in the investor portal: the first unpaid payment of option A and B is dated at its latest possible day (original due date + 3 months).
+export function leadRows(rows: any[], orig: any[]): any[] {
+  const cur = orig.find((r: any) => r.status !== "paid")?.due;
+  const idx = rows.findIndex((x: any) => x.st !== "paid");
+  if (!cur || idx < 0) return rows;
+  return rows.map((x: any, i: number) => (i === idx ? { ...x, due: addMonths(cur, 3) } : x));
+}
+// Option B: the paid rows of the original schedule before 2026, then the rising repayment plan from 2026.
+export function optionBRows(invested: number, withholdingRate: number, orig: any[], grossRate: number, kind: string): any[] {
+  return [
+    ...orig.filter((r: any) => yearOf(r.due) < 2026).map(planRow),
+    ...bSchedule(invested, orig, grossRate, kind, withholdingRate).map((r: any) => ({ ...r, st: "planned" })),
+  ];
+}

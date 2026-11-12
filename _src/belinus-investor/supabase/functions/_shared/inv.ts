@@ -86,7 +86,10 @@ export function html(text: string, cta: { url: string; label: string } | undefin
 }
 // Last provider error of sendMail (read by the invitation batch to explain a daily limit to the admin).
 export let lastMailError = "";
-export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; htmlOverride?: string; cta?: { url: string; label: string }; kind: string; ics?: string; lang?: Lang; noreply?: boolean; from?: string; replyTo?: string; foot?: string; cc?: string; campaign?: string }): Promise<boolean> {
+// Extra attachments (e.g. the information PDF). Brevo needs base64; Mailgun takes the bytes.
+export type MailAttachment = { name: string; type: string; data: Uint8Array };
+const b64 = (bytes: Uint8Array): string => { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
+export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; htmlOverride?: string; cta?: { url: string; label: string }; kind: string; ics?: string; attachments?: MailAttachment[]; lang?: Lang; noreply?: boolean; from?: string; replyTo?: string; foot?: string; cc?: string; campaign?: string }): Promise<boolean> {
   lastMailError = "";
   const L = pickLang(m.lang);
   const log = (provider: string, status: string, msgId?: string | null) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status, campaign_id: m.campaign || null, message_id: msgId || null }).then(() => {}, () => {});
@@ -98,12 +101,13 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
       f.set("from", `${FROM_NAME} <${FROM_ADDR}>`); f.set("to", m.to); f.set("subject", m.subject); f.set("text", body); f.set("html", m.htmlOverride || html(m.text, m.cta, L, !!m.noreply, m.foot || ""));
       if (m.noreply) f.set("from", `${FROM_NAME} <${NOREPLY}>`); else { if (m.from) f.set("from", `${FROM_NAME} <${m.from}>`); f.set("h:Reply-To", m.replyTo || REPLY); } if (m.campaign) { f.set("o:tracking", "yes"); f.set("o:tracking-opens", "yes"); f.set("o:tracking-clicks", "yes"); f.set("o:tag", "campaign:" + m.campaign); } else f.set("o:tracking", "no"); f.set("v:kind", m.kind); if (m.cc) f.set("cc", m.cc);
       if (m.ics) f.append("attachment", new File([m.ics], "afspraak.ics", { type: "text/calendar" }));
+      for (const at of m.attachments || []) f.append("attachment", new File([at.data], at.name, { type: at.type }));
       const r = await fetch(`${(Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "")}/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", headers: { Authorization: "Basic " + btoa("api:" + key) }, body: f });
       if (!r.ok) throw new Error("mailgun " + r.status + " " + (await r.text()).slice(0, 200));
       const jm: any = await r.json().catch(() => ({})); await log("mailgun", "sent", jm.id); return true;
     }
     if (brevo) {
-      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : (m.from || FROM_ADDR) }, to: [{ email: m.to }], ...(m.cc ? { cc: m.cc.split(",").map((e) => ({ email: e.trim() })) } : {}), ...(m.noreply ? {} : { replyTo: { email: m.replyTo || REPLY } }), subject: m.subject, textContent: body, htmlContent: m.htmlOverride || html(m.text, m.cta, L, !!m.noreply, m.foot || ""), tags: [m.kind, ...(m.campaign ? ["campaign:" + m.campaign] : [])], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : (m.from || FROM_ADDR) }, to: [{ email: m.to }], ...(m.cc ? { cc: m.cc.split(",").map((e) => ({ email: e.trim() })) } : {}), ...(m.noreply ? {} : { replyTo: { email: m.replyTo || REPLY } }), subject: m.subject, textContent: body, htmlContent: m.htmlOverride || html(m.text, m.cta, L, !!m.noreply, m.foot || ""), tags: [m.kind, ...(m.campaign ? ["campaign:" + m.campaign] : [])], ...(m.ics || m.attachments?.length ? { attachment: [...(m.ics ? [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] : []), ...(m.attachments || []).map((at) => ({ name: at.name, content: b64(at.data) }))] } : {}) }) });
       if (!r.ok) throw new Error("brevo " + r.status + " " + (await r.text()).slice(0, 200));
       const jb: any = await r.json().catch(() => ({})); await log("brevo", "sent", jb.messageId); return true;
     }
