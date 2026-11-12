@@ -508,6 +508,8 @@ Deno.serve(async (req) => {
   if (action === "financial" || action === "financial_totals") {
     const KINDS = ["bolero", "winwinlening", "winwin_raise"];
     const kinds = new Set((Array.isArray(body.kinds) ? body.kinds.map(String) : KINDS).filter((k: string) => KINDS.includes(k)));
+    // Bolero has no choice A or B: the totals compare the original contract with A and B for the same investors only.
+    if (action === "financial_totals") kinds.delete("bolero");
     const view = body.view === "signed" ? "signed" : body.view === "confirmed" || body.view === "registered" ? "confirmed" : "planned";
     const futureOnly = body.future_only === true;
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Brussels" });

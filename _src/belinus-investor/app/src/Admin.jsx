@@ -419,9 +419,9 @@ const FIN_ST = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['w
 const FIN_VIEW = [['planned', 'Origineel contract'], ['confirmed', 'Bevestigde keuzes'], ['signed', 'Getekende keuzes']];
 const FIN_KIND = [['bolero', 'Bolero'], ['winwinlening', 'Winwinlening'], ['winwin_raise', 'Crowdlening (winwin raise)']];
 const FIN_ALL = FIN_KIND.map(([k]) => k);
-function FinKinds({ kinds, setKinds }) {
+function FinKinds({ kinds, setKinds, list = FIN_KIND }) {
   const flip = (k) => setKinds(kinds.includes(k) ? kinds.filter((x) => x !== k) : [...kinds, k]);
-  return <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>{FIN_KIND.map(([k, l]) => <label className="check" key={k}><input type="checkbox" checked={kinds.includes(k)} onChange={() => flip(k)} /><span>{l}</span></label>)}</div>;
+  return <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>{list.map(([k, l]) => <label className="check" key={k}><input type="checkbox" checked={kinds.includes(k)} onChange={() => flip(k)} /><span>{l}</span></label>)}</div>;
 }
 function AdmFinancial() {
   const [view, setView] = useState('planned'), [kinds, setKinds] = useState(FIN_ALL), [future, setFuture] = useState(false);
@@ -452,7 +452,8 @@ function AdmFinancial() {
       </tbody></table></div>}</div></>;
 }
 function AdmFinancialGraphs() {
-  const [kinds, setKinds] = useState(FIN_ALL), [d, setD] = useState(null), [err, setErr] = useState('');
+  const GRAPH_KIND = FIN_KIND.filter(([k]) => k !== 'bolero');
+  const [kinds, setKinds] = useState(GRAPH_KIND.map(([k]) => k)), [d, setD] = useState(null), [err, setErr] = useState('');
   const kk = kinds.join(',');
   useEffect(() => { let live = true; setErr(''); adm('financial_totals', { kinds }).then((r) => { if (live) setD(r); }).catch((x) => { if (live) setErr(errText(x)); }); return () => { live = false; }; }, [kk]);
   if (!d) return <Wait err={err} />;
@@ -465,7 +466,7 @@ function AdmFinancialGraphs() {
   const gw = (W - P * 2) / Math.max(1, d.years.length), bw = gw / 4;
   return <><div className="page-head"><div><h1 className="page-title">Grafieken</h1></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
-    <div className="card stack"><FinKinds kinds={kinds} setKinds={setKinds} /><span className="hint">{d.investors} investeerders in deze selectie</span></div>
+    <div className="card stack"><FinKinds kinds={kinds} setKinds={setKinds} list={GRAPH_KIND} /><span className="hint">{d.investors} investeerders met keuze A of B. Bolero heeft geen keuze A of B en is daarom niet opgenomen.</span></div>
     <div style={{ height: 16 }} />
     <div className="card"><h2>Totaal per scenario</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Scenario</th><th className="n">Kapitaal</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Totaal te betalen</th></tr></thead><tbody>
       {SC.map(([k, l]) => <tr key={k}><td data-l="Scenario"><b>{l}</b></td><td data-l="Kapitaal" className="n">{eur(d.scenarios[k].capital)}</td><td data-l="Bruto rente" className="n">{eur(d.scenarios[k].gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(d.scenarios[k].withholding)}</td><td data-l="Netto rente" className="n">{eur(d.scenarios[k].net_interest)}</td><td data-l="Totaal te betalen" className="n"><b>{eur(d.scenarios[k].total)}</b></td></tr>)}
