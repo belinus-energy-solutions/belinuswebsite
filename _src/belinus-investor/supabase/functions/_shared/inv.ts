@@ -71,7 +71,7 @@ const NOREPLY = Deno.env.get("INV_MAIL_NOREPLY") || "noreply@belinus.com";
 const FROM_ADDR = Deno.env.get("INV_MAIL_FROM") || "investors@belinus.com", FROM_NAME = "EVChargeking via Belinus", REPLY = Deno.env.get("INV_MAIL_REPLY_TO") || "info@evchargeking.com";
 const FONT = "'Arial Nova','Helvetica Neue',Helvetica,Arial,sans-serif";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const NOREPLY_FOOT = (u: string) => `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>Dit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen. Vragen? Meld u aan op ${u} en maak een afspraak.`;
+const NOREPLY_FOOT = (u: string) => `EVChargeking (Some BV), Probastraat 21, 2235 Westmeerbeek · a belinus group company<br>Dit is een automatische e-mail. Stuur uw vragen naar info@evchargeking.com of info@winwinner.be. Meld u aan op ${u} en maak een afspraak.`;
 export function html(text: string, cta: { url: string; label: string } | undefined, L: Lang, noreply = false, foot = ""): string {
   const parts = text.replace(/\r/g, "").split(/\n{2,}/).map((p) => {
     if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">${esc(MC[L].btn)}<br>${esc(cta.url)}</p>`;
@@ -91,7 +91,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
   const L = pickLang(m.lang);
   const log = (provider: string, status: string, msgId?: string | null) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status, campaign_id: m.campaign || null, message_id: msgId || null }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
-  const body = m.text.replace(/^## /gm, "") + "\n\n--\n" + MC[L].sig + (m.noreply ? "\nDit is een automatische e-mail. Antwoorden op dit adres worden niet gelezen." : "");
+  const body = m.text.replace(/^## /gm, "") + "\n\n--\n" + MC[L].sig + (m.noreply ? "\nDit is een automatische e-mail. Stuur uw vragen naar info@evchargeking.com of info@winwinner.be." : "");
   try {
     if (key && domain) {
       const f = new FormData();
@@ -103,7 +103,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
       const jm: any = await r.json().catch(() => ({})); await log("mailgun", "sent", jm.id); return true;
     }
     if (brevo) {
-      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : (m.from || FROM_ADDR) }, to: [{ email: m.to }], ...(m.cc ? { cc: [{ email: m.cc }] } : {}), ...(m.noreply ? {} : { replyTo: { email: m.replyTo || REPLY } }), subject: m.subject, textContent: body, htmlContent: m.htmlOverride || html(m.text, m.cta, L, !!m.noreply, m.foot || ""), tags: [m.kind, ...(m.campaign ? ["campaign:" + m.campaign] : [])], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": brevo, "content-type": "application/json" }, body: JSON.stringify({ sender: { name: FROM_NAME, email: m.noreply ? NOREPLY : (m.from || FROM_ADDR) }, to: [{ email: m.to }], ...(m.cc ? { cc: m.cc.split(",").map((e) => ({ email: e.trim() })) } : {}), ...(m.noreply ? {} : { replyTo: { email: m.replyTo || REPLY } }), subject: m.subject, textContent: body, htmlContent: m.htmlOverride || html(m.text, m.cta, L, !!m.noreply, m.foot || ""), tags: [m.kind, ...(m.campaign ? ["campaign:" + m.campaign] : [])], ...(m.ics ? { attachment: [{ name: "afspraak.ics", content: btoa(unescape(encodeURIComponent(m.ics))) }] } : {}) }) });
       if (!r.ok) throw new Error("brevo " + r.status + " " + (await r.text()).slice(0, 200));
       const jb: any = await r.json().catch(() => ({})); await log("brevo", "sent", jb.messageId); return true;
     }
@@ -172,6 +172,35 @@ export async function sendInvite(a: SupabaseClient, inv: { id: string; email: st
   const url = `${APP_URL}/#/wachtwoord?code=${encodeURIComponent(code)}&uitnodiging=1`;
   const m = inviteContent(inv, url, deadline, expires);
   return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, cc: opts.cc ? "info@winwinner.be" : undefined, campaign: opts.campaign, subject: m.subject, cta: m.cta, text: m.text });
+}
+// Reminder for Winwinner investors who have not made a choice yet. Refers to the first invitation; no new link (they log in on the portal).
+export function reminderContent(inv: { email: string; first_name?: string | null; tranche?: string | null }, deadline: Date): { subject: string; text: string; cta: { url: string; label: string } } {
+  const D = nlDate(deadline);
+  const text = `${hello(inv.first_name, "nl")}
+
+Eerder ontving u een e-mail over de voorgestelde verlenging van uw lening aan EVChargeking (Some BV). Met deze herinnering vragen wij u vriendelijk om uw keuze (A, B of C) te maken.
+
+De uiterste datum is ${D}. U bent daartoe niet verplicht, maar wij stellen het op prijs als u tijdig antwoordt. De eerstvolgende geplande betaling (14 november 2026) valt vóór die datum en blijft in afwachting van uw antwoord.
+
+U maakt uw keuze in het investeerdersportaal. Meld u aan op ${APP_URL} met uw e-mailadres (${inv.email}) en uw wachtwoord. Bent u uw wachtwoord vergeten, klik dan op "Wachtwoord vergeten" en u ontvangt meteen een nieuwe link.
+${isWinwinlening(inv.tranche) ? `\n${WIN_NOTE.nl}\n\n**Behoud van uw fiscaal voordeel op optie A en B is gegarandeerd.**` : ""}
+
+Vragen? Stuur ze naar info@evchargeking.com of info@winwinner.be. Beide adressen zijn in kopie (cc) van deze e-mail.
+
+Hartelijk dank voor uw vertrouwen.
+
+Met vriendelijke groeten,
+
+Erwin Raets
+Zaakvoerder, EVChargeking (Some BV)`;
+  return { subject: "Herinnering: uw keuze voor de EVChargeking-lening", text, cta: { url: APP_URL, label: "Naar het investeerdersportaal" } };
+}
+export async function sendReminder(a: SupabaseClient, inv: { id: string; email: string; first_name?: string | null; tranche?: string | null }, campaign?: string): Promise<boolean> {
+  const { data } = await a.from("inv_settings").select("value").eq("key", "deadline").maybeSingle();
+  const parsed = new Date(String(data?.value || ""));
+  const deadline = isNaN(parsed.getTime()) ? new Date(Date.now() + 7 * 86400_000) : parsed;
+  const m = reminderContent(inv, deadline);
+  return await sendMail(a, { to: inv.email, kind: "reminder", lang: "nl", noreply: true, cc: "info@evchargeking.com,info@winwinner.be", campaign, subject: m.subject, cta: m.cta, text: m.text });
 }
 // The invitation exactly as it is sent; also used for the preview in Beheer (with a dummy link).
 // Winwinlening (state-backed) investors: Winwinner executes the choice; subject to signing via the Winwinner platform and possibly PMV validation.
@@ -246,6 +275,8 @@ Werkt de knop niet meer? Ga naar ${APP_URL}, klik op "Wachtwoord vergeten" en vu
 ## BELINUS IN 2027
 
 Belinus lanceert volgend jaar een residentiële natrium-ionbatterij, made in Belgium: lithiumvrij, veilig en met 15 jaar garantie. Ze maakt deel uit van een totaalpakket met een slim zonnepaneel (in partnerschap met LONGi), een hybride SiC-omvormer, energieopslag, de ETAPpro-laadpaal van EVChargeking en een AI-energiebeheersysteem. Bekijk het aanbod: https://www.belinus.com/b2c/index.html
+
+Antwoorden op deze e-mail kan niet. Stel uw vragen aan info@evchargeking.com of info@winwinner.be. Winwinner is in kopie (cc) van deze e-mail.
 
 Hartelijk dank voor uw vertrouwen.
 

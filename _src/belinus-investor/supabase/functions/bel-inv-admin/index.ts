@@ -2,7 +2,7 @@
 import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
 import { lastMailError } from "../_shared/inv.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor } from "../_shared/finance.ts";
-import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, APP_URL, automatedPreview } from "../_shared/inv.ts";
+import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, reminderContent, sendReminder, APP_URL, automatedPreview } from "../_shared/inv.ts";
 
 const SETTINGS_BELINUS = ["deadline", "interest_only_date", "gift", "notify_email"];
 const SETTINGS_ALL = ["booking", "video_url"];
@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     ]);
     const byC = new Map((ch || []).map((c: any) => [c.investor_id, c]));
     // Invitation campaigns with their mail counts, shown under the platform table on the overview.
-    const { data: camps } = await a.from("inv_campaigns").select("id, name, group_code, mail_kind, status").eq("mail_kind", "invite").order("created_at", { ascending: false }).limit(10);
+    const { data: camps } = await a.from("inv_campaigns").select("id, name, group_code, mail_kind, status").in("mail_kind", ["invite", "reminder"]).order("created_at", { ascending: false }).limit(10);
     const sent = await invitedMap(a);
     // Per campaign: mails sent and failed (exact counts), and invitations still to send for its group.
     const campaigns = await Promise.all((camps || []).map(async (c: any) => {
@@ -271,15 +271,27 @@ Deno.serve(async (req) => {
     const { data: grp } = await a.from("inv_groups").select("code, name, description").eq("code", c.group_code || "").maybeSingle();
     const { data: mem } = await a.from("inv_group_members").select("investor_id").eq("group_code", c.group_code || "");
     const memIds = (mem || []).map((m: any) => m.investor_id);
-    const { data: members } = memIds.length ? await a.from("inv_investors").select("email, status, tranche, is_test").in("id", memIds) : { data: [] as any[] };
+    const { data: members } = memIds.length ? await a.from("inv_investors").select("id, email, status, tranche, is_test").in("id", memIds) : { data: [] as any[] };
+    const { data: chosenRows } = await a.from("inv_choices").select("investor_id");
+    const chosenIds = new Set((chosenRows || []).map((r: any) => r.investor_id));
     const alreadyInvited = c.mail_kind === "invite" ? await invitedMap(a) : new Map();
     const seenR = new Set(rows.map((r: any) => String(r.recipient).toLowerCase()));
-    const waiting = (members || []).filter((m: any) => !m.is_test && !seenR.has(String(m.email).toLowerCase()) && (c.mail_kind !== "invite" || (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !alreadyInvited.has(String(m.email).toLowerCase()))));
+    const waiting = (members || []).filter((m: any) => !m.is_test && !seenR.has(String(m.email).toLowerCase()) && (c.mail_kind === "reminder" ? (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !chosenIds.has(m.id)) : (c.mail_kind !== "invite" || (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !alreadyInvited.has(String(m.email).toLowerCase())))));
     for (const m of waiting) rows.push({ recipient: m.email, status: "nog niet verstuurd", sent_at: null, delivery: "Nog niet verstuurd", refused: false, temporary: false, complained: false, unsubscribed: false, delivered: false, opened: false, clicked: false, links: [] });
-    const pending = c.mail_kind === "invite" ? waiting.length : 0;
+    const pending = c.mail_kind === "invite" || c.mail_kind === "reminder" ? waiting.length : 0;
     const cnt = (f: (r: any) => boolean) => rows.filter(f).length;
     const stats = { sent: cnt((r) => r.status === "sent"), failed: cnt((r) => r.status === "failed"), delivered: cnt((r) => r.delivered), refused: cnt((r) => r.refused), temporary: cnt((r) => r.temporary), opened: cnt((r) => r.opened), not_opened: cnt((r) => r.status === "sent" && !r.opened), clicked: cnt((r) => r.clicked), complained: cnt((r) => r.complained), unsubscribed: cnt((r) => r.unsubscribed) };
     let tpl: { subject: string; html: string; text: string } = { subject: c.subject, text: c.body, html: mailHtml(c.body, undefined, "nl", false, "") };
+    if (c.mail_kind === "reminder") {
+      const st = await settings(a);
+      const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
+      const sampleR = (tranche: string) => { const m = reminderContent({ email: "[e-mailadres investeerder]", first_name: "Jan", tranche }, deadline); return { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, ""), cc: "" }; };
+      const templates = [
+        { label: "Crowdlening (zonder Winwinlening-tekst)", ...sampleR("crowd-1411") },
+        { label: "Winwinlening (door de staat gesteund)", ...sampleR("winwin-1411") },
+      ];
+      return json({ ok: true, role: acc.role, campaign: c, limit_until: (await a.from("inv_settings").select("value").eq("key", "mail_limit_until").maybeSingle()).data?.value || null, group: grp || null, group_members: (members || []).length, pending, stats, recipients: rows, template: templates[0], templates });
+    }
     if (c.mail_kind === "invite") {
       const st = await settings(a);
       const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
@@ -384,7 +396,7 @@ Deno.serve(async (req) => {
     if (body.campaign) {
       // Sent from a campaign page: the campaign decides the group and receives the mails.
       const { data: cc } = await a.from("inv_campaigns").select("id, group_code, mail_kind, status").eq("id", String(body.campaign)).maybeSingle();
-      if (!cc || cc.mail_kind !== "invite" || !["draft", "sending"].includes(cc.status)) return json({ error: "bad-input" }, 400);
+      if (!cc || !["invite", "reminder"].includes(cc.mail_kind) || !["draft", "sending"].includes(cc.status)) return json({ error: "bad-input" }, 400);
       linked = cc; gcode = cc.group_code;
     }
     const { data: grp } = await a.from("inv_groups").select("code, name").eq("code", gcode).maybeSingle();
@@ -394,7 +406,15 @@ Deno.serve(async (req) => {
     const { data: inv0 } = await a.from("inv_investors").select("id, email, first_name, status, invested, tranche").eq("is_test", false).eq("status", "invited").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name");
     const inv = (inv0 || []).filter((i: any) => memIds.has(i.id));
     const sent = await invitedMap(a);
-    const todo = inv.filter((i: any) => !sent.has(i.email));
+    let todo = inv.filter((i: any) => !sent.has(i.email));
+    if (linked?.mail_kind === "reminder") {
+      // Reminder: only investors who have not chosen yet and who have not been reminded in this campaign.
+      const { data: chosenRows } = await a.from("inv_choices").select("investor_id");
+      const chosenIds = new Set((chosenRows || []).map((r: any) => r.investor_id));
+      const { data: campMails } = await a.from("inv_mail_log").select("recipient").eq("campaign_id", linked.id).eq("status", "sent");
+      const reminded = new Set((campMails || []).map((r: any) => String(r.recipient).toLowerCase()));
+      todo = inv.filter((i: any) => !chosenIds.has(i.id) && !reminded.has(String(i.email).toLowerCase()));
+    }
     if (action === "invite_pending") return json({ ok: true, pending: todo.length, invited: inv.length - todo.length });
     if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
     if (body.confirm !== "VERSTUREN") return json({ error: "bad-input" }, 400);
@@ -404,7 +424,7 @@ Deno.serve(async (req) => {
     let { data: camp } = linked ? { data: linked } : await a.from("inv_campaigns").select("id").eq("mail_kind", "invite").eq("group_code", gcode).in("status", ["draft", "sending"]).order("created_at").limit(1).maybeSingle();
     if (!camp) ({ data: camp } = await a.from("inv_campaigns").insert({ name: `Uitnodiging ${grp.name} – eerste uitnodiging`, group_code: gcode, mail_kind: "invite", subject: "Uitnodiging voor het Investeerdersportaal EVChargeking", body: "Persoonlijke uitnodigingsmail met persoonlijke link.", status: "sending" }).select("id").single());
     if (camp?.id) await a.from("inv_campaigns").update({ status: "sending" }).eq("id", camp.id);
-    for (const i of todo.slice(0, 20)) { if (await sendInvite(a, i, { cc: true, campaign: camp?.id })) ok++; else failed++; }
+    for (const i of todo.slice(0, 20)) { const sentOk = linked?.mail_kind === "reminder" ? await sendReminder(a, i, camp?.id) : await sendInvite(a, i, { cc: true, campaign: camp?.id }); if (sentOk) ok++; else failed++; }
     if (camp?.id && todo.length - ok - failed <= 0) await a.from("inv_campaigns").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", camp.id);
     await audit(a, u, "invite-batch", "investors", { ok, failed });
     const left = Math.max(0, todo.length - ok - failed);
