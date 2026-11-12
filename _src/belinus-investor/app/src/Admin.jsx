@@ -41,13 +41,13 @@ function AdmSystem() {
     <Note kind="error">{err}</Note>
     <div className="card"><FailedCorrections /></div>
     <div className="card stack">
-      <h2 style={{ fontSize: 18, margin: 0 }}>Mailgun vandaag</h2>
-      <p style={{ margin: 0, fontSize: 28, fontWeight: 600, color }}>{nfmt(m.sent_today)} van {nfmt(m.limit)} verstuurd</p>
+      <h2 style={{ fontSize: 18, margin: 0 }}>Mailgun deze maand</h2>
+      <p style={{ margin: 0, fontSize: 28, fontWeight: 600, color }}>{nfmt(m.sent_today)} van {nfmt(m.limit)} verstuurd deze maand</p>
       <div style={{ background: '#e6e9ee', borderRadius: 6, height: 14, overflow: 'hidden' }}><div style={{ width: pct + '%', background: color, height: '100%' }} /></div>
-      <p style={{ margin: 0 }}><b style={{ color }}>{label}.</b> Nog {nfmt(m.remaining)} mails vandaag. Mislukt vandaag: {nfmt(m.failed_today)}.</p>
+      <p style={{ margin: 0 }}><b style={{ color }}>{label}.</b> Nog {nfmt(m.remaining)} mails deze maand. Mislukt vandaag: {nfmt(m.failed_today)}.</p>
       {m.blocked_today > 0 && <Note kind="error">{nfmt(m.blocked_today)} mails zijn vandaag geblokkeerd door de Mailgun-dagelijkse limiet. Laatste keer: {whenNl(m.last_limit_error_at)}.</Note>}
       {m.unexplained_failures_today > 0 && <p className="hint" style={{ margin: 0 }}>{nfmt(m.unexplained_failures_today)} mislukte mails van vóór de foutregistratie hebben geen opgeslagen reden.</p>}
-      <p className="hint" style={{ margin: 0 }}>De teller telt de verstuurde mails van de Brusselse kalenderdag in dit portaal. Mailgun zelf telt de limiet volgens de eigen regels; controleer daar bij twijfel.</p>
+      <p className="hint" style={{ margin: 0 }}>Het abonnement Foundation 50.000 telt per maand (geen dagelijkse limiet). De teller telt de verstuurde mails van de huidige Brusselse kalendermaand in dit portaal; controleer het verbruik in Mailgun bij twijfel.</p>
     </div>
     <div className="card stack">
       <h2 style={{ fontSize: 18, margin: 0 }}>Status van de koppelingen</h2>

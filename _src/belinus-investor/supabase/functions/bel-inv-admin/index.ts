@@ -239,6 +239,219 @@ Deno.serve(async (req) => {
     await audit(a, u, "info-pdf-campaign", email, { campaign: c.id, bytes: pdf.length });
     return json({ ok: true });
   }
+  if (action === "system_status") {
+    const BRU = "Europe/Brussels";
+    const now = new Date();
+    const dayKey = (d: Date | string) => new Date(d).toLocaleDateString("sv-SE", { timeZone: BRU });
+    const todayKey = dayKey(now);
+    // Offset of Brussels from UTC at this moment (+1 in winter, +2 in summer), so that "today" is the Brussels day.
+    const brusselsOffset = (d: Date) => {
+      const p: Record<string, number> = {};
+      for (const x of new Intl.DateTimeFormat("en-GB", { timeZone: BRU, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(d)) if (x.type !== "literal") p[x.type] = Number(x.value);
+      return Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second) - Math.floor(d.getTime() / 1000) * 1000;
+    };
+    const since30 = new Date(Date.parse(todayKey + "T00:00:00Z") - brusselsOffset(now) - 30 * 86400_000);
+    const monthStart = new Date(Date.parse(todayKey.slice(0, 7) + "-01T00:00:00Z") - brusselsOffset(now) - 86400_000);
+    const sinceMs = new Date(Math.min(since30.getTime(), monthStart.getTime())).toISOString();
+    const { data: logs, error: logErr } = await a.from("inv_mail_log").select("provider, status, kind, error, recipient, subject, created_at").gte("created_at", sinceMs).order("created_at", { ascending: false }).limit(20000);
+    if (logErr) return json({ error: "server-error" }, 500);
+    const rows: any[] = logs || [];
+
+    // Connector health. A status code of 0 means no answer.
+    const code = async (url: string, headers: Record<string, string>) => { const t0 = Date.now(); try { const r = await fetch(url, { headers, signal: AbortSignal.timeout(5000) }); return { status: r.status, ms: Date.now() - t0 }; } catch { return { status: 0, ms: Date.now() - t0 }; } };
+    const mgKey = Deno.env.get("MAILGUN_API_KEY"), mgDomain = Deno.env.get("MAILGUN_DOMAIN"), mgBase = (Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "");
+    const brKey = Deno.env.get("BREVO_API_KEY");
+    const t0 = Date.now();
+    const { error: dbErr } = await a.from("inv_settings").select("key").limit(1);
+    const dbMs = Date.now() - t0;
+    const mg = mgKey && mgDomain ? await code(`${mgBase}/v3/domains/${encodeURIComponent(mgDomain)}`, { Authorization: "Basic " + btoa("api:" + mgKey) }) : null;
+    const br = brKey ? await code("https://api.brevo.com/v3/account", { "api-key": brKey }) : null;
+    const checks = [
+      { group: "Server", label: "Database (Supabase)", ok: !dbErr, ms: dbMs, detail: dbErr ? "niet bereikbaar" : "bereikbaar" },
+      { group: "Server", label: "Investeerdersfuncties", ok: true, ms: 0, detail: "antwoordt: u ziet deze pagina" },
+      { group: "Mail", label: "Mailgun (e-mail, EU)", ok: mg ? mg.status === 200 : false, ms: mg?.ms ?? null, detail: !mgKey || !mgDomain ? "niet ingesteld" : mg!.status === 200 ? "bereikbaar" : `antwoord ${mg!.status || "geen"}` },
+      { group: "Mail", label: "Brevo (reserve)", ok: br ? br.status === 200 : false, ms: br?.ms ?? null, detail: !brKey ? "niet ingesteld" : br!.status === 200 ? "bereikbaar" : `antwoord ${br!.status || "geen"}` },
+      { group: "Connectoren", label: "Microsoft Teams (afspraken)", ok: teamsConfigured(), ms: null, detail: teamsConfigured() ? "ingesteld" : "niet ingesteld" },
+    ];
+
+    // Mail: today's Brussels day, and the Mailgun daily cap.
+    const isToday = (r: any) => dayKey(r.created_at) === todayKey;
+    const today = rows.filter(isToday);
+    const LIMIT_RE = /daily|limit|quota|too many|429|exceed/i;
+    // Foundation plan: 50,000 mails per month, no daily limit. Sent is counted for the current Brussels month.
+    const mgLimit = Number(Deno.env.get("MAILGUN_MONTHLY_LIMIT") || 50000);
+    const monthKey = todayKey.slice(0, 7);
+    const mgSent = rows.filter((r) => r.provider === "mailgun" && r.status === "sent" && dayKey(r.created_at).startsWith(monthKey)).length;
+    const mgFailed = today.filter((r) => r.provider === "mailgun" && r.status === "failed").length;
+    const blocked = today.filter((r) => r.status === "failed" && LIMIT_RE.test(r.error || ""));
+    const unexplained = today.filter((r) => r.status === "failed" && !r.error).length;
+    const level = blocked.length || mgSent >= mgLimit ? "red" : mgSent >= mgLimit * 0.8 ? "amber" : "green";
+    const { data: lim } = await a.from("inv_settings").select("value").eq("key", "mail_limit_until").maybeSingle();
+    const { count: sentAll } = await a.from("inv_mail_log").select("id", { count: "exact", head: true }).eq("status", "sent");
+    const { count: rowsAll } = await a.from("inv_mail_log").select("id", { count: "exact", head: true });
+    // Last 14 days, per day.
+    const days: string[] = [];
+    for (let i = 13; i >= 0; i--) days.push(dayKey(new Date(Date.parse(todayKey + "T12:00:00Z") - i * 86400_000)));
+    const daily = days.map((day) => {
+      const of = rows.filter((r) => dayKey(r.created_at) === day);
+      return { day, mailgun: of.filter((r) => r.provider === "mailgun" && r.status === "sent").length, brevo: of.filter((r) => r.provider === "brevo" && r.status === "sent").length, failed: of.filter((r) => r.status === "failed").length };
+    });
+    // Last 30 days, per kind.
+    const kinds = new Map<string, { sent: number; failed: number }>();
+    for (const r of rows) {
+      const k = kinds.get(r.kind) ?? { sent: 0, failed: 0 };
+      if (r.status === "sent") k.sent++; else if (r.status === "failed") k.failed++;
+      kinds.set(r.kind, k);
+    }
+    const lastSent = rows.find((r) => r.status === "sent");
+    return json({
+      ok: true,
+      generated_at: now.toISOString(),
+      provider: mgKey && mgDomain ? "mailgun" : brKey ? "brevo" : "geen",
+      checks,
+      mail: {
+        mailgun: { period: "month", limit: mgLimit, sent_month: mgSent, sent_today: mgSent, failed_today: mgFailed, remaining: Math.max(0, mgLimit - mgSent), level, blocked_today: blocked.length, unexplained_failures_today: unexplained, limit_until: lim?.value || null, last_limit_error_at: blocked[0]?.created_at || null },
+        total_sent_all_time: sentAll ?? 0,
+        total_rows_all_time: rowsAll ?? 0,
+        last_sent_at: lastSent?.created_at || null,
+        daily,
+        by_kind: [...kinds.entries()].map(([kind, v]) => ({ kind, ...v })).sort((x, y) => y.sent - x.sent),
+        recent_failures: rows.filter((r) => r.status === "failed").slice(0, 30).map((r) => ({ created_at: r.created_at, kind: r.kind, provider: r.provider, recipient: r.recipient, error: r.error || null })),
+      },
+    });
+  }
+  // Personal invitation (the investor letter with a one-click activation button), to one investor: for tests, or again.
+  if (action === "invite") {
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, status, invested, tranche").eq("id", id).single();
+    if (inv.status !== "invited") return json({ error: "already-active" }, 400);
+    // Winwinner is in cc only on the very first invitation to this investor.
+    const firstTime = !(await invitedMap(a)).has(inv.email);
+    const ok = await sendInvite(a, inv, { cc: firstTime });
+    await audit(a, u, "invite-sent", inv.email);
+    return ok ? json({ ok: true }) : json({ error: "mail-failed" }, 503);
+  }
+  // Mass send, Belinus only: real investors (no test accounts) without a password and not yet invited, 20 per call; the
+  // page calls again until nothing is left.
+  // Preview of the invitation, exactly as rendered for the chosen (or first pending) investor; the button link is a dummy.
+  if (action === "invite_preview") {
+    let inv: any = null;
+    if (id) ({ data: inv } = await a.from("inv_investors").select("email, first_name, invested, tranche").eq("id", id).maybeSingle());
+    if (!inv) { const { data } = await a.from("inv_investors").select("email, first_name, invested").eq("is_test", false).eq("status", "invited").order("last_name").limit(1); inv = data?.[0] || { email: "[e-mailadres investeerder]", first_name: "Jan", invested: 5000 }; }
+    // The first invitation to each investor carries a copy to info@winwinner.be (see sendInvite).
+    return json({ ok: true, ...(await invitePreview(a, inv)), cc: "info@winwinner.be" });
+  }
+  // Test send of the personal invitation, to Erwin only, so he can check the content. The button link is a placeholder: no investor link is created.
+  if (action === "test_invite") {
+    const to = "erwin@evchargeking.com";
+    const st = await settings(a);
+    const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
+    const expires = new Date(Math.max(deadline.getTime(), Date.now() + 7 * 86400_000));
+    const m = inviteContent({ email: to, first_name: null, invested: null }, `${APP_URL}/#/wachtwoord?code=VOORBEELD&uitnodiging=1`, deadline, expires);
+    const sent = await sendMail(a, { to, kind: "invite-test", lang: "nl", noreply: true, subject: "TEST – graag validatie van deze tekst: " + m.subject, cta: m.cta, text: m.text });
+    return sent ? json({ ok: true, to }) : json({ error: "mail-failed" }, 503);
+  }
+  // Preview of the confirmation mail an investor gets after booking an investor day, video call or call-back (kind: visit, video, callback).
+  if (action === "booking_preview") {
+    const kind = ["visit", "video", "callback"].includes(body.kind) ? body.kind : "visit";
+    return json({ ok: true, ...(await bookingPreview(a, kind)) });
+  }
+  if (action === "bolero_import") {
+    // Imports the Bolero (KBC) bondholder list. Records are created as "suspended": no login, no invitation, no mail.
+    // Repayment schedule: the aflossingstabel (amortization-table.pdf, 19/09/2025) pro rata to each investment. Provisional until the contract is clarified.
+    if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
+    if (body.confirm !== "IMPORTEREN") return json({ error: "bad-input" }, 400);
+    const list = Array.isArray(body.rows) ? body.rows : [];
+    if (!list.length || list.length > 1000) return json({ error: "bad-input" }, 400);
+    const TR = "bolero-0925", TOTAL = 500000;
+    const ROWS: [string, number, number, number, number][] = [["2025-09-19",500000,0,0,0],["2025-10-19",500000,0,3350,2350],["2025-11-19",500000,0,3350,2350],["2025-12-19",500000,0,3350,2350],["2026-01-19",500000,0,3350,2350],["2026-02-19",500000,0,3350,2350],["2026-03-19",500000,0,3350,2350],["2026-04-19",500000,0,3350,2350],["2026-05-19",500000,0,3350,2350],["2026-06-19",500000,0,3350,2350],["2026-07-19",500000,0,3350,2350],["2026-08-19",500000,0,3350,2350],["2026-09-19",500000,0,3350,2350],["2026-10-19",489600,10400,3350,2350],["2026-11-19",479200,10400,3250,2300],["2026-12-19",468800,10400,3200,2250],["2027-01-19",458400,10400,3150,2200],["2027-02-19",448000,10400,3050,2150],["2027-03-19",437600,10400,3000,2100],["2027-04-19",427200,10400,2900,2050],["2027-05-19",416800,10400,2850,2000],["2027-06-19",406400,10400,2800,1950],["2027-07-19",396000,10400,2700,1900],["2027-08-19",385600,10400,2650,1850],["2027-09-19",375200,10400,2600,1800],["2027-10-19",364800,10400,2500,1750],["2027-11-19",354400,10400,2450,1700],["2027-12-19",344000,10400,2350,1650],["2028-01-19",333600,10400,2300,1600],["2028-02-19",323200,10400,2250,1550],["2028-03-19",312800,10400,2150,1500],["2028-04-19",302400,10400,2100,1450],["2028-05-19",292000,10400,2000,1400],["2028-06-19",281600,10400,1950,1350],["2028-07-19",271200,10400,1900,1300],["2028-08-19",260800,10400,1800,1250],["2028-09-19",250400,10400,1750,1200],["2028-10-19",240000,10400,1650,1150],["2028-11-19",229600,10400,1600,1100],["2028-12-19",219200,10400,1550,1050],["2029-01-19",208800,10400,1450,1050],["2029-02-19",198400,10400,1400,1000],["2029-03-19",188000,10400,1350,950],["2029-04-19",177600,10400,1250,900],["2029-05-19",167200,10400,1200,850],["2029-06-19",156800,10400,1100,800],["2029-07-19",146400,10400,1050,750],["2029-08-19",136000,10400,1000,700],["2029-09-19",125600,10400,900,650],["2029-10-19",115200,10400,850,600],["2029-11-19",104800,10400,750,550],["2029-12-19",94400,10400,700,500],["2030-01-19",84000,10400,650,450],["2030-02-19",73600,10400,550,400],["2030-03-19",63200,10400,500,350],["2030-04-19",52800,10400,400,300],["2030-05-19",42400,10400,350,250],["2030-06-19",32000,10400,300,200],["2030-07-19",21600,10400,200,150],["2030-08-19",11200,10400,150,100],["2030-09-19",0,11200,50,50]];
+    const r2 = (x: number) => Math.round(x * 100) / 100;
+    const { error: trErr } = await a.from("inv_tranches").upsert({ code: TR, name: "Bolero Crowdfunding 19/09/2025 (KBC)", platform: "bolero", gross_rate: 0.0832, term_years: 5, structure: "Maandelijkse interest; aflossing vanaf 19/10/2026 volgens de aflossingstabel (voorlopig)", original_end: "2030-09-19" }, { onConflict: "code" });
+    if (trErr) return json({ error: "tranche-failed" }, 500);
+    const skipped: string[] = [];
+    let imported = 0, pending: any[] = [];
+    const flush = async () => { if (pending.length) { const { error } = await a.from("inv_schedule").insert(pending); if (error) skipped.push("schedule:" + error.message.slice(0, 80)); pending = []; } };
+    for (const r of list) {
+      const email = String(r.email || "").trim().toLowerCase();
+      const invested = Number(r.invested);
+      if (!email || !(invested > 0)) { skipped.push(email || "(leeg)"); continue; }
+      const { data: exists } = await a.from("inv_investors").select("id").eq("email", email).maybeSingle();
+      if (exists) { skipped.push(email + " (bestaat al)"); continue; }
+      const { data: ins, error } = await a.from("inv_investors").insert({ email, first_name: str(r.first_name, 100) || null, last_name: str(r.last_name, 100) || null, tranche: TR, invested, invested_on: "2025-09-19", status: "suspended", lang: "nl", is_test: false, is_demo: false }).select("id").single();
+      if (error || !ins) { skipped.push(email); continue; }
+      const holders = Array.isArray(r.holders) ? r.holders : [];
+      if (holders.length) await a.from("inv_coholders").insert(holders.map((h: any, i: number) => ({ investor_id: ins.id, role: i === 0 ? "holder" : "co-owner", last_name: str(h.last_name, 100) || null, first_name: str(h.first_name, 100) || null, bonds: Math.round(Number(h.bonds)) || null, invested: Number(h.invested) || null })));
+      const share = invested / TOTAL;
+      for (let i = 0; i < ROWS.length; i++) {
+        const [due, outst, princ, gross, net] = ROWS[i];
+        const g = r2(gross * share), n = r2(net * share);
+        pending.push({ investor_id: ins.id, scenario: "original", period: i, due, gross_interest: g, withholding: r2(g - n), net_interest: n, principal: r2(princ * share), remaining: r2(outst * share), status: "planned" });
+      }
+      if (pending.length >= 1000) await flush();
+      imported++;
+    }
+    await flush();
+    return json({ ok: true, imported, skipped });
+  }
+  if (action === "groups") {
+    const { data: gs } = await a.from("inv_groups").select("code, name, description").order("name");
+    const { data: ms } = await a.from("inv_group_members").select("group_code");
+    const n = new Map<string, number>();
+    for (const m of ms || []) n.set(m.group_code, (n.get(m.group_code) || 0) + 1);
+    return json({ ok: true, groups: (gs || []).map((g: any) => ({ ...g, members: n.get(g.code) || 0 })) });
+  }
+  // Investor groups: create a group, add or remove investors. The preconfigured groups (winwinner, bolero) are kept as they are.
+  if (action === "group_detail") {
+    const code = String(body.code || "");
+    const { data: g } = await a.from("inv_groups").select("code, name, description").eq("code", code).maybeSingle();
+    if (!g) return json({ error: "not-found" }, 404);
+    const { data: ms } = await a.from("inv_group_members").select("investor_id").eq("group_code", code);
+    const ids = (ms || []).map((m: any) => m.investor_id);
+    const { data: inv } = ids.length ? await a.from("inv_investors").select("id, email, first_name, last_name, company_name, tranche, status, invested").in("id", ids).order("last_name") : { data: [] as any[] };
+    return json({ ok: true, group: g, members: inv || [] });
+  }
+  if (action === "group_create") {
+    const name = str(body.name, 80);
+    const description = str(body.description, 300) || null;
+    if (!name) return json({ error: "bad-input" }, 400);
+    const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+    if (!slug) return json({ error: "bad-input" }, 400);
+    const { data: exists } = await a.from("inv_groups").select("code").eq("code", slug).maybeSingle();
+    if (exists) return json({ error: "exists" }, 409);
+    const { error } = await a.from("inv_groups").insert({ code: slug, name, description });
+    if (error) { console.error("inv group", error.message); return json({ error: "server-error" }, 500); }
+    await audit(a, u, "group", slug, { name, description });
+    return json({ ok: true, code: slug });
+  }
+  if (action === "group_members_add" || action === "group_members_remove") {
+    const code = String(body.code || "");
+    const ids = (Array.isArray(body.investor_ids) ? body.investor_ids : []).map((x: any) => String(x)).filter(Boolean);
+    const { data: g } = await a.from("inv_groups").select("code").eq("code", code).maybeSingle();
+    if (!g || !ids.length || ids.length > 1000) return json({ error: "bad-input" }, 400);
+    if (action === "group_members_add") {
+      const { data: found } = await a.from("inv_investors").select("id").in("id", ids);
+      const rows = (found || []).map((x: any) => ({ group_code: code, investor_id: x.id }));
+      if (rows.length) { const { error } = await a.from("inv_group_members").upsert(rows, { onConflict: "group_code,investor_id", ignoreDuplicates: true }); if (error) { console.error("inv group add", error.message); return json({ error: "server-error" }, 500); } }
+      await audit(a, u, "group", code, { added: rows.length });
+      return json({ ok: true, changed: rows.length });
+    }
+    const { error } = await a.from("inv_group_members").delete().eq("group_code", code).in("investor_id", ids);
+    if (error) { console.error("inv group remove", error.message); return json({ error: "server-error" }, 500); }
+    await audit(a, u, "group", code, { removed: ids.length });
+    return json({ ok: true, changed: ids.length });
+  }
+  if (action === "campaigns") {
+    const { data: cs } = await a.from("inv_campaigns").select("*").order("created_at", { ascending: false });
+    const { data: logs } = await a.from("inv_mail_log").select("campaign_id, status").not("campaign_id", "is", null);
+    const { data: ev } = await a.from("inv_mail_events").select("campaign_id, recipient, event");
+    const out = (cs || []).map((c: any) => {
+      const l = (logs || []).filter((x: any) => x.campaign_id === c.id);
+      const e = (ev || []).filter((x: any) => x.campaign_id === c.id);
+      const uniq = (k: string) => new Set(e.filter((x: any) => x.event === k).map((x: any) => x.recipient)).size;
+      return { ...c, sent: l.filter((x: any) => x.status === "sent").length, failed: l.filter((x: any) => x.status === "failed").length, opened: uniq("opened"), clicked: uniq("clicked"), events_loaded: e.length > 0 };
+    });
+    return json({ ok: true, role: acc.role, campaigns: out });
+  }
   if (action === "campaign") {
     const { data: c } = await a.from("inv_campaigns").select("*").eq("id", body.id).single();
     if (!c) return json({ error: "not-found" }, 404);
