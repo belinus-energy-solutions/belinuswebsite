@@ -539,6 +539,14 @@ Deno.serve(async (req) => {
     const STATUS: Record<string, string> = { paid: "paid", planned: "planned", deferred: "planned" };
     const year = (due: string) => Number(String(due).slice(0, 4));
     const plain = (r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) });
+    const addMonths = (due: string, n: number) => { const x = new Date(String(due) + "T12:00:00Z"); x.setUTCMonth(x.getUTCMonth() + n); return x.toISOString().slice(0, 10); };
+    // As in the investor portal: the first unpaid payment of option A and B is dated at its latest possible day (original due date + 3 months).
+    const leadRows = (rows: any[], orig: any[]) => {
+      const cur = orig.find((r: any) => r.status !== "paid")?.due;
+      const idx = rows.findIndex((x: any) => x.st !== "paid");
+      if (!cur || idx < 0) return rows;
+      return rows.map((x: any, i: number) => (i === idx ? { ...x, due: addMonths(cur, 3) } : x));
+    };
     // Option B: the paid 2025 rows of the original schedule, then the rising repayment plan from 2026.
     const optionBRows = (inv: any, g: any, t: any, kind: string) => [
       ...g.original.filter((r: any) => year(r.due) < 2026).map((r: any) => ({ ...plain(r), st: r.status })),
@@ -559,7 +567,7 @@ Deno.serve(async (req) => {
         const g = schBy.get(inv.id);
         if (!g || !g.original.length) continue;
         investors++;
-        const sets: Record<string, any[]> = { original: g.original.map(plain), A: g.A.map(plain), B: optionBRows(inv, g, t, kind) };
+        const sets: Record<string, any[]> = { original: g.original.map(plain), A: leadRows(g.A.map((r: any) => ({ ...plain(r), st: r.status })), g.original), B: leadRows(optionBRows(inv, g, t, kind), g.original) };
         for (const k of Object.keys(sets)) {
           for (const r of sets[k]) {
             const y = year(r.due);
@@ -599,7 +607,7 @@ Deno.serve(async (req) => {
         continue;
       }
       const newStatus = (st: string) => (st === "paid" ? "paid" : signed ? "planned" : "pending");
-      const rows = ch.choice === "A" ? g.A.map((r: any) => ({ ...plain(r), st: r.status })) : optionBRows(inv, g, t, kind);
+      const rows = leadRows(ch.choice === "A" ? g.A.map((r: any) => ({ ...plain(r), st: r.status })) : optionBRows(inv, g, t, kind), g.original);
       for (const r of rows) add(r, "option " + ch.choice, newStatus(r.st));
     }
     const shown = futureOnly ? lines.filter((l) => l.due >= today) : lines;
