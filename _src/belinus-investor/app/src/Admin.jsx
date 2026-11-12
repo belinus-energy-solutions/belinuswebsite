@@ -250,6 +250,7 @@ function InvPage({ id }) {
     <div className="page-head"><div><p className="hint" style={{ margin: 0 }}><a href="#/investeerders">Investeerders</a> ›</p><h1 className="page-title">{nameOf(i)}{i.is_demo ? <span className="chip info" style={{ marginLeft: 10, verticalAlign: 'middle' }}>demo</span> : i.is_test ? <span className="chip warn" style={{ marginLeft: 10, verticalAlign: 'middle' }}>test</span> : null}</h1>
       <p className="page-sub">{trName(i.tranche)} · {eur(i.invested)} · keuze {d.choice?.choice || '—'} · {i.status === 'active' ? 'actief sinds ' + dayNl(i.activated_at) : 'nog geen wachtwoord'}</p></div>
       <div className="row"><button className="btn ghost sm" onClick={() => viewAs(i.id)}>Bekijk als</button>{i.status === 'invited' && <button className="btn ghost sm" onClick={() => setPrev(true)}>Bekijk uitnodiging</button>}<button className="btn ghost sm" onClick={invite}>{i.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</button><button className="btn sm" onClick={() => document.querySelector('.composer textarea')?.focus()}>Bericht sturen</button></div></div>
+    <div style={{ marginTop: 10 }}><SendInfo id={i.id} email={i.email} /></div>
     <Note kind="ok">{ok}</Note><Note kind="error">{err}</Note>{prev && <InvitePreview id={i.id} onClose={() => setPrev(false)} />}
     <div className="inv-grid">
       <div className="card stack"><h2 style={{ margin: 0 }}>Gegevens</h2>{[
