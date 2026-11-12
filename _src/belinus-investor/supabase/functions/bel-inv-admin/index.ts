@@ -163,6 +163,33 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
   // Campaign PDF: the mode (none, fixed or personal) and, for a fixed PDF, the file itself.
+  // Correction mails for investors whose password-link or choice mail failed in the last 2 days: one apology per investor, skipped when already sent.
+  if (action === "failed_corrections") {
+    if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
+    if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    const since = new Date(Date.now() - 2 * 86400_000).toISOString();
+    const { data: fails } = await a.from("inv_mail_log").select("recipient, kind").in("kind", ["access-link", "choice"]).eq("status", "failed").gte("created_at", since);
+    const { data: done } = await a.from("inv_mail_log").select("recipient").eq("kind", "notice-correction").eq("status", "sent").gte("created_at", since);
+    const doneSet = new Set((done || []).map((r: any) => String(r.recipient).toLowerCase()));
+    const byRec = new Map<string, Set<string>>();
+    for (const f of fails || []) { const k = String(f.recipient).toLowerCase(); if (!byRec.has(k)) byRec.set(k, new Set()); byRec.get(k)!.add(f.kind); }
+    let sent = 0, failed = 0, skipped = 0;
+    for (const [email, kinds] of byRec) {
+      if (doneSet.has(email)) { skipped++; continue; }
+      const { data: inv } = await a.from("inv_investors").select("id, email, first_name").ilike("email", email.replace(/[%_\\]/g, "\\$&")).maybeSingle();
+      if (!inv) { failed++; continue; }
+      const { data: ch } = await a.from("inv_choices").select("choice").eq("investor_id", inv.id).maybeSingle();
+      const lines: string[] = [];
+      if (kinds.has("choice") && ch?.choice) lines.push(`Uw keuze (${ch.choice}) is geregistreerd. De bevestigingsmail daarvan is niet aangekomen; uw keuze is wel bewaard.`);
+      if (kinds.has("access-link")) lines.push("De e-mail met uw persoonlijke link om het wachtwoord in te stellen is niet aangekomen.");
+      const text = `${hello(inv.first_name, "nl")}\n\nOnze geautomatiseerde e-mailservice heeft tijdelijk niet goed gewerkt. Dat is nu opgelost. Onze excuses voor het ongemak.\n\n${lines.join("\n")}\n\nU kunt zich aanmelden op het investeerdersportaal: ${APP_URL}. Lukt het aanmelden niet, vraag dan op die pagina een nieuwe link aan.\n\nMet vriendelijke groeten,\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus`;
+      const ok = await sendMail(a, { to: inv.email, kind: "notice-correction", lang: "nl", subject: "Excuses: onderbreking van onze e-mailservice – EVChargeking", text });
+      if (ok) sent++; else failed++;
+    }
+    await audit(a, u, "failed-corrections", "all", { sent, failed, skipped });
+    return json({ ok: true, sent, failed, skipped });
+  }
   if (action === "campaign_pdf") {
     if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
     const mode = String(body.mode || "");

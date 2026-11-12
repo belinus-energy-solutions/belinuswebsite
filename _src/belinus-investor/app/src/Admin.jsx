@@ -19,6 +19,14 @@ const KIND_NL = { invite: 'Persoonlijke uitnodiging', reminder: 'Herinnering keu
 const kindNl = (k) => KIND_NL[k] || k;
 const nfmt = (n) => new Intl.NumberFormat('nl-BE').format(Number(n) || 0);
 function Dot({ ok }) { return <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 5, marginRight: 8, background: ok === null ? '#9aa3ad' : ok ? '#1f7a3a' : '#b3261e' }} />; }
+// Sends one correction mail per investor whose password-link or choice mail failed in the last 2 days (skips those already corrected).
+function FailedCorrections() {
+  const [sure, setSure] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  async function send() { setBusy(true); setErr(''); setMsg(''); try { const r = await adm('failed_corrections', { confirm: true }); setMsg('Verstuurd: ' + r.sent + ' · mislukt: ' + r.failed + ' · al eerder verstuurd: ' + r.skipped + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  return <div className="stack"><h2 style={{ fontSize: 18, margin: 0 }}>Correctiemails na mislukte mails</h2><p className="hint" style={{ margin: 0 }}>Stuurt één excuusmail per investeerder van wie de wachtwoordlink- of keuzebevestigingsmail van de laatste 2 dagen is mislukt. Wie al een correctie kreeg, wordt overgeslagen.</p>
+    <div className="row">{sure ? <><Btn disabled={busy} busy={busy} onClick={send}>Ja, verstuur de correcties</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Verstuur correctiemails</button>}</div>
+    {msg && <p className="hint" style={{ margin: 0 }}>{msg}</p>}<Note kind="error">{err}</Note></div>;
+}
 function AdmSystem() {
   const [d, reload, err] = useLoad('system_status');
   const [at, setAt] = useState(null);
@@ -31,6 +39,7 @@ function AdmSystem() {
   return <>
     <div className="page-head"><div><h1 className="page-title">Systeemmonitor</h1><p className="page-sub">{at ? 'Bijgewerkt om ' + at.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' }) + '. ' : ''}Vernieuwt zichzelf elke minuut.</p></div><div className="row"><button className="btn ghost sm" onClick={reload}>Vernieuwen</button></div></div>
     <Note kind="error">{err}</Note>
+    <div className="card"><FailedCorrections /></div>
     <div className="card stack">
       <h2 style={{ fontSize: 18, margin: 0 }}>Mailgun vandaag</h2>
       <p style={{ margin: 0, fontSize: 28, fontWeight: 600, color }}>{nfmt(m.sent_today)} van {nfmt(m.limit)} verstuurd</p>
