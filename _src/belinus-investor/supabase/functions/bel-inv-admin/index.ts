@@ -46,6 +46,15 @@ async function personalInfoPdf(a: any, id: string): Promise<{ pdf?: Uint8Array; 
   return { pdf, inv };
 }
 
+// Campaigns with an information PDF that the investor belongs to (through a group). Only these allow "Stuur info (PDF)".
+async function pdfCampaigns(a: any, investorId: string) {
+  const { data: gm } = await a.from("inv_group_members").select("group_code").eq("investor_id", investorId);
+  const codes = (gm || []).map((g: any) => g.group_code).filter(Boolean);
+  if (!codes.length) return [];
+  const { data: cs } = await a.from("inv_campaigns").select("id, name, pdf_mode, group_code").in("group_code", codes).neq("pdf_mode", "none").order("created_at", { ascending: false });
+  return cs || [];
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -89,7 +98,7 @@ Deno.serve(async (req) => {
       a.from("inv_choice_log").select("*").eq("investor_id", id).order("created_at", { ascending: false }),
       a.from("inv_bookings").select("*").eq("investor_id", id).order("starts_at"),
     ]);
-    return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk });
+    return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk, pdf_campaigns: await pdfCampaigns(a, id) });
   }
   // Full investor page: loan, choices, appointments with their notes (admins only), messages and the mails sent.
   if (action === "investor_page") {
@@ -106,7 +115,7 @@ Deno.serve(async (req) => {
     if (!inv) return json({ error: "not-found" }, 404);
     const { data: mails } = await a.from("inv_mail_log").select("subject, kind, status, created_at").eq("recipient", inv.email).order("created_at", { ascending: false }).limit(50);
     await a.from("inv_messages").update({ read_at: new Date().toISOString() }).eq("investor_id", id).eq("direction", "in").is("read_at", null);
-    return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk, notes, messages: msgs, choice: ch, tranches: tr, mails });
+    return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk, notes, messages: msgs, choice: ch, tranches: tr, mails, pdf_campaigns: await pdfCampaigns(a, id) });
   }
   if (action === "note_add") {
     const body0 = str(body.body, 8000), bid = body.booking_id ? String(body.booking_id) : null;

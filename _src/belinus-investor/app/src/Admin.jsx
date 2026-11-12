@@ -156,10 +156,13 @@ function RegisterChoice({ id, reload }) {
     <Note kind="error">{err}</Note></div>;
 }
 // Sends the investor the information PDF (the three options, and the current schedule next to A and B) to their e-mail address.
-function SendInfo({ id, email }) {
-  const [sure, setSure] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
-  async function send() { setBusy(true); setErr(''); setMsg(''); try { await adm('send_info', { id, confirm: true }); setMsg('Overzicht verstuurd naar ' + email + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
-  return <div className="stack"><div className="row">{sure ? <><Btn disabled={busy} onClick={send}>Ja, verstuur naar {email}</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Stuur info (PDF)</button>}</div><Note kind="ok">{msg}</Note><Note kind="error">{err}</Note></div>;
+function SendInfo({ id, email, campaigns = [] }) {
+  const [sure, setSure] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [camp, setCamp] = useState(campaigns[0]?.id || '');
+  useEffect(() => { setCamp(campaigns[0]?.id || ''); }, [campaigns.length]);
+  const chosen = campaigns.find((c) => c.id === camp) || campaigns[0];
+  async function send() { setBusy(true); setErr(''); setMsg(''); try { await adm('campaign_send_info', { campaign: chosen.id, investor_id: id, confirm: true }); setMsg('Overzicht verstuurd naar ' + email + ' (campagne: ' + chosen.name + ').'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  if (!campaigns.length) return <p className="hint" style={{ margin: 0 }}>Stuur info (PDF) is alleen beschikbaar voor leden van een campagne waar een PDF aan gekoppeld is.</p>;
+  return <div className="stack"><div className="row">{campaigns.length > 1 && <select value={camp} onChange={(e) => { setCamp(e.target.value); setSure(false); }}>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.pdf_mode === 'fixed' ? 'vaste PDF' : 'persoonlijke PDF'})</option>)}</select>}{sure ? <><Btn disabled={busy} busy={busy} onClick={send}>Ja, verstuur naar {email}</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Stuur info (PDF)</button>}</div>{!sure && campaigns.length === 1 && <p className="hint" style={{ margin: 0 }}>Campagne: {campaigns[0].name} ({campaigns[0].pdf_mode === 'fixed' ? 'vaste PDF' : 'persoonlijke PDF'})</p>}{msg && <p className="hint" style={{ margin: 0 }}>{msg}</p>}<Note kind="error">{err}</Note></div>;
 }
 function fileB64(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('Lezen van het bestand mislukt.')); r.readAsDataURL(f); }); }
 // Sends the information PDF of a campaign to one member. Active only when the campaign has a PDF mode and the investor is a member.
@@ -207,7 +210,7 @@ function InvDetail({ id, onClose }) {
     <Note kind="ok">{msg}</Note><Note kind="error">{err}</Note>
     <Schedule rows={d.schedule.filter((r) => r.scenario === 'original')} />
     <div><h3 style={{ fontSize: 16, marginBottom: 8 }}>Geschiedenis van keuzes</h3>{d.log.length ? d.log.map((l) => <p key={l.id} style={{ margin: '0 0 4px', fontSize: 14 }}><b>{l.choice}</b> · {whenNl(l.created_at)}{l.by_admin ? ' · door beheerder: ' + l.note : ''}{l.reason ? ' · ' + l.reason : ''}</p>) : <p className="hint">Nog geen keuze.</p>}</div>
-    <SendInfo id={id} email={d.investor.email} />
+    <SendInfo id={id} email={d.investor.email} campaigns={d.pdf_campaigns || []} />
     <div className="stack"><h3 style={{ fontSize: 16 }}>Keuze registreren (ontvangen per telefoon of e-mail)</h3><div className="grid2"><select value={c} onChange={(e) => setC(e.target.value)}><option value="">Kies…</option><option>A</option><option>B</option><option>C</option></select><input placeholder="Notitie (verplicht)" value={note} onChange={(e) => setNote(e.target.value)} /></div>{c === 'C' && <input placeholder="Reden (verplicht)" value={reason} onChange={(e) => setReason(e.target.value)} />}<div className="row"><Btn kind="ghost" disabled={!c || !note.trim()} onClick={rec}>Registreren</Btn><Btn kind="ghost" onClick={invite}>{d.investor.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</Btn></div></div></>}</div></div>;
 }
 // Messaging list: one row per investor, showing the last message received. Opening a row goes to the investor page with the full history and reply.
@@ -293,7 +296,7 @@ function InvPage({ id }) {
     <div className="page-head"><div><p className="hint" style={{ margin: 0 }}><a href="#/investeerders">Investeerders</a> ›</p><h1 className="page-title">{nameOf(i)}{i.is_demo ? <span className="chip info" style={{ marginLeft: 10, verticalAlign: 'middle' }}>demo</span> : i.is_test ? <span className="chip warn" style={{ marginLeft: 10, verticalAlign: 'middle' }}>test</span> : null}</h1>
       <p className="page-sub">{trName(i.tranche)} · {eur(i.invested)} · keuze {d.choice?.choice || '—'} · {i.status === 'active' ? 'actief sinds ' + dayNl(i.activated_at) : 'nog geen wachtwoord'}</p></div>
       <div className="row"><button className="btn ghost sm" onClick={() => viewAs(i.id)}>Bekijk als</button>{i.status === 'invited' && <button className="btn ghost sm" onClick={() => setPrev(true)}>Bekijk uitnodiging</button>}<button className="btn ghost sm" onClick={invite}>{i.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</button><button className="btn sm" onClick={() => document.querySelector('.composer textarea')?.focus()}>Bericht sturen</button></div></div>
-    <div style={{ marginTop: 10 }}><SendInfo id={i.id} email={i.email} /></div>
+    <div style={{ marginTop: 10 }}><SendInfo id={i.id} email={i.email} campaigns={d.pdf_campaigns || []} /></div>
     <Note kind="ok">{ok}</Note><Note kind="error">{err}</Note>{prev && <InvitePreview id={i.id} onClose={() => setPrev(false)} />}
     <div className="inv-grid">
       <div className="card stack"><h2 style={{ margin: 0 }}>Gegevens</h2>{[
