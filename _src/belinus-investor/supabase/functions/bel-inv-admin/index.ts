@@ -1,6 +1,6 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting, teamsConfigured } from "../_shared/teams.ts";
-import { lastMailError } from "../_shared/inv.ts";
+import { lastMailError, sendChoiceConfirmation } from "../_shared/inv.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor, planRow, leadRows as leadRowsShared, optionBRows as optionBShared } from "../_shared/finance.ts";
 import { buildInfoPdf } from "../_shared/infopdf.ts";
 import { html as mailHtml, icsEvent as ics, hello, KIND_L, access, adminClient, applyChoice, audit, cors, currentUser, dateIn, json, mailConfigured, nlDate, pickLang, sendAccessLink, sendInvite, sendMail, settings, str, mailMessage, invitePreview, bookingPreview, inviteContent, reminderContent, sendReminder, APP_URL, automatedPreview } from "../_shared/inv.ts";
@@ -172,6 +172,26 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
   // Campaign PDF: the mode (none, fixed or personal) and, for a fixed PDF, the file itself.
+  // Resends the choice confirmation to every investor whose latest choice mail failed and was never followed by a sent one.
+  if (action === "resend_choice_mails") {
+    if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
+    if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    const { data: ch } = await a.from("inv_mail_log").select("recipient, status, created_at").eq("kind", "choice").order("created_at", { ascending: false }).limit(5000);
+    const latest = new Map<string, { failed: boolean; at: string }>();
+    for (const r of ch || []) { const k = String(r.recipient).toLowerCase(); if (!latest.has(k)) latest.set(k, { failed: r.status === "failed", at: r.created_at }); }
+    let sent = 0, failed = 0, skipped = 0;
+    for (const [email, st] of latest) {
+      if (!st.failed) { skipped++; continue; }
+      const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang, tranche").ilike("email", email.replace(/[%_\\]/g, "\\$&")).maybeSingle();
+      if (!inv) { failed++; continue; }
+      const { data: c } = await a.from("inv_choices").select("choice").eq("investor_id", inv.id).maybeSingle();
+      if (!c?.choice) { skipped++; continue; }
+      if (await sendChoiceConfirmation(a, inv, c.choice)) sent++; else failed++;
+    }
+    await audit(a, u, "resend-choice-mails", "all", { sent, failed, skipped });
+    return json({ ok: true, sent, failed, skipped });
+  }
   // Correction mails for investors whose password-link or choice mail failed in the last 2 days: one apology per investor, skipped when already sent.
   if (action === "failed_corrections") {
     if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);

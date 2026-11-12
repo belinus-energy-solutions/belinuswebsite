@@ -27,6 +27,14 @@ function FailedCorrections() {
     <div className="row">{sure ? <><Btn disabled={busy} busy={busy} onClick={send}>Ja, verstuur de correcties</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Verstuur correctiemails</button>}</div>
     {msg && <p className="hint" style={{ margin: 0 }}>{msg}</p>}<Note kind="error">{err}</Note></div>;
 }
+// Resends the choice confirmation mails that failed (once per investor; a confirmation that was sent is not sent again).
+function ResendChoiceMails() {
+  const [sure, setSure] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  async function send() { setBusy(true); setErr(''); setMsg(''); try { const r = await adm('resend_choice_mails', { confirm: true }); setMsg('Keuzebevestigingen verstuurd: ' + r.sent + ' · mislukt: ' + r.failed + ' · overgeslagen: ' + r.skipped + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  return <div className="stack"><h2 style={{ fontSize: 18, margin: 0 }}>Keuzebevestigingen opnieuw versturen</h2><p className="hint" style={{ margin: 0 }}>Stuurt de bevestigingsmail van de gekozen optie naar alle investeerders van wie die mail mislukt is en nooit is aangekomen.</p>
+    <div className="row">{sure ? <><Btn disabled={busy} busy={busy} onClick={send}>Ja, verstuur de bevestigingen</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Verstuur keuzebevestigingen</button>}</div>
+    {msg && <p className="hint" style={{ margin: 0 }}>{msg}</p>}<Note kind="error">{err}</Note></div>;
+}
 function AdmSystem() {
   const [d, reload, err] = useLoad('system_status');
   const [at, setAt] = useState(null);
@@ -40,6 +48,7 @@ function AdmSystem() {
     <div className="page-head"><div><h1 className="page-title">Systeemmonitor</h1><p className="page-sub">{at ? 'Bijgewerkt om ' + at.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' }) + '. ' : ''}Vernieuwt zichzelf elke minuut.</p></div><div className="row"><button className="btn ghost sm" onClick={reload}>Vernieuwen</button></div></div>
     <Note kind="error">{err}</Note>
     <div className="card"><FailedCorrections /></div>
+    <div className="card"><ResendChoiceMails /></div>
     <div className="card stack">
       <h2 style={{ fontSize: 18, margin: 0 }}>Mailgun deze maand</h2>
       <p style={{ margin: 0, fontSize: 28, fontWeight: 600, color }}>{nfmt(m.sent_today)} van {nfmt(m.limit)} verstuurd deze maand</p>

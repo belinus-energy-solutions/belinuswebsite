@@ -153,8 +153,13 @@ export async function applyChoice(a: SupabaseClient, inv: any, c: { choice: stri
     if (kind === c.choice) await a.from("inv_followups").upsert({ investor_id: inv.id, kind, status: "open", due_date: addWorkingDays(kind === "B" ? 10 : 5) }, { onConflict: "investor_id,kind" });
     else await a.from("inv_followups").update({ status: "cancelled" }).eq("investor_id", inv.id).eq("kind", kind);
   }
+  await sendChoiceConfirmation(a, inv, c.choice);
+}
+
+// The confirmation mail of a choice (also used to resend mails that failed).
+export async function sendChoiceConfirmation(a: SupabaseClient, inv: any, choice: string): Promise<boolean> {
   const L = pickLang(inv.lang), T = CONFIRM_L[L];
-  await sendMail(a, { to: inv.email, kind: "choice", lang: L, subject: T.subject, text: `${hello(inv.first_name, L)}\n\n${T.got}\n\n${CHOICE_L[L][c.choice]}\n\n${T.next[c.choice]}${isWinwinlening(inv.tranche) ? `\n\n${WIN_NOTE[L]}` : ""}\n\n${T.thank}\n\n${T.change}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
+  return sendMail(a, { to: inv.email, kind: "choice", lang: L, subject: T.subject, text: `${hello(inv.first_name, L)}\n\n${T.got}\n\n${CHOICE_L[L][choice]}\n\n${T.next[choice]}${isWinwinlening(inv.tranche) ? `\n\n${WIN_NOTE[L]}` : ""}\n\n${T.thank}\n\n${T.change}\n\n${T.thanks}\nErwin Raets, EVChargeking\nSteve Van Beirs, Belinus` });
 }
 
 export function strong(p: string): boolean {
