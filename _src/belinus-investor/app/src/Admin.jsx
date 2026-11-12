@@ -14,7 +14,9 @@ function useLoad(action, body) {
 }
 const Wait = ({ err }) => (err ? <Note kind="error">{err}</Note> : <div className="boot" style={{ minHeight: 200 }}><span className="spin" /></div>);
 function AdmOverview() {
-  const [d, , err] = useLoad('dashboard');
+  const [d, reload, err] = useLoad('dashboard');
+  const [at, setAt] = useState(null);
+  useEffect(() => { if (d) setAt(new Date()); }, [d]);
   if (!d) return <Wait err={err} />;
   const real = d.investors.filter((i) => !i.is_test);
   const list = real.length ? real : d.investors;
@@ -25,7 +27,7 @@ function AdmOverview() {
   const stat = (x) => { const c = (k) => x.filter((i) => i.choice?.choice === k).length; return { n: x.length, s: x.reduce((n, i) => n + Number(i.invested), 0), act: x.filter((i) => i.status === 'active').length, A: c('A'), B: c('B'), C: c('C'), none: x.filter((i) => !i.choice).length }; };
   const plRow = (label, x, bold) => { const v = stat(x); return <tr key={label} style={bold ? { fontWeight: 700 } : undefined}><td data-l="Platform">{label}</td><td data-l="Investeerders" className="n">{v.n}</td><td data-l="Bedrag" className="n">{eur(v.s)}</td><td data-l="Account actief" className="n">{v.act}</td><td data-l="A" className="n">{v.A}</td><td data-l="B" className="n">{v.B}</td><td data-l="C" className="n">{v.C}</td><td data-l="Geen antwoord" className="n">{v.none}</td></tr>; };
   return <>
-    <div className="page-head"><div><h1 className="page-title">Overzicht</h1><p className="page-sub">Uiterste datum: {dayNl(d.settings.deadline)}{!real.length && d.investors.length ? ' · enkel testinvesteerders geladen' : ''}</p></div></div>
+    <div className="page-head"><div><h1 className="page-title">Overzicht</h1><p className="page-sub">Uiterste datum: {dayNl(d.settings.deadline)}{!real.length && d.investors.length ? ' · enkel testinvesteerders geladen' : ''}</p></div><div className="row" style={{ alignItems: 'center', gap: 12 }}>{at && <span className="hint">bijgewerkt om {at.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' })}</span>}<Btn kind="ghost" onClick={reload}>Vernieuwen</Btn></div></div>
     <div className="tiles">{T.map(([l, f]) => { const [n, s] = cnt(f); return <div className="tile" key={l}><b>{n}</b><span>{l} · {eur(s)}</span></div>; })}</div>
     <div className="card"><h2>Per platform</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Platform</th><th className="n">Investeerders</th><th className="n">Bedrag</th><th className="n">Account actief</th><th className="n">A</th><th className="n">B</th><th className="n">C</th><th className="n">Geen antwoord</th></tr></thead><tbody>
       {Object.keys(PLATFORMS).map((k) => plRow(PLATFORMS[k], list.filter((i) => plOf(i) === k)))}{plRow('Totaal', list, true)}
