@@ -1,5 +1,5 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
-import { deleteMeeting, moveMeeting } from "../_shared/teams.ts";
+import { deleteMeeting, moveMeeting, teamsConfigured } from "../_shared/teams.ts";
 import { lastMailError } from "../_shared/inv.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor, planRow, leadRows as leadRowsShared, optionBRows as optionBShared } from "../_shared/finance.ts";
 import { buildInfoPdf } from "../_shared/infopdf.ts";
@@ -149,6 +149,84 @@ Deno.serve(async (req) => {
     if (!sent) return json({ error: "mail-failed" }, 502);
     await audit(a, u, "info-pdf", inv.email, { bytes: pdf.length });
     return json({ ok: true });
+  }
+  // System monitor: connector health, and every mail the platform sent (automatic and manual) with the Mailgun daily cap.
+  if (action === "system_status") {
+    const BRU = "Europe/Brussels";
+    const now = new Date();
+    const dayKey = (d: Date | string) => new Date(d).toLocaleDateString("sv-SE", { timeZone: BRU });
+    const todayKey = dayKey(now);
+    // Offset of Brussels from UTC at this moment (+1 in winter, +2 in summer), so that "today" is the Brussels day.
+    const brusselsOffset = (d: Date) => {
+      const p: Record<string, number> = {};
+      for (const x of new Intl.DateTimeFormat("en-GB", { timeZone: BRU, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(d)) if (x.type !== "literal") p[x.type] = Number(x.value);
+      return Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second) - Math.floor(d.getTime() / 1000) * 1000;
+    };
+    const since30 = new Date(Date.parse(todayKey + "T00:00:00Z") - brusselsOffset(now) - 30 * 86400_000).toISOString();
+    const { data: logs, error: logErr } = await a.from("inv_mail_log").select("provider, status, kind, error, recipient, subject, created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(20000);
+    if (logErr) return json({ error: "server-error" }, 500);
+    const rows: any[] = logs || [];
+
+    // Connector health. A status code of 0 means no answer.
+    const code = async (url: string, headers: Record<string, string>) => { const t0 = Date.now(); try { const r = await fetch(url, { headers, signal: AbortSignal.timeout(5000) }); return { status: r.status, ms: Date.now() - t0 }; } catch { return { status: 0, ms: Date.now() - t0 }; } };
+    const mgKey = Deno.env.get("MAILGUN_API_KEY"), mgDomain = Deno.env.get("MAILGUN_DOMAIN"), mgBase = (Deno.env.get("MAILGUN_API_BASE") || "https://api.eu.mailgun.net").replace(/\/$/, "");
+    const brKey = Deno.env.get("BREVO_API_KEY");
+    const t0 = Date.now();
+    const { error: dbErr } = await a.from("inv_settings").select("key").limit(1);
+    const dbMs = Date.now() - t0;
+    const mg = mgKey && mgDomain ? await code(`${mgBase}/v3/domains/${encodeURIComponent(mgDomain)}`, { Authorization: "Basic " + btoa("api:" + mgKey) }) : null;
+    const br = brKey ? await code("https://api.brevo.com/v3/account", { "api-key": brKey }) : null;
+    const checks = [
+      { group: "Server", label: "Database (Supabase)", ok: !dbErr, ms: dbMs, detail: dbErr ? "niet bereikbaar" : "bereikbaar" },
+      { group: "Server", label: "Investeerdersfuncties", ok: true, ms: 0, detail: "antwoordt: u ziet deze pagina" },
+      { group: "Mail", label: "Mailgun (e-mail, EU)", ok: mg ? mg.status === 200 : false, ms: mg?.ms ?? null, detail: !mgKey || !mgDomain ? "niet ingesteld" : mg!.status === 200 ? "bereikbaar" : `antwoord ${mg!.status || "geen"}` },
+      { group: "Mail", label: "Brevo (reserve)", ok: br ? br.status === 200 : false, ms: br?.ms ?? null, detail: !brKey ? "niet ingesteld" : br!.status === 200 ? "bereikbaar" : `antwoord ${br!.status || "geen"}` },
+      { group: "Connectoren", label: "Microsoft Teams (afspraken)", ok: teamsConfigured(), ms: null, detail: teamsConfigured() ? "ingesteld" : "niet ingesteld" },
+    ];
+
+    // Mail: today's Brussels day, and the Mailgun daily cap.
+    const isToday = (r: any) => dayKey(r.created_at) === todayKey;
+    const today = rows.filter(isToday);
+    const LIMIT_RE = /daily|limit|quota|too many|429|exceed/i;
+    const mgLimit = Number(Deno.env.get("MAILGUN_DAILY_LIMIT") || 100);
+    const mgSent = today.filter((r) => r.provider === "mailgun" && r.status === "sent").length;
+    const mgFailed = today.filter((r) => r.provider === "mailgun" && r.status === "failed").length;
+    const blocked = today.filter((r) => r.status === "failed" && LIMIT_RE.test(r.error || ""));
+    const unexplained = today.filter((r) => r.status === "failed" && !r.error).length;
+    const level = blocked.length || mgSent >= mgLimit ? "red" : mgSent >= mgLimit * 0.8 ? "amber" : "green";
+    const { data: lim } = await a.from("inv_settings").select("value").eq("key", "mail_limit_until").maybeSingle();
+    const { count: sentAll } = await a.from("inv_mail_log").select("id", { count: "exact", head: true }).eq("status", "sent");
+    const { count: rowsAll } = await a.from("inv_mail_log").select("id", { count: "exact", head: true });
+    // Last 14 days, per day.
+    const days: string[] = [];
+    for (let i = 13; i >= 0; i--) days.push(dayKey(new Date(Date.parse(todayKey + "T12:00:00Z") - i * 86400_000)));
+    const daily = days.map((day) => {
+      const of = rows.filter((r) => dayKey(r.created_at) === day);
+      return { day, mailgun: of.filter((r) => r.provider === "mailgun" && r.status === "sent").length, brevo: of.filter((r) => r.provider === "brevo" && r.status === "sent").length, failed: of.filter((r) => r.status === "failed").length };
+    });
+    // Last 30 days, per kind.
+    const kinds = new Map<string, { sent: number; failed: number }>();
+    for (const r of rows) {
+      const k = kinds.get(r.kind) ?? { sent: 0, failed: 0 };
+      if (r.status === "sent") k.sent++; else if (r.status === "failed") k.failed++;
+      kinds.set(r.kind, k);
+    }
+    const lastSent = rows.find((r) => r.status === "sent");
+    return json({
+      ok: true,
+      generated_at: now.toISOString(),
+      provider: mgKey && mgDomain ? "mailgun" : brKey ? "brevo" : "geen",
+      checks,
+      mail: {
+        mailgun: { limit: mgLimit, sent_today: mgSent, failed_today: mgFailed, remaining: Math.max(0, mgLimit - mgSent), level, blocked_today: blocked.length, unexplained_failures_today: unexplained, limit_until: lim?.value || null, last_limit_error_at: blocked[0]?.created_at || null },
+        total_sent_all_time: sentAll ?? 0,
+        total_rows_all_time: rowsAll ?? 0,
+        last_sent_at: lastSent?.created_at || null,
+        daily,
+        by_kind: [...kinds.entries()].map(([kind, v]) => ({ kind, ...v })).sort((x, y) => y.sent - x.sent),
+        recent_failures: rows.filter((r) => r.status === "failed").slice(0, 30).map((r) => ({ created_at: r.created_at, kind: r.kind, provider: r.provider, recipient: r.recipient, error: r.error || null })),
+      },
+    });
   }
   // Personal invitation (the investor letter with a one-click activation button), to one investor: for tests, or again.
   if (action === "invite") {

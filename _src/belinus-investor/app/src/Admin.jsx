@@ -13,6 +13,56 @@ function useLoad(action, body) {
   return [data, load, err];
 }
 const Wait = ({ err }) => (err ? <Note kind="error">{err}</Note> : <div className="boot" style={{ minHeight: 200 }}><span className="spin" /></div>);
+// System monitor: connector health, mails sent today against the Mailgun daily cap, blocked mails, and totals.
+const LEVEL = { green: ['#1f7a3a', 'In orde'], amber: ['#b26b00', 'Let op: bijna de limiet'], red: ['#b3261e', 'Actie nodig'] };
+const KIND_NL = { invite: 'Persoonlijke uitnodiging', reminder: 'Herinnering keuze', 'access-link': 'Wachtwoordlink', choice: 'Bevestiging keuze', 'info-pdf': 'Overzicht opties (PDF)', 'message-in': 'Bericht van investeerder', 'booking-moved': 'Afspraak gewijzigd', 'booking-reminder': 'Herinnering afspraak', 'booking-confirm': 'Bevestiging afspraak', 'booking-cancel': 'Afspraak geannuleerd' };
+const kindNl = (k) => KIND_NL[k] || k;
+const nfmt = (n) => new Intl.NumberFormat('nl-BE').format(Number(n) || 0);
+function Dot({ ok }) { return <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 5, marginRight: 8, background: ok === null ? '#9aa3ad' : ok ? '#1f7a3a' : '#b3261e' }} />; }
+function AdmSystem() {
+  const [d, reload, err] = useLoad('system_status');
+  const [at, setAt] = useState(null);
+  useEffect(() => { const h = setInterval(() => reload(), 60000); return () => clearInterval(h); }, [reload]);
+  useEffect(() => { if (d) setAt(new Date()); }, [d]);
+  if (!d) return <Wait err={err} />;
+  const m = d.mail.mailgun, [color, label] = LEVEL[m.level];
+  const pct = Math.min(100, Math.round((m.sent_today / m.limit) * 100));
+  const groups = [...new Set(d.checks.map((c) => c.group))];
+  return <>
+    <div className="page-head"><div><h1 className="page-title">Systeemmonitor</h1><p className="page-sub">{at ? 'Bijgewerkt om ' + at.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' }) + '. ' : ''}Vernieuwt zichzelf elke minuut.</p></div><div className="row"><button className="btn ghost sm" onClick={reload}>Vernieuwen</button></div></div>
+    <Note kind="error">{err}</Note>
+    <div className="card stack">
+      <h2 style={{ fontSize: 18, margin: 0 }}>Mailgun vandaag</h2>
+      <p style={{ margin: 0, fontSize: 28, fontWeight: 600, color }}>{nfmt(m.sent_today)} van {nfmt(m.limit)} verstuurd</p>
+      <div style={{ background: '#e6e9ee', borderRadius: 6, height: 14, overflow: 'hidden' }}><div style={{ width: pct + '%', background: color, height: '100%' }} /></div>
+      <p style={{ margin: 0 }}><b style={{ color }}>{label}.</b> Nog {nfmt(m.remaining)} mails vandaag. Mislukt vandaag: {nfmt(m.failed_today)}.</p>
+      {m.blocked_today > 0 && <Note kind="error">{nfmt(m.blocked_today)} mails zijn vandaag geblokkeerd door de Mailgun-dagelijkse limiet. Laatste keer: {whenNl(m.last_limit_error_at)}.</Note>}
+      {m.unexplained_failures_today > 0 && <p className="hint" style={{ margin: 0 }}>{nfmt(m.unexplained_failures_today)} mislukte mails van vóór de foutregistratie hebben geen opgeslagen reden.</p>}
+      <p className="hint" style={{ margin: 0 }}>De teller telt de verstuurde mails van de Brusselse kalenderdag in dit portaal. Mailgun zelf telt de limiet volgens de eigen regels; controleer daar bij twijfel.</p>
+    </div>
+    <div className="card stack">
+      <h2 style={{ fontSize: 18, margin: 0 }}>Status van de koppelingen</h2>
+      {groups.map((g) => <div key={g} className="stack"><b style={{ fontSize: 14 }}>{g}</b>{d.checks.filter((c) => c.group === g).map((c) => <p key={c.label} style={{ margin: 0 }}><Dot ok={c.ok} />{c.label}: {c.detail}{c.ms != null ? ' (' + c.ms + ' ms)' : ''}</p>)}</div>)}
+    </div>
+    <div className="card stack">
+      <h2 style={{ fontSize: 18, margin: 0 }}>Totaal verstuurde mails</h2>
+      <p style={{ margin: 0 }}><b>{nfmt(d.mail.total_sent_all_time)}</b> verstuurd sinds het begin ({nfmt(d.mail.total_rows_all_time)} verzendpogingen in totaal, automatische en handmatige mails samen).</p>
+      <p className="hint" style={{ margin: 0 }}>Laatste verzonden mail: {d.mail.last_sent_at ? whenNl(d.mail.last_sent_at) : 'nog geen'}. Verzendprovider: {d.provider}.</p>
+    </div>
+    <div className="card stack">
+      <h2 style={{ fontSize: 18, margin: 0 }}>Laatste 14 dagen</h2>
+      <div className="tblw"><table className="tbl"><thead><tr><th>Dag</th><th className="num">Mailgun</th><th className="num">Brevo</th><th className="num">Mislukt</th></tr></thead><tbody>{d.mail.daily.slice().reverse().map((r) => <tr key={r.day}><td>{r.day}</td><td className="num">{nfmt(r.mailgun)}</td><td className="num">{nfmt(r.brevo)}</td><td className="num">{nfmt(r.failed)}</td></tr>)}</tbody></table></div>
+    </div>
+    <div className="card stack">
+      <h2 style={{ fontSize: 18, margin: 0 }}>Per soort mail (30 dagen)</h2>
+      <div className="tblw"><table className="tbl"><thead><tr><th>Soort</th><th className="num">Verstuurd</th><th className="num">Mislukt</th></tr></thead><tbody>{d.mail.by_kind.map((r) => <tr key={r.kind}><td>{kindNl(r.kind)}</td><td className="num">{nfmt(r.sent)}</td><td className="num">{nfmt(r.failed)}</td></tr>)}</tbody></table></div>
+    </div>
+    <div className="card stack">
+      <h2 style={{ fontSize: 18, margin: 0 }}>Laatste mislukte mails</h2>
+      {d.mail.recent_failures.length ? <div className="tblw"><table className="tbl"><thead><tr><th>Wanneer</th><th>Soort</th><th>Ontvanger</th><th>Reden</th></tr></thead><tbody>{d.mail.recent_failures.map((r, i) => <tr key={i}><td>{whenNl(r.created_at)}</td><td>{kindNl(r.kind)}</td><td>{r.recipient}</td><td>{r.error ? r.error : 'geen reden opgeslagen'}</td></tr>)}</tbody></table></div> : <p className="hint" style={{ margin: 0 }}>Geen mislukte mails in de laatste 30 dagen.</p>}
+    </div>
+  </>;
+}
 function AdmOverview() {
   const [d, reload, err] = useLoad('dashboard');
   const [at, setAt] = useState(null);

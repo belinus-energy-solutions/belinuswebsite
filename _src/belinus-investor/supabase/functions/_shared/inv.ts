@@ -92,7 +92,7 @@ const b64 = (bytes: Uint8Array): string => { let s = ""; for (let i = 0; i < byt
 export async function sendMail(a: SupabaseClient, m: { to: string; subject: string; text: string; htmlOverride?: string; cta?: { url: string; label: string }; kind: string; ics?: string; attachments?: MailAttachment[]; lang?: Lang; noreply?: boolean; from?: string; replyTo?: string; foot?: string; cc?: string; campaign?: string }): Promise<boolean> {
   lastMailError = "";
   const L = pickLang(m.lang);
-  const log = (provider: string, status: string, msgId?: string | null) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status, campaign_id: m.campaign || null, message_id: msgId || null }).then(() => {}, () => {});
+  const log = (provider: string, status: string, msgId?: string | null, error?: string | null) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status, campaign_id: m.campaign || null, message_id: msgId || null, error: error || null }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
   const body = m.text.replace(/^## /gm, "") + "\n\n--\n" + MC[L].sig + (m.noreply ? "\nDit is een automatische e-mail. Stuur uw vragen naar info@evchargeking.com of info@winwinner.be." : "");
   try {
@@ -112,7 +112,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
       const jb: any = await r.json().catch(() => ({})); await log("brevo", "sent", jb.messageId); return true;
     }
     await log("none", "no-provider"); return false;
-  } catch (e) { lastMailError = (e as Error).message; console.error("inv mail", m.kind, (e as Error).message); await log(key ? "mailgun" : "brevo", "failed"); return false; }
+  } catch (e) { lastMailError = (e as Error).message; console.error("inv mail", m.kind, (e as Error).message); await log(key ? "mailgun" : "brevo", "failed", null, lastMailError); return false; }
 }
 
 const ACCESS: Record<Lang, { first: string; again: string; label: string; body: (u: string) => string; thanks: string }> = {

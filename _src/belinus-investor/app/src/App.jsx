@@ -26,7 +26,7 @@ function Shell({ page, investor, role, email, name, unread = 0, children }) {
   const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
   const secs = [];
   if (investor) secs.push(['Mijn investering', [['', 'Mijn investering', 'trend'], ['keuze', 'Uw keuze', 'keuze'], ['transacties', 'Transacties', 'chart'], ['afspraak', 'Maak een afspraak', 'afspraak'], ['berichten', 'Berichten', 'mail']]]);
-  if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['investeerdersgroepen', 'Investeerdersgroepen', 'users'], ['opvolging', 'Messaging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ['campagnes', 'E-mailcampagnes', 'mail'], ['automatisch', 'Automatische e-mails', 'cog'], ['instellingen', 'Instellingen', 'cog']]]);
+  if (role) secs.push(['Beheer', [['beheer', 'Overzicht', 'chart'], ['investeerders', 'Investeerders', 'users'], ['investeerdersgroepen', 'Investeerdersgroepen', 'users'], ['opvolging', 'Messaging', 'flag'], ['afspraken', 'Afspraken', 'afspraak'], ['beschikbaarheid', 'Beschikbaarheid', 'clock'], ['campagnes', 'E-mailcampagnes', 'mail'], ['automatisch', 'Automatische e-mails', 'cog'], ['systeem', 'Systeemmonitor', 'chart'], ['instellingen', 'Instellingen', 'cog']]]);
   if (role) secs.push(['Financieel', [['financieel', 'Betalingstabel', 'chart'], ['financieel-grafieken', 'Grafieken', 'chart']]]);
   const tabs = secs.flatMap((s) => s[1]).slice(0, 3);
   const filt = (r) => !q || t(r[1]).toLowerCase().includes(q.toLowerCase());
@@ -97,7 +97,7 @@ function App() {
   if (st.gate && d.investor && d.terms && d.terms.pending && !d.as && !d.admin) return <Terms d={d} reload={loadData} />;
   const acting = d.as, role = d.admin, hasInv = !!d.investor && (!role || !!acting);
   const name = hasInv ? (d.investor.company_name || [d.investor.first_name, d.investor.last_name].filter(Boolean).join(' ')) : '';
-  const P = { beheer: AdmOverview, investeerders: AdmInvestors, opvolging: AdmFollow, afspraken: AdmBookings, beschikbaarheid: AdmAvail, financieel: AdmFinancial, 'financieel-grafieken': AdmFinancialGraphs, instellingen: AdmSettings };
+  const P = { beheer: AdmOverview, investeerders: AdmInvestors, opvolging: AdmFollow, afspraken: AdmBookings, beschikbaarheid: AdmAvail, financieel: AdmFinancial, 'financieel-grafieken': AdmFinancialGraphs, systeem: AdmSystem, instellingen: AdmSettings };
   let body;
   if (role && page === 'investeerdersgroepen') body = route.parts[1] === 'nieuw' ? <AdmGroupNew /> : route.parts[1] ? <AdmGroup code={route.parts[1]} key={route.parts[1]} /> : <AdmGroups />;
   else if (role && page === 'campagnes') body = route.parts[1] ? <AdmCampaign id={route.parts[1]} key={route.parts[1]} /> : <AdmCampaigns />;
