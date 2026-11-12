@@ -152,6 +152,40 @@ function SendInfo({ id, email }) {
   async function send() { setBusy(true); setErr(''); setMsg(''); try { await adm('send_info', { id, confirm: true }); setMsg('Overzicht verstuurd naar ' + email + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <div className="stack"><div className="row">{sure ? <><Btn disabled={busy} onClick={send}>Ja, verstuur naar {email}</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Stuur info (PDF)</button>}</div><Note kind="ok">{msg}</Note><Note kind="error">{err}</Note></div>;
 }
+function fileB64(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('Lezen van het bestand mislukt.')); r.readAsDataURL(f); }); }
+// Sends the information PDF of a campaign to one member. Active only when the campaign has a PDF mode and the investor is a member.
+function CampSendInfo({ campaign, investorId, email, enabled }) {
+  const [sure, setSure] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  async function send() { setBusy(true); setErr(''); setMsg(''); try { await adm('campaign_send_info', { campaign, investor_id: investorId, confirm: true }); setMsg('Verstuurd naar ' + email + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  if (!enabled) return <span className="hint">—</span>;
+  return <div className="stack">{sure ? <div className="row"><Btn disabled={busy} busy={busy} onClick={send}>Ja, verstuur</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></div> : <button className="btn ghost sm" onClick={() => setSure(true)}>Stuur info (PDF)</button>}{msg && <span className="hint">{msg}</span>}{err && <Note kind="error">{err}</Note>}</div>;
+}
+// Choice of the information PDF for a campaign: none, one fixed PDF for all members, or the personal PDF per investor.
+function CampPdf({ id, c, reload }) {
+  const [mode, setMode] = useState(c.pdf_mode || 'none'), [file, setFile] = useState(null), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
+  useEffect(() => { setMode(c.pdf_mode || 'none'); }, [c.pdf_mode]);
+  async function save() {
+    setBusy(true); setErr(''); setMsg('');
+    try {
+      let data_b64 = '', name = '';
+      if (mode === 'fixed' && file) {
+        if (file.type !== 'application/pdf') throw new Error('Het bestand moet een PDF zijn.');
+        if (file.size > 4000000) throw new Error('De PDF is groter dan 4 MB.');
+        data_b64 = await fileB64(file); name = file.name;
+      }
+      if (mode === 'fixed' && !file && !c.pdf_name) throw new Error('Kies eerst een PDF-bestand.');
+      await adm('campaign_pdf', { id, mode, name, data_b64 });
+      setFile(null); setMsg('Opgeslagen.'); reload();
+    } catch (x) { setErr(errText(x)); } finally { setBusy(false); }
+  }
+  return <div className="card stack">
+    <p style={{ margin: 0 }}>Bepaal welke informatie-PDF bij deze campagne hoort. De knop “Stuur info (PDF)” bij de ontvangers is alleen actief als hier een keuze is gemaakt.</p>
+    {[['none', 'Geen PDF'], ['fixed', 'Vaste PDF: één bestand voor alle ontvangers'], ['personal', 'Persoonlijke PDF: per investeerder gegenereerd (drie opties naast het huidige schema)']].map(([k, l]) => <label key={k} className="row"><input type="radio" name="campagne-pdf" checked={mode === k} onChange={() => setMode(k)} /> {l}</label>)}
+    {mode === 'fixed' && <div className="stack"><input type="file" accept="application/pdf" onChange={(e) => { setFile(e.target.files?.[0] || null); setErr(''); }} />{c.pdf_name && !file && <p className="hint" style={{ margin: 0 }}>Huidig bestand: {c.pdf_name}</p>}{file && <p className="hint" style={{ margin: 0 }}>Nieuw bestand: {file.name}</p>}</div>}
+    <div className="row"><Btn busy={busy} disabled={busy} onClick={save}>Opslaan</Btn>{msg && <span className="hint">{msg}</span>}</div>
+    <Note kind="error">{err}</Note>
+  </div>;
+}
 function InvDetail({ id, onClose }) {
   const [d, setD] = useState(null), [c, setC] = useState(''), [note, setNote] = useState(''), [reason, setReason] = useState(''), [msg, setMsg] = useState(''), [err, setErr] = useState('');
   const load = () => adm('detail', { id }).then(setD).catch((x) => setErr(errText(x)));
@@ -442,11 +476,12 @@ function AdmCampaign({ id }) {
   const cards = [['Verstuurd', s.sent], ['Afgeleverd', s.delivered], ['Geweigerd', s.refused], ['Tijdelijk mislukt', s.temporary], ['Geopend', s.opened], ['Niet geopend', s.not_opened], ['Link geklikt', s.clicked], ['Klacht', s.complained], ['Uitgeschreven', s.unsubscribed], ['Mislukt bij verzenden', s.failed]];
   return <><div className="page-head"><div><h1 className="page-title">{c.name}</h1><p className="page-sub"><a href="#/campagnes">← Alle campagnes</a> · Groep: {c.group_code || '—'} · {CAMP_ST[c.status] || c.status}{c.sent_at ? ' · ' + new Date(c.sent_at).toLocaleString('nl-BE') : ''}</p></div><div className="row"><Btn kind="ghost" onClick={refresh} disabled={busy}>{busy ? 'Bezig…' : 'Statistieken bijwerken'}</Btn><TestMail body={{ campaign: c.id }} /></div></div>
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
-    <div className="seg" role="tablist">{[['stats', 'Resultaten'], ['recipients', 'Ontvangers'], ['template', 'E-mailtemplate']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={'seg-b' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}</div>
+    <div className="seg" role="tablist">{[['stats', 'Resultaten'], ['recipients', 'Ontvangers'], ['template', 'E-mailtemplate'], ['pdf', 'Info-PDF']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={'seg-b' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}</div>
     <div style={{ height: 16 }} />
     {d.role === 'belinus' && (c.mail_kind === 'invite' || c.mail_kind === 'reminder') && (c.status === 'draft' || c.status === 'sending') && <><CampaignSend c={c} pending={d.pending} groupName={d.group?.name || c.group_code} groupCount={d.group_members} onDone={() => { load(); }} stats={s} limitUntil={d.limit_until} /><div style={{ height: 16 }} /></>}
     {tab === 'stats' && <div className="card"><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>{cards.map(([k, v]) => <div key={k}><div className="hint">{k}</div><div style={{ fontSize: 28 }}>{v}</div></div>)}</div><p className="hint" style={{ marginTop: 16 }}>Openen, klikken en afleverstatus komen uit Mailgun-gebeurtenissen. Klik op "Statistieken bijwerken" om ze op te halen. Geweigerd = de server van de ontvanger of Mailgun heeft het adres definitief geweigerd; die mail is niet aangekomen. Mailgun bewaart gebeurtenissen beperkt in de tijd.</p></div>}
-    {tab === 'recipients' && <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Ontvanger</th><th>Verzending</th><th>Aflevering</th><th>Geopend</th><th>Links geklikt</th></tr></thead><tbody>{d.recipients.map((r) => <tr key={r.recipient}><td data-l="Ontvanger">{r.recipient}{r.complained ? <span className="chip warn" style={{ marginLeft: 6 }}>klacht</span> : null}{r.unsubscribed ? <span className="chip" style={{ marginLeft: 6 }}>uitgeschreven</span> : null}</td><td data-l="Verzending">{r.status}</td><td data-l="Aflevering"><span className={'chip ' + (r.delivered ? 'ok' : r.refused ? 'warn' : '')}>{r.delivery}</span></td><td data-l="Geopend">{r.opened ? 'ja' : 'nee'}</td><td data-l="Links geklikt">{r.links.length ? r.links.join(', ') : '—'}</td></tr>)}</tbody></table></div></div>}
+    {tab === 'recipients' && <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>Ontvanger</th><th>Verzending</th><th>Aflevering</th><th>Geopend</th><th>Links geklikt</th><th>Info-PDF</th></tr></thead><tbody>{d.recipients.map((r) => <tr key={r.recipient}><td data-l="Ontvanger">{r.recipient}{r.complained ? <span className="chip warn" style={{ marginLeft: 6 }}>klacht</span> : null}{r.unsubscribed ? <span className="chip" style={{ marginLeft: 6 }}>uitgeschreven</span> : null}</td><td data-l="Verzending">{r.status}</td><td data-l="Aflevering"><span className={'chip ' + (r.delivered ? 'ok' : r.refused ? 'warn' : '')}>{r.delivery}</span></td><td data-l="Geopend">{r.opened ? 'ja' : 'nee'}</td><td data-l="Links geklikt">{r.links.length ? r.links.join(', ') : '—'}</td><td data-l="Info-PDF"><CampSendInfo campaign={id} investorId={r.investor_id} email={r.recipient} enabled={c.pdf_mode !== 'none' && !!r.investor_id} /></td></tr>)}</tbody></table></div></div>}
+    {tab === 'pdf' && <CampPdf id={id} c={c} reload={load} />}
     {tab === 'template' && (d.templates || [d.template]).map((t, ti) => <div className="card stack" key={ti}>{t.label && <h3 style={{ margin: 0, fontSize: 16 }}>{t.label}</h3>}<p style={{ margin: 0 }}><b>Onderwerp:</b> {t.subject}</p>{t.cc && <p style={{ margin: 0 }}><b>Cc:</b> {t.cc} (alleen bij de eerste uitnodiging)</p>}<div><Btn kind="ghost" onClick={() => openHtml(t.html)}>Open in nieuw venster</Btn></div><iframe title={'E-mailtemplate ' + (t.label || '')} srcDoc={t.html} style={{ width: '100%', height: 640, border: '1px solid var(--line, #ddd)', borderRadius: 8, background: '#fff' }} /></div>)}
   </>;
 }
