@@ -26,7 +26,7 @@ export async function buildInfoPdf(p: InfoPdfInput): Promise<Uint8Array> {
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const W = 595.28, H = 841.89, M = 50;
-  const INK = rgb(0.1, 0.12, 0.15), MUTED = rgb(0.42, 0.46, 0.5), LINE = rgb(0.85, 0.87, 0.9), SHADE = rgb(0.94, 0.95, 0.96);
+  const INK = rgb(0.1, 0.12, 0.15), MUTED = rgb(0.42, 0.46, 0.5), LINE = rgb(0.85, 0.87, 0.9), SHADE = rgb(0.94, 0.95, 0.96), BAND = rgb(0.84, 0.89, 0.95);
   let page = doc.addPage([W, H]);
   let y = H - M;
   const newPage = () => { page = doc.addPage([W, H]); y = H - M; };
@@ -52,7 +52,7 @@ export async function buildInfoPdf(p: InfoPdfInput): Promise<Uint8Array> {
     }
     y -= o.gapAfter ?? 0;
   };
-  const table = (cols: { h: string; w: number; right?: boolean }[], rows: string[][], o: { boldLast?: boolean; groups?: { label: string; span: number }[] } = {}) => {
+  const table = (cols: { h: string; w: number; right?: boolean }[], rows: string[][], o: { boldLast?: boolean; boldCols?: number[]; groups?: { label: string; span: number }[] } = {}) => {
     const rowH = 15, tw = cols.reduce((n, c) => n + c.w, 0);
     const header = () => {
       need(rowH * 2 + 4);
@@ -60,8 +60,11 @@ export async function buildInfoPdf(p: InfoPdfInput): Promise<Uint8Array> {
         let gx = M, col = 0;
         for (const g of o.groups) {
           const gw = cols.slice(col, col + g.span).reduce((n, c) => n + c.w, 0);
-          page.drawText(g.label, { x: gx + 4, y: y - rowH + 4, size: 8, font: bold, color: INK });
-          page.drawLine({ start: { x: gx + 2, y: y - rowH + 1 }, end: { x: gx + gw - 2, y: y - rowH + 1 }, thickness: 0.6, color: MUTED });
+          if (g.label) {
+            page.drawRectangle({ x: gx + 1, y: y - rowH, width: gw - 2, height: rowH, color: BAND });
+            const lw = bold.widthOfTextAtSize(g.label, 8);
+            page.drawText(g.label, { x: gx + (gw - lw) / 2, y: y - rowH + 4, size: 8, font: bold, color: INK });
+          }
           gx += gw; col += g.span;
         }
         y -= rowH;
@@ -75,6 +78,7 @@ export async function buildInfoPdf(p: InfoPdfInput): Promise<Uint8Array> {
       }
       y -= rowH;
     };
+    const tableTop = y, startPage = page;
     header();
     rows.forEach((r, i) => {
       if (y - rowH < M) { newPage(); header(); }
@@ -82,13 +86,22 @@ export async function buildInfoPdf(p: InfoPdfInput): Promise<Uint8Array> {
       page.drawLine({ start: { x: M, y: y - rowH }, end: { x: M + tw, y: y - rowH }, thickness: 0.5, color: LINE });
       let x = M;
       cols.forEach((c, j) => {
-        const s = r[j] ?? "", f = last ? bold : font;
+        const s = r[j] ?? "", f = last || o.boldCols?.includes(j) ? bold : font;
         const tx = c.right ? x + c.w - 4 - f.widthOfTextAtSize(s, 8) : x + 4;
         page.drawText(s, { x: tx, y: y - rowH + 4, size: 8, font: f, color: INK });
         x += c.w;
       });
       y -= rowH;
     });
+    // Thin dividers between the groups, from the heading down to the last row (only when the table stays on one page).
+    if (o.groups && page === startPage) {
+      let gx = M, col = 0;
+      for (const g of o.groups.slice(0, -1)) {
+        gx += cols.slice(col, col + g.span).reduce((n, c) => n + c.w, 0);
+        col += g.span;
+        page.drawLine({ start: { x: gx, y: tableTop }, end: { x: gx, y: y }, thickness: 0.5, color: MUTED });
+      }
+    }
     y -= 14;
   };
   const sumRows = (rows: PlanRow[]) => rows.reduce((t, r) => ({ gi: t.gi + Number(r.gross_interest), wh: t.wh + Number(r.withholding), ni: t.ni + Number(r.net_interest), pr: t.pr + Number(r.principal) }), { gi: 0, wh: 0, ni: 0, pr: 0 });
@@ -141,7 +154,7 @@ export async function buildInfoPdf(p: InfoPdfInput): Promise<Uint8Array> {
   const yc = [{ h: "Jaar", w: 45 }, ...Array.from({ length: 9 }, () => ({ h: "", w: 50, right: true }))];
   const labels = ["Rente", "Kapitaal", "Totaal"];
   yc.slice(1).forEach((c, i) => (c.h = labels[i % 3]));
-  table(yc, yRows, { boldLast: true, groups: [{ label: "Huidige planning", span: 3 }, { label: "Keuze A", span: 3 }, { label: "Keuze B", span: 3 }] });
+  table(yc, yRows, { boldLast: true, boldCols: [3, 6, 9], groups: [{ label: "", span: 1 }, { label: "Huidige planning", span: 3 }, { label: "Keuze A", span: 3 }, { label: "Keuze B", span: 3 }] });
   text("Keuze A en B: de eerste betaling is op de uiterste datum, binnen drie maanden na de oorspronkelijke vervaldag. Betaalde betalingen staan vermeld als betaald.", { size: 8, color: MUTED });
 
   // Pages 3+: the payment dates of each schedule.
