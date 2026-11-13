@@ -55,6 +55,18 @@ async function pdfCampaigns(a: any, investorId: string) {
   return cs || [];
 }
 
+// Announcement campaigns: Winwinner investors (crowd-/winwin- tranches, never Bolero) who have not chosen yet or who chose C, minus those who already received this campaign.
+async function announcementTargets(a: any, campaignId: string): Promise<any[]> {
+  const [{ data: inv }, { data: ch }, { data: done }] = await Promise.all([
+    a.from("inv_investors").select("id, email, first_name, tranche, is_test, is_demo").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name"),
+    a.from("inv_choices").select("investor_id, choice"),
+    a.from("inv_mail_log").select("recipient").eq("campaign_id", campaignId).eq("status", "sent"),
+  ]);
+  const choice = new Map((ch || []).map((r: any) => [r.investor_id, r.choice]));
+  const got = new Set((done || []).map((r: any) => String(r.recipient).toLowerCase()));
+  return (inv || []).filter((i: any) => !i.is_test && !i.is_demo && (!choice.get(i.id) || choice.get(i.id) === "C") && !got.has(String(i.email).toLowerCase()));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -514,11 +526,12 @@ Deno.serve(async (req) => {
     const chosenIds = new Set((chosenRows || []).map((r: any) => r.investor_id));
     const alreadyInvited = c.mail_kind === "invite" ? await invitedMap(a) : new Map();
     const seenR = new Set(rows.map((r: any) => String(r.recipient).toLowerCase()));
-    const waiting = (members || []).filter((m: any) => !m.is_test && !seenR.has(String(m.email).toLowerCase()) && (c.mail_kind === "reminder" ? (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !chosenIds.has(m.id)) : (c.mail_kind !== "invite" || (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !alreadyInvited.has(String(m.email).toLowerCase())))));
+    let waiting = (members || []).filter((m: any) => !m.is_test && !seenR.has(String(m.email).toLowerCase()) && (c.mail_kind === "reminder" ? (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !chosenIds.has(m.id)) : (c.mail_kind !== "invite" || (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !alreadyInvited.has(String(m.email).toLowerCase())))));
+    if (c.mail_kind === "announcement") waiting = await announcementTargets(a, c.id);
     for (const m of waiting) rows.push({ recipient: m.email, status: "nog niet verstuurd", sent_at: null, delivery: "Nog niet verstuurd", refused: false, temporary: false, complained: false, unsubscribed: false, delivered: false, opened: false, clicked: false, links: [] });
     const idByEmail = new Map((members || []).map((m: any) => [String(m.email).toLowerCase(), m.id]));
     for (const r of rows) (r as any).investor_id = idByEmail.get(String(r.recipient).toLowerCase()) || null;
-    const pending = c.mail_kind === "invite" || c.mail_kind === "reminder" ? waiting.length : 0;
+    const pending = c.mail_kind === "invite" || c.mail_kind === "reminder" || c.mail_kind === "announcement" ? waiting.length : 0;
     const cnt = (f: (r: any) => boolean) => rows.filter(f).length;
     const stats = { sent: cnt((r) => r.status === "sent"), failed: cnt((r) => r.status === "failed"), delivered: cnt((r) => r.delivered), refused: cnt((r) => r.refused), temporary: cnt((r) => r.temporary), opened: cnt((r) => r.opened), not_opened: cnt((r) => r.status === "sent" && !r.opened), clicked: cnt((r) => r.clicked), complained: cnt((r) => r.complained), unsubscribed: cnt((r) => r.unsubscribed) };
     let tpl: { subject: string; html: string; text: string } = { subject: c.subject, text: c.body, html: mailHtml(c.body, undefined, "nl", false, "") };
@@ -628,6 +641,26 @@ Deno.serve(async (req) => {
     await a.from("inv_mail_events").delete().eq("campaign_id", c.id);
     for (let i = 0; i < got.length; i += 500) await a.from("inv_mail_events").insert(got.slice(i, i + 500));
     return json({ ok: true, events: got.length });
+  }
+  // Sends an announcement campaign in batches of 20 to its audience (no choice yet, or choice C). Replies are possible.
+  if (action === "announcement_batch") {
+    if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
+    if (body.confirm !== "VERSTUREN") return json({ error: "bad-input" }, 400);
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    const { data: c } = await a.from("inv_campaigns").select("id, mail_kind, status, subject, body").eq("id", String(body.campaign || "")).maybeSingle();
+    if (!c || c.mail_kind !== "announcement" || !["draft", "sending"].includes(c.status)) return json({ error: "bad-input" }, 400);
+    const todo = await announcementTargets(a, c.id);
+    await a.from("inv_campaigns").update({ status: "sending" }).eq("id", c.id);
+    let ok = 0, failed = 0;
+    for (const i of todo.slice(0, 20)) {
+      const text = String(c.body).replace("Beste [voornaam],", hello(i.first_name, "nl"));
+      const sentOk = await sendMail(a, { to: i.email, kind: "announcement", lang: "nl", campaign: c.id, subject: c.subject, text, cta: { url: APP_URL, label: "Naar het investeerdersportaal" } });
+      if (sentOk) ok++; else failed++;
+    }
+    const left = todo.length - ok - failed;
+    if (left <= 0 && !failed) await a.from("inv_campaigns").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", c.id);
+    await audit(a, u, "announcement-batch", c.id, { sent: ok, failed, left: todo.length - ok });
+    return json({ ok: true, sent: ok, failed, left: todo.length - ok });
   }
   if (action === "invite_pending" || action === "invite_batch") {
     // Recipients: members of the chosen group, and only Winwinner tranches (crowd-/winwin-). Bolero investors never receive these mails, even when they are in a group.
