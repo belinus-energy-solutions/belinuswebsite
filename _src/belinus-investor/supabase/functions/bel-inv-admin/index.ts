@@ -55,8 +55,9 @@ async function pdfCampaigns(a: any, investorId: string) {
   return cs || [];
 }
 
-// Announcement campaigns: Winwinner investors (crowd-/winwin- tranches, never Bolero) who have not chosen yet or who chose C, minus those who already received this campaign.
-async function announcementTargets(a: any, campaignId: string): Promise<any[]> {
+// Announcement campaigns: Winwinner investors (crowd-/winwin- tranches, never Bolero), minus those who already received this campaign.
+// Audience "a_b": investors who chose A or B. Any other value: investors who have not chosen yet or who chose C.
+async function announcementTargets(a: any, campaignId: string, audience?: string | null): Promise<any[]> {
   const [{ data: inv }, { data: ch }, { data: done }] = await Promise.all([
     a.from("inv_investors").select("id, email, first_name, tranche, is_test, is_demo").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name"),
     a.from("inv_choices").select("investor_id, choice"),
@@ -64,7 +65,7 @@ async function announcementTargets(a: any, campaignId: string): Promise<any[]> {
   ]);
   const choice = new Map((ch || []).map((r: any) => [r.investor_id, r.choice]));
   const got = new Set((done || []).map((r: any) => String(r.recipient).toLowerCase()));
-  return (inv || []).filter((i: any) => !i.is_test && !i.is_demo && (!choice.get(i.id) || choice.get(i.id) === "C") && !got.has(String(i.email).toLowerCase()));
+  return (inv || []).filter((i: any) => !i.is_test && !i.is_demo && (audience === "a_b" ? ["A", "B"].includes(choice.get(i.id)) : (!choice.get(i.id) || choice.get(i.id) === "C")) && !got.has(String(i.email).toLowerCase()));
 }
 
 Deno.serve(async (req) => {
@@ -527,7 +528,7 @@ Deno.serve(async (req) => {
     const alreadyInvited = c.mail_kind === "invite" ? await invitedMap(a) : new Map();
     const seenR = new Set(rows.map((r: any) => String(r.recipient).toLowerCase()));
     let waiting = (members || []).filter((m: any) => !m.is_test && !seenR.has(String(m.email).toLowerCase()) && (c.mail_kind === "reminder" ? (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !chosenIds.has(m.id)) : (c.mail_kind !== "invite" || (m.status === "invited" && (String(m.tranche).startsWith("winwin") || String(m.tranche).startsWith("crowd")) && !alreadyInvited.has(String(m.email).toLowerCase())))));
-    if (c.mail_kind === "announcement") waiting = await announcementTargets(a, c.id);
+    if (c.mail_kind === "announcement") waiting = await announcementTargets(a, c.id, c.audience);
     for (const m of waiting) rows.push({ recipient: m.email, status: "nog niet verstuurd", sent_at: null, delivery: "Nog niet verstuurd", refused: false, temporary: false, complained: false, unsubscribed: false, delivered: false, opened: false, clicked: false, links: [] });
     const idByEmail = new Map((members || []).map((m: any) => [String(m.email).toLowerCase(), m.id]));
     for (const r of rows) (r as any).investor_id = idByEmail.get(String(r.recipient).toLowerCase()) || null;
@@ -647,9 +648,9 @@ Deno.serve(async (req) => {
     if (acc.role !== "belinus") return json({ error: "forbidden" }, 403);
     if (body.confirm !== "VERSTUREN") return json({ error: "bad-input" }, 400);
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
-    const { data: c } = await a.from("inv_campaigns").select("id, mail_kind, status, subject, body").eq("id", String(body.campaign || "")).maybeSingle();
+    const { data: c } = await a.from("inv_campaigns").select("id, mail_kind, status, subject, body, audience").eq("id", String(body.campaign || "")).maybeSingle();
     if (!c || c.mail_kind !== "announcement" || !["draft", "sending"].includes(c.status)) return json({ error: "bad-input" }, 400);
-    const todo = await announcementTargets(a, c.id);
+    const todo = await announcementTargets(a, c.id, c.audience);
     await a.from("inv_campaigns").update({ status: "sending" }).eq("id", c.id);
     let ok = 0, failed = 0;
     for (const i of todo.slice(0, 20)) {
