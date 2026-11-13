@@ -183,7 +183,7 @@ export async function sendInvite(a: SupabaseClient, inv: { id: string; email: st
   return await sendMail(a, { to: inv.email, kind: "invite", lang: "nl", noreply: true, cc: opts.cc ? "info@winwinner.be" : undefined, campaign: opts.campaign, subject: m.subject, cta: m.cta, text: m.text });
 }
 // Reminder for Winwinner investors who have not made a choice yet. Refers to the first invitation; no new link (they log in on the portal).
-export function reminderContent(inv: { email: string; first_name?: string | null; tranche?: string | null }, deadline: Date): { subject: string; text: string; cta: { url: string; label: string } } {
+export function reminderContent(inv: { email: string; first_name?: string | null; tranche?: string | null }, deadline: Date, extra?: string | null): { subject: string; text: string; cta: { url: string; label: string } } {
   const D = nlDate(deadline);
   const text = `${hello(inv.first_name, "nl")}
 
@@ -191,7 +191,7 @@ Eerder ontving u een e-mail over de voorgestelde verlenging van uw lening aan EV
 
 De uiterste datum is ${D}. U bent daartoe niet verplicht, maar wij stellen het op prijs als u tijdig antwoordt. De eerstvolgende geplande betaling (14 november 2026) valt vóór die datum en blijft in afwachting van uw antwoord.
 
-U maakt uw keuze in het investeerdersportaal. Meld u aan op ${APP_URL} met uw e-mailadres (${inv.email}) en uw wachtwoord. Bent u uw wachtwoord vergeten, klik dan op "Wachtwoord vergeten" en u ontvangt meteen een nieuwe link.
+U maakt uw keuze in het investeerdersportaal. Meld u aan op ${APP_URL} met uw e-mailadres (${inv.email}) en uw wachtwoord. Bent u uw wachtwoord vergeten, klik dan op "Wachtwoord vergeten" en u ontvangt meteen een nieuwe link.${extra ? `\n\n${extra}` : ""}
 ${isWinwinlening(inv.tranche) ? `\n${WIN_NOTE.nl}\n\n**Behoud van uw fiscaal voordeel op optie A en B is gegarandeerd.**` : ""}
 
 Vragen? Stuur ze naar info@evchargeking.com of info@winwinner.be. Beide adressen zijn in kopie (cc) van deze e-mail.
@@ -208,8 +208,11 @@ export async function sendReminder(a: SupabaseClient, inv: { id: string; email: 
   const { data } = await a.from("inv_settings").select("value").eq("key", "deadline").maybeSingle();
   const parsed = new Date(String(data?.value || ""));
   const deadline = isNaN(parsed.getTime()) ? new Date(Date.now() + 7 * 86400_000) : parsed;
-  const m = reminderContent(inv, deadline);
-  return await sendMail(a, { to: inv.email, kind: "reminder", lang: "nl", noreply: true, cc: "info@evchargeking.com,info@winwinner.be", campaign, subject: m.subject, cta: m.cta, text: m.text });
+  // A campaign with extra text asks the investor to answer the e-mail: then the mail is a normal one (replies go to REPLY, copied to the info addresses).
+  const { data: camp } = campaign ? await a.from("inv_campaigns").select("extra_text").eq("id", campaign).maybeSingle() : { data: null };
+  const extra = camp?.extra_text || null;
+  const m = reminderContent(inv, deadline, extra);
+  return await sendMail(a, { to: inv.email, kind: "reminder", lang: "nl", noreply: !extra, cc: "info@evchargeking.com,info@winwinner.be", campaign, subject: m.subject, cta: m.cta, text: m.text });
 }
 // The invitation exactly as it is sent; also used for the preview in Beheer (with a dummy link).
 // Winwinlening (state-backed) investors: Winwinner executes the choice; subject to signing via the Winwinner platform and possibly PMV validation.

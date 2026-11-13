@@ -525,7 +525,7 @@ Deno.serve(async (req) => {
     if (c.mail_kind === "reminder") {
       const st = await settings(a);
       const deadline = st.deadline ? new Date(st.deadline) : new Date(Date.now() + 7 * 86400_000);
-      const sampleR = (tranche: string) => { const m = reminderContent({ email: "[e-mailadres investeerder]", first_name: "Jan", tranche }, deadline); return { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, ""), cc: "" }; };
+      const sampleR = (tranche: string) => { const m = reminderContent({ email: "[e-mailadres investeerder]", first_name: "Jan", tranche }, deadline, c.extra_text || null); return { subject: m.subject, text: m.text, html: mailHtml(m.text, m.cta, "nl", true, ""), cc: "" }; };
       const templates = [
         { label: "Crowdlening (zonder Winwinlening-tekst)", ...sampleR("crowd-1411") },
         { label: "Winwinlening (door de staat gesteund)", ...sampleR("winwin-1411") },
