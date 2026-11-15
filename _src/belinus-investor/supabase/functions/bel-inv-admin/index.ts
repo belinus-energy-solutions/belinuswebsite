@@ -1,5 +1,6 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting, teamsConfigured } from "../_shared/teams.ts";
+import { boleroProposal, buildBoleroPdf } from "../_shared/bolero.ts";
 import { lastMailError, randomCode, sendChoiceConfirmation, sha256 } from "../_shared/inv.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor, planRow, leadRows as leadRowsShared, optionBRows as optionBShared } from "../_shared/finance.ts";
 import { buildInfoPdf } from "../_shared/infopdf.ts";
@@ -55,6 +56,15 @@ async function pdfCampaigns(a: any, investorId: string) {
   return cs || [];
 }
 
+// Bolero vote as seen on the investor page: the vote campaign, whether it has been sent, and this investor's vote.
+async function boleroInfo(a: any, inv: any) {
+  if (!inv || !String(inv.tranche || "").startsWith("bolero")) return null;
+  const { data: c } = await a.from("inv_campaigns").select("id, name, status, vote_deadline").eq("mail_kind", "bolero_vote").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!c) return null;
+  const { data: v } = await a.from("inv_votes").select("vote, voted_at").eq("investor_id", inv.id).eq("campaign_id", c.id).maybeSingle();
+  return { campaign: c, sent: c.status !== "draft", vote: v?.vote || null, voted_at: v?.voted_at || null };
+}
+const VOTE_NL = (v: string) => (v === "yes" ? "JA, ik steun de continuïteit van het bedrijf en sta een uitstel van betaling met drie maanden toe" : "NEE, ik sta geen uitstel van betaling toe");
 // Bolero vote campaigns: every Bolero investor with an e-mail address, minus those who already received this campaign.
 async function boleroTargets(a: any, campaignId: string): Promise<any[]> {
   const [{ data: inv }, { data: done }] = await Promise.all([
@@ -148,7 +158,7 @@ Deno.serve(async (req) => {
     if (!inv) return json({ error: "not-found" }, 404);
     const { data: mails } = await a.from("inv_mail_log").select("subject, kind, status, created_at").eq("recipient", inv.email).order("created_at", { ascending: false }).limit(50);
     await a.from("inv_messages").update({ read_at: new Date().toISOString() }).eq("investor_id", id).eq("direction", "in").is("read_at", null);
-    return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk, notes, messages: msgs, choice: ch, tranches: tr, mails, pdf_campaigns: await pdfCampaigns(a, id) });
+    return json({ ok: true, investor: inv, schedule: sch, log, bookings: bk, notes, messages: msgs, choice: ch, tranches: tr, mails, pdf_campaigns: await pdfCampaigns(a, id), bolero: await boleroInfo(a, inv) });
   }
   if (action === "note_add") {
     const body0 = str(body.body, 8000), bid = body.booking_id ? String(body.booking_id) : null;
@@ -663,6 +673,39 @@ Deno.serve(async (req) => {
     await a.from("inv_mail_events").delete().eq("campaign_id", c.id);
     for (let i = 0; i < got.length; i += 500) await a.from("inv_mail_events").insert(got.slice(i, i + 500));
     return json({ ok: true, events: got.length });
+  }
+  // Bolero: e-mails the personal proposal as a PDF to one investor (for investors who prefer to answer by e-mail). Only once the vote campaign has been sent.
+  if (action === "bolero_send_proposal" || action === "bolero_record_vote") {
+    const { data: inv } = await a.from("inv_investors").select("id, email, first_name, last_name, company_name, tranche, invested").eq("id", id).maybeSingle();
+    if (!inv) return json({ error: "not-found" }, 404);
+    const b = await boleroInfo(a, inv);
+    if (!b) return json({ error: "not-applicable" }, 400);
+    if (!b.sent) return json({ error: "campaign-not-sent" }, 400);
+    if (action === "bolero_record_vote") {
+      // A vote received by e-mail or phone, registered by an admin. Same rules as the public page.
+      const vote = String(body.vote || ""), note = str(body.note, 500);
+      if (!["yes", "no"].includes(vote) || !note) return json({ error: "bad-input" }, 400);
+      if (b.campaign.status === "closed" || (b.campaign.vote_deadline && new Date(b.campaign.vote_deadline).getTime() < Date.now())) return json({ error: "closed" }, 400);
+      const now = new Date().toISOString();
+      const { data: ex } = await a.from("inv_votes").select("investor_id").eq("investor_id", inv.id).eq("campaign_id", b.campaign.id).maybeSingle();
+      if (ex) await a.from("inv_votes").update({ vote, voted_at: now, ip: "admin" }).eq("investor_id", inv.id).eq("campaign_id", b.campaign.id);
+      else await a.from("inv_votes").insert({ investor_id: inv.id, campaign_id: b.campaign.id, token_hash: await sha256(randomCode()), vote, voted_at: now, ip: "admin" });
+      await audit(a, u, "bolero-vote-recorded", inv.email, { vote, previous: b.vote, note });
+      if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem geregistreerd zoals u die aan ons heeft doorgegeven: ${VOTE_NL(vote)}.\n\nUw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract. Klopt dit niet, antwoord dan op deze e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
+      return json({ ok: true });
+    }
+    if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
+    if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
+    const { data: sch } = await a.from("inv_schedule").select("scenario, due, net_interest, principal").eq("investor_id", inv.id).gte("due", "2026-10-01").lte("due", "2027-12-31");
+    const proposal = boleroProposal(sch || []);
+    if (!proposal.rows.length) return json({ error: "no-schedule" }, 400);
+    const nlD = (d: Date) => d.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" });
+    const deadline = b.campaign.vote_deadline ? nlD(new Date(b.campaign.vote_deadline)) : null;
+    const pdf = await buildBoleroPdf({ name: inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email, invested: Number(inv.invested), date: nlD(new Date()), deadline, proposal });
+    const sent = await sendMail(a, { to: inv.email, kind: "bolero-proposal", lang: "nl", campaign: b.campaign.id, subject: "Uw persoonlijk voorstel: uitstel van betaling – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nIn de bijlage vindt u het exacte financiële voorstel voor uw investering: de uitgestelde bedragen en de nieuwe betalingen van 2027, maand per maand.\n\nU kunt uw stem uitbrengen${deadline ? " tot en met " + deadline : ""}:\n- met de knop in onze eerdere e-mail, of\n- door op deze e-mail te antwoorden met JA (ik sta het uitstel toe) of NEE.\n\nHeeft u vragen, bel dan Erwin Raets, CEO, op +32 475 44 36 69.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)`, attachments: [{ name: "voorstel-uitstel-betaling-EVChargeking.pdf", type: "application/pdf", data: pdf }] });
+    if (!sent) return json({ error: "mail-failed" }, 502);
+    await audit(a, u, "bolero-proposal", inv.email, { bytes: pdf.length });
+    return json({ ok: true });
   }
   // Bolero vote: sends the campaign text with a personal voting link, in batches of 20. Each investor gets one link; the vote is cast on the public page.
   if (action === "bolero_batch") {

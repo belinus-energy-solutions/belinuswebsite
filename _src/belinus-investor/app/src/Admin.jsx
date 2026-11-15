@@ -291,6 +291,22 @@ function Notes({ notes, bookingId, investorId, onChange, compact }) {
     <Note kind="error">{err}</Note></div>;
 }
 // Full page per investor: appointments with notes, loose notes, messages, loan, choices, mails.
+// Bolero investor: send the personal proposal as a PDF and register a vote received by e-mail or phone. Active once the vote campaign has been sent.
+function BoleroCard({ id, email, b, reload }) {
+  const [sure, setSure] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [vote, setVote] = useState(''), [note, setNote] = useState('');
+  const voteNl = (v) => (v === 'yes' ? 'Ja (uitstel toegestaan)' : v === 'no' ? 'Nee' : 'nog niet gestemd');
+  async function send() { setBusy(true); setErr(''); setMsg(''); try { await adm('bolero_send_proposal', { id, confirm: true }); setMsg('Voorstel (PDF) verstuurd naar ' + email + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  async function record() { setBusy(true); setErr(''); setMsg(''); try { await adm('bolero_record_vote', { id, vote, note }); setMsg('Stem geregistreerd. De investeerder krijgt een bevestiging per e-mail.'); setVote(''); setNote(''); reload(); } catch (x) { setErr(errText(x)); } setBusy(false); }
+  return <div className="card stack" style={{ marginTop: 12 }}><h2 style={{ fontSize: 18, margin: 0 }}>Bolero-stemming: uitstel van betaling</h2>
+    <p style={{ margin: 0 }}>Campagne: {b.campaign.name}. Stem van deze investeerder: <b>{voteNl(b.vote)}</b>{b.voted_at ? ' (' + new Date(b.voted_at).toLocaleDateString('nl-BE', { timeZone: 'Europe/Brussels' }) + ')' : ''}.</p>
+    {!b.sent ? <p className="hint" style={{ margin: 0 }}>De campagne is nog niet verstuurd. Daarna kunt u hier het voorstel als PDF versturen en een stem registreren.</p> : <>
+      <div className="row">{sure ? <><Btn disabled={busy} busy={busy} onClick={send}>Ja, verstuur naar {email}</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Stuur voorstel (PDF)</button>}</div>
+      <div className="stack"><p style={{ margin: 0 }}><b>Stem registreren</b> die de investeerder per e-mail of telefoon heeft doorgegeven:</p>
+        <div className="row"><label className="row"><input type="radio" name="bolero-stem" checked={vote === 'yes'} onChange={() => setVote('yes')} /> Ja, uitstel toegestaan</label><label className="row"><input type="radio" name="bolero-stem" checked={vote === 'no'} onChange={() => setVote('no')} /> Nee</label></div>
+        <Field label="Hoe is de stem doorgegeven? (verplicht, bijvoorbeeld: e-mail van 20/11)"><input value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+        <div className="row"><Btn disabled={busy || !vote || !note.trim()} busy={busy} onClick={record}>Registreer stem</Btn></div></div></>}
+    {msg && <Note kind="ok">{msg}</Note>}<Note kind="error">{err}</Note></div>;
+}
 function InvPage({ id }) {
   const [d, setD] = useState(null), [err, setErr] = useState(''), [msg, setMsg] = useState(''), [ok, setOk] = useState(''), [busy, setBusy] = useState(false), [c, setC] = useState(''), [cn, setCn] = useState(''), [reason, setReason] = useState(''), [prev, setPrev] = useState(false);
   const load = useCallback(() => adm('investor_page', { id }).then(setD).catch((x) => setErr(errText(x))), [id]);
@@ -305,7 +321,7 @@ function InvPage({ id }) {
     <div className="page-head"><div><p className="hint" style={{ margin: 0 }}><a href="#/investeerders">Investeerders</a> ›</p><h1 className="page-title">{nameOf(i)}{i.is_demo ? <span className="chip info" style={{ marginLeft: 10, verticalAlign: 'middle' }}>demo</span> : i.is_test ? <span className="chip warn" style={{ marginLeft: 10, verticalAlign: 'middle' }}>test</span> : null}</h1>
       <p className="page-sub">{trName(i.tranche)} · {eur(i.invested)} · keuze {d.choice?.choice || '—'} · {i.status === 'active' ? 'actief sinds ' + dayNl(i.activated_at) : 'nog geen wachtwoord'}</p></div>
       <div className="row"><button className="btn ghost sm" onClick={() => viewAs(i.id)}>Bekijk als</button>{i.status === 'invited' && <button className="btn ghost sm" onClick={() => setPrev(true)}>Bekijk uitnodiging</button>}<button className="btn ghost sm" onClick={invite}>{i.status === 'invited' ? 'Stuur persoonlijke uitnodiging' : 'Stuur link nieuw wachtwoord'}</button><button className="btn sm" onClick={() => document.querySelector('.composer textarea')?.focus()}>Bericht sturen</button></div></div>
-    <div style={{ marginTop: 10 }}><SendInfo id={i.id} email={i.email} campaigns={d.pdf_campaigns || []} /></div>
+    {d.bolero ? <BoleroCard id={i.id} email={i.email} b={d.bolero} reload={load} /> : <div style={{ marginTop: 10 }}><SendInfo id={i.id} email={i.email} campaigns={d.pdf_campaigns || []} /></div>}
     <Note kind="ok">{ok}</Note><Note kind="error">{err}</Note>{prev && <InvitePreview id={i.id} onClose={() => setPrev(false)} />}
     <div className="inv-grid">
       <div className="card stack"><h2 style={{ margin: 0 }}>Gegevens</h2>{[

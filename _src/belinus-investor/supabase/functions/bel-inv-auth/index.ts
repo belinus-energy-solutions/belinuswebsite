@@ -4,6 +4,7 @@
 //   { action: "check", code }             -> { ok, email } while the link is valid
 //   { action: "set_password", code, password } -> { ok, email }; the page then signs in with the password
 //   { action: "provider_link", code } (with the Microsoft/Google session as bearer) -> { ok, email }; e-mail must match the invitation
+import { boleroProposal } from "../_shared/bolero.ts";
 import { adminClient, audit, clientIp, cors, EMAIL, hello, json, mailConfigured, pickLang, sendAccessLink, sendMail, sha256, str, strong } from "../_shared/inv.ts";
 
 // At least 12 characters, at least 3 of the 4 character types, no more than 2 identical characters in a row (Steve, 8 November 2026).
@@ -53,7 +54,8 @@ Deno.serve(async (req) => {
       if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem goed ontvangen: ${vote === "yes" ? "JA, ik steun de continuïteit van het bedrijf en sta een uitstel van betaling met drie maanden toe" : "NEE, ik sta geen uitstel van betaling toe"}.\n\nUw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract. Tot de afsluiting van de stemming kunt u uw stem nog wijzigen via de link in onze eerdere e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
       return json({ ok: true, vote, voted_at: now });
     }
-    return json({ ok: true, first_name: inv.first_name, invested: inv.invested, vote: v.vote, voted_at: v.voted_at, closed, deadline: c?.vote_deadline || null });
+    const { data: sch } = await a.from("inv_schedule").select("scenario, due, net_interest, principal").eq("investor_id", v.investor_id).gte("due", "2026-10-01").lte("due", "2027-12-31");
+    return json({ ok: true, first_name: inv.first_name, invested: inv.invested, vote: v.vote, voted_at: v.voted_at, closed, deadline: c?.vote_deadline || null, proposal: boleroProposal(sch || []) });
   }
 
   if (action === "start") {

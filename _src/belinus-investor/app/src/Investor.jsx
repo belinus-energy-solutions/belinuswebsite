@@ -10,7 +10,7 @@ const ERR = {
   'already-booked': 'U hebt al een open afspraak van dit type. Annuleer die eerst.', 'event-full': 'Deze investeerdersdag is volzet of heeft te weinig plaatsen.', 'slot-taken': 'Dit moment is net ingenomen. Kies een ander moment.', 'phone-required': 'Vul uw telefoonnummer in.', 'too-late': 'Deze afspraak kan niet meer geannuleerd worden. Neem contact op met info@evchargeking.com.', forbidden: 'U hebt geen toegang.', 'bad-input': 'Controleer de ingevulde gegevens.', generic: 'Er ging iets mis. Probeer het opnieuw.',
 };
 Object.assign(ERR, {
-  'not-applicable': 'Voor deze lening is er geen keuze A of B.', 'no-schedule': 'Deze investeerder heeft geen betaalplanning.', 'text-not-final': 'De tekst bevat nog een te bevestigen passage tussen vierkante haken. Pas de tekst eerst aan.', 'not-found': 'Deze investeerder is niet gevonden.',
+  'not-applicable': 'Voor deze lening is er geen keuze A of B.', 'no-schedule': 'Deze investeerder heeft geen betaalplanning.', 'campaign-not-sent': 'De Bolero-campagne is nog niet verstuurd. Verstuur eerst de campagne.', 'closed': 'De stemming is afgesloten.', 'text-not-final': 'De tekst bevat nog een te bevestigen passage tussen vierkante haken. Pas de tekst eerst aan.', 'not-found': 'Deze investeerder is niet gevonden.',
   'email-mismatch': 'Dit Microsoft- of Google-account heeft een ander e-mailadres dan uw uitnodiging. Meld u aan met het e-mailadres waarop u de uitnodiging ontving, of kies een wachtwoord.',
   'provider-required': 'Meld u aan met een Microsoft- of Google-account, of kies een wachtwoord.',
   'account-conflict': 'Dit e-mailadres is al aan een ander account gekoppeld. Neem contact op met info@evchargeking.com.',
@@ -139,6 +139,11 @@ function VotePage({ route }) {
       <p className="lead">{d.first_name ? 'Beste ' + d.first_name + ',' : 'Beste investeerder,'} u heeft via Bolero Crowdfunding {eur(d.invested)} geïnvesteerd in de obligatielening van EVChargeking (Some BV).</p>
       <p><b>De vraag:</b> steunt u de continuïteit van het bedrijf door een uitstel van betaling met drie maanden toe te staan?</p>
       <p>Het uitstel geldt voor de betalingen van 19 oktober, 19 november en 19 december 2026. Deze bedragen worden progressief gespreid over de maandelijkse betalingen van 2027 (19 januari tot 19 december 2027), bovenop de betalingen die dan al voorzien zijn: het bijkomende deel begint klein en stijgt elke maand.</p>
+      {d.proposal && d.proposal.rows.length > 0 && <div className="stack"><p><b>Het exacte voorstel voor uw investering.</b> Uitgesteld bedrag: {eur(d.proposal.deferred_total)} (netto-interest {eur(d.proposal.deferred_net_interest)} en kapitaal {eur(d.proposal.deferred_principal)}).</p>
+        <div className="tblw"><table className="cards"><thead><tr><th>Datum</th><th>Voorziene betaling</th><th>Bijkomend deel</th><th>Nieuwe betaling</th></tr></thead><tbody>
+          {d.proposal.rows.map((r) => <tr key={r.due}><td data-l="Datum">{dayNl(r.due)}</td><td data-l="Voorziene betaling">{eur(r.planned)}</td><td data-l="Bijkomend deel">{eur(r.extra)}</td><td data-l="Nieuwe betaling"><b>{eur(r.total)}</b></td></tr>)}
+          <tr><td data-l="Datum"><b>Totaal 2027</b></td><td data-l="Voorziene betaling"><b>{eur(d.proposal.planned_total)}</b></td><td data-l="Bijkomend deel"><b>{eur(d.proposal.deferred_total)}</b></td><td data-l="Nieuwe betaling"><b>{eur(d.proposal.total)}</b></td></tr>
+        </tbody></table></div><p className="hint">De bedragen zijn netto-interest plus kapitaal.</p></div>}
       {d.deadline && !d.closed && <p>U kunt stemmen tot en met <b>{dayNl(d.deadline)}</b>.</p>}
       <p className="hint">Uw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract.</p>
       {d.vote && <Note kind="ok">Uw stem is geregistreerd: <b>{label(d.vote)}</b>.{d.closed ? ' De stemming is afgesloten.' : ' Tot de afsluiting kunt u uw stem hieronder nog wijzigen.'}</Note>}
