@@ -88,6 +88,7 @@ function App() {
   useEffect(() => { if (st.phase !== 'in') return; let last = Date.now(); const bump = () => { last = Date.now(); }; ['click', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, bump, { passive: true })); const iv = setInterval(() => { if (Date.now() - last > 30 * 60000) sb.auth.signOut({ scope: 'local' }).then(() => location.reload()); }, 60000); return () => { clearInterval(iv); ['click', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, bump)); }; }, [st.phase]);
   const page = route.parts[0] || '';
   if (page === 'switch') return <SwitchIn route={route} />;
+  if (page === 'stem') return <VotePage route={route} />;
   if (page === 'wachtwoord') return <SetPassword route={route} onIn={() => load(true)} />;
   if (st.phase === 'boot') return <div className="boot"><span className="spin" /></div>;
   if (st.phase === 'out') return page === 'start' ? <Start route={route} /> : <Login onIn={() => load(true)} />;

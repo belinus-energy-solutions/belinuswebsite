@@ -10,7 +10,7 @@ const ERR = {
   'already-booked': 'U hebt al een open afspraak van dit type. Annuleer die eerst.', 'event-full': 'Deze investeerdersdag is volzet of heeft te weinig plaatsen.', 'slot-taken': 'Dit moment is net ingenomen. Kies een ander moment.', 'phone-required': 'Vul uw telefoonnummer in.', 'too-late': 'Deze afspraak kan niet meer geannuleerd worden. Neem contact op met info@evchargeking.com.', forbidden: 'U hebt geen toegang.', 'bad-input': 'Controleer de ingevulde gegevens.', generic: 'Er ging iets mis. Probeer het opnieuw.',
 };
 Object.assign(ERR, {
-  'not-applicable': 'Voor deze lening is er geen keuze A of B.', 'no-schedule': 'Deze investeerder heeft geen betaalplanning.', 'not-found': 'Deze investeerder is niet gevonden.',
+  'not-applicable': 'Voor deze lening is er geen keuze A of B.', 'no-schedule': 'Deze investeerder heeft geen betaalplanning.', 'text-not-final': 'De tekst bevat nog een te bevestigen passage tussen vierkante haken. Pas de tekst eerst aan.', 'not-found': 'Deze investeerder is niet gevonden.',
   'email-mismatch': 'Dit Microsoft- of Google-account heeft een ander e-mailadres dan uw uitnodiging. Meld u aan met het e-mailadres waarop u de uitnodiging ontving, of kies een wachtwoord.',
   'provider-required': 'Meld u aan met een Microsoft- of Google-account, of kies een wachtwoord.',
   'account-conflict': 'Dit e-mailadres is al aan een ander account gekoppeld. Neem contact op met info@evchargeking.com.',
@@ -124,6 +124,29 @@ function Login({ onIn }) {
       : <><Field label={t('Wachtwoord')}><PwInput autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
       <Note kind="error">{err}</Note><Btn busy={busy} type="submit">{t('Aanmelden')}</Btn></>}</form>
     <div className="auth-links"><a href="#/start?vergeten=1">{t('Wachtwoord vergeten?')}</a></div></AuthFrame>;
+}
+// Bolero vote: public page behind the personal link of the campaign mail. One question, yes or no; the vote can be changed until the vote is closed.
+function VotePage({ route }) {
+  const code = route.q.get('code') || '';
+  const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(''), [pick, setPick] = useState('');
+  useEffect(() => { fn('bel-inv-auth', { action: 'vote_info', code }).then(setD).catch((x) => setErr(x.message === 'not-found' ? 'Deze link is niet geldig. Gebruik de knop in de e-mail die u van ons ontving.' : x.message === 'too-many' ? 'Te veel pogingen. Probeer het later opnieuw.' : 'Er ging iets mis. Probeer het opnieuw.')); }, [code]);
+  async function cast(vote) { setBusy(vote); setErr(''); try { const r = await fn('bel-inv-auth', { action: 'vote_cast', code, vote }); setD({ ...d, vote: r.vote, voted_at: r.voted_at }); setPick(''); } catch (x) { setErr(x.message === 'closed' ? 'De stemming is afgesloten.' : 'Uw stem kon niet worden opgeslagen. Probeer het opnieuw.'); } setBusy(''); }
+  const label = (v) => (v === 'yes' ? 'JA, ik steun de continuïteit en sta het uitstel toe' : 'NEE, ik sta geen uitstel toe');
+  return <AuthFrame><h2>Uw stem: uitstel van betaling</h2>
+    {!d && !err && <div className="boot"><span className="spin" /></div>}
+    <Note kind="error">{err}</Note>
+    {d && <div className="stack">
+      <p className="lead">{d.first_name ? 'Beste ' + d.first_name + ',' : 'Beste investeerder,'} u heeft via Bolero Crowdfunding {eur(d.invested)} geïnvesteerd in de obligatielening van EVChargeking (Some BV).</p>
+      <p><b>De vraag:</b> steunt u de continuïteit van het bedrijf door een uitstel van betaling met drie maanden toe te staan?</p>
+      <p>Het uitstel geldt voor de betalingen van 19 oktober, 19 november en 19 december 2026. Zij worden uitgevoerd op 19 januari, 19 februari en 19 maart 2027.</p>
+      <p className="hint">Uw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract.</p>
+      {d.vote && <Note kind="ok">Uw stem is geregistreerd: <b>{label(d.vote)}</b>.{d.closed ? ' De stemming is afgesloten.' : ' Tot de afsluiting kunt u uw stem hieronder nog wijzigen.'}</Note>}
+      {d.closed && !d.vote && <Note kind="ok">De stemming is afgesloten.</Note>}
+      {!d.closed && (pick ? <div className="stack"><p>U kiest: <b>{label(pick)}</b>. Bevestigt u?</p><div className="row"><Btn busy={!!busy} disabled={!!busy} onClick={() => cast(pick)}>Ja, bevestig mijn stem</Btn><button className="btn ghost sm" onClick={() => setPick('')}>Terug</button></div></div>
+        : <div className="row"><Btn disabled={d.vote === 'yes'} onClick={() => setPick('yes')}>Ja, ik sta het uitstel toe</Btn><Btn kind="ghost" disabled={d.vote === 'no'} onClick={() => setPick('no')}>Nee</Btn></div>)}
+      <p className="hint">Vragen? Bel Erwin Raets, CEO, op +32 475 44 36 69 of mail naar info@evchargeking.com.</p>
+    </div>}
+  </AuthFrame>;
 }
 function Start({ route }) {
   const forgot = route.q.get('vergeten');

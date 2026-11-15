@@ -4,7 +4,7 @@
 //   { action: "check", code }             -> { ok, email } while the link is valid
 //   { action: "set_password", code, password } -> { ok, email }; the page then signs in with the password
 //   { action: "provider_link", code } (with the Microsoft/Google session as bearer) -> { ok, email }; e-mail must match the invitation
-import { adminClient, audit, clientIp, cors, EMAIL, json, mailConfigured, pickLang, sendAccessLink, sha256, str, strong } from "../_shared/inv.ts";
+import { adminClient, audit, clientIp, cors, EMAIL, hello, json, mailConfigured, pickLang, sendAccessLink, sendMail, sha256, str, strong } from "../_shared/inv.ts";
 
 // At least 12 characters, at least 3 of the 4 character types, no more than 2 identical characters in a row (Steve, 8 November 2026).
 
@@ -30,6 +30,30 @@ Deno.serve(async (req) => {
     if (!data || data.used_at || new Date(data.expires_at).getTime() < Date.now()) return null;
     return data;
   };
+
+  // Bolero vote: public page behind the personal link of the campaign mail (no account). The vote can be changed until the campaign is closed.
+  if (action === "vote_info" || action === "vote_cast") {
+    const code = String(body.code || "").slice(0, 100);
+    if (ip && !(await allow("inv-vote-ip:" + (await sha256(ip)), 0, 60))) return json({ error: "too-many" }, 429);
+    const { data: v } = code ? await a.from("inv_votes").select("investor_id, campaign_id, vote, voted_at").eq("token_hash", await sha256(code)).maybeSingle() : { data: null };
+    if (!v) return json({ error: "not-found" }, 404);
+    const [{ data: inv }, { data: c }] = await Promise.all([
+      a.from("inv_investors").select("first_name, invested, email").eq("id", v.investor_id).single(),
+      a.from("inv_campaigns").select("status").eq("id", v.campaign_id).single(),
+    ]);
+    const closed = c?.status === "closed";
+    if (action === "vote_cast") {
+      const vote = String(body.vote || "");
+      if (!["yes", "no"].includes(vote)) return json({ error: "bad-input" }, 400);
+      if (closed) return json({ error: "closed" }, 400);
+      const now = new Date().toISOString();
+      await a.from("inv_votes").update({ vote, voted_at: now, ip }).eq("investor_id", v.investor_id).eq("campaign_id", v.campaign_id);
+      await audit(a, null, "bolero-vote", inv.email, { vote, previous: v.vote, ip });
+      if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem goed ontvangen: ${vote === "yes" ? "JA, ik steun de continuïteit van het bedrijf en sta een uitstel van betaling met drie maanden toe" : "NEE, ik sta geen uitstel van betaling toe"}.\n\nUw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract. Tot de afsluiting van de stemming kunt u uw stem nog wijzigen via de link in onze eerdere e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
+      return json({ ok: true, vote, voted_at: now });
+    }
+    return json({ ok: true, first_name: inv.first_name, invested: inv.invested, vote: v.vote, voted_at: v.voted_at, closed });
+  }
 
   if (action === "start") {
     const email = str(body.email, 200).toLowerCase();
