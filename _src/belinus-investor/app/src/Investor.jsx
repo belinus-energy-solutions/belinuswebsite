@@ -138,7 +138,8 @@ function VotePage({ route }) {
     {d && <div className="stack">
       <p className="lead">{d.first_name ? 'Beste ' + d.first_name + ',' : 'Beste investeerder,'} u heeft via Bolero Crowdfunding {eur(d.invested)} geïnvesteerd in de obligatielening van EVChargeking (Some BV).</p>
       <p><b>De vraag:</b> steunt u de continuïteit van het bedrijf door een uitstel van betaling met drie maanden toe te staan?</p>
-      <p>Het uitstel geldt voor de betalingen van 19 oktober, 19 november en 19 december 2026. Zij worden uitgevoerd op 19 januari, 19 februari en 19 maart 2027.</p>
+      <p>Het uitstel geldt voor de betalingen van 19 oktober, 19 november en 19 december 2026. Deze bedragen worden progressief gespreid over de maandelijkse betalingen van 2027 (19 januari tot 19 december 2027), bovenop de betalingen die dan al voorzien zijn: het bijkomende deel begint klein en stijgt elke maand.</p>
+      {d.deadline && !d.closed && <p>U kunt stemmen tot en met <b>{dayNl(d.deadline)}</b>.</p>}
       <p className="hint">Uw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract.</p>
       {d.vote && <Note kind="ok">Uw stem is geregistreerd: <b>{label(d.vote)}</b>.{d.closed ? ' De stemming is afgesloten.' : ' Tot de afsluiting kunt u uw stem hieronder nog wijzigen.'}</Note>}
       {d.closed && !d.vote && <Note kind="ok">De stemming is afgesloten.</Note>}

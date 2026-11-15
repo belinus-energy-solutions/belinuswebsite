@@ -39,9 +39,10 @@ Deno.serve(async (req) => {
     if (!v) return json({ error: "not-found" }, 404);
     const [{ data: inv }, { data: c }] = await Promise.all([
       a.from("inv_investors").select("first_name, invested, email").eq("id", v.investor_id).single(),
-      a.from("inv_campaigns").select("status").eq("id", v.campaign_id).single(),
+      a.from("inv_campaigns").select("status, vote_deadline").eq("id", v.campaign_id).single(),
     ]);
-    const closed = c?.status === "closed";
+    // Closed by hand, or automatically once the voting deadline has passed.
+    const closed = c?.status === "closed" || (!!c?.vote_deadline && new Date(c.vote_deadline).getTime() < Date.now());
     if (action === "vote_cast") {
       const vote = String(body.vote || "");
       if (!["yes", "no"].includes(vote)) return json({ error: "bad-input" }, 400);
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
       if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem goed ontvangen: ${vote === "yes" ? "JA, ik steun de continuïteit van het bedrijf en sta een uitstel van betaling met drie maanden toe" : "NEE, ik sta geen uitstel van betaling toe"}.\n\nUw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract. Tot de afsluiting van de stemming kunt u uw stem nog wijzigen via de link in onze eerdere e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
       return json({ ok: true, vote, voted_at: now });
     }
-    return json({ ok: true, first_name: inv.first_name, invested: inv.invested, vote: v.vote, voted_at: v.voted_at, closed });
+    return json({ ok: true, first_name: inv.first_name, invested: inv.invested, vote: v.vote, voted_at: v.voted_at, closed, deadline: c?.vote_deadline || null });
   }
 
   if (action === "start") {
