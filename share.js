@@ -58,17 +58,38 @@
     return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
       .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   }
-  /* products with their own preview card get a /share/<lang>/<key>/ page (static og tags for LinkedIn / WhatsApp) */
-  var CARD = { "kratos": "kratos", "supercapacitor-modules-and-racks": "kratos", "energywall-h1": "energywall",
-    "gaia": "gaia", "gaia-smart": "gaia", "powerbox": "powerbox", "powerbox-s1-5": "powerbox", "powerbox-s3-10": "powerbox",
-    "etappro": "etappro", "laadpaal-etappro": "etappro", "borne-de-recharge-etappro": "etappro", "ev-charger-etappro": "etappro",
-    "vibe-wall": "vibe", "vibe-pole": "vibe" };
-  function shareUrl(sl) {
-    var path = location.pathname + (sl ? "?p=" + encodeURIComponent(sl) : "") + (location.hash || "");
-    var key = sl && CARD[sl];
-    if (key) return "https://www.belinus.com/share/" + lang() + "/" + key + "/?to=" + encodeURIComponent(path);
-    return "https://www.belinus.com" + path;
+  /* every page and every product has a static preview page (title, description, image for LinkedIn / WhatsApp / iMessage):
+     pages  → /<lang>-<page>.html   (B2C: /b2c/<lang>-<page>.html)
+     products → /share/<lang>/<slug>/ (B2C: /b2c/share/<lang>/<slug>/)                                   */
+  var STUBS = {"b2b":{"en":["applications","technology","products","intelligence","company","news","partners","support","contact","press","privacy","terms","discontinued-solar","discontinued-inverters","kratos","solar","power-storage","commercial-industrial","residential","ev-charging","vibe"],"nl":["applications","technology","products","intelligence","company","news","partners","support","contact","press","privacy","terms","discontinued-solar","discontinued-inverters","kratos","solar","power-storage","commercial-industrial","residential","ev-charging","vibe"],"fr":["applications","technology","products","intelligence","company","news","partners","support","contact","press","privacy","terms","discontinued-solar","discontinued-inverters","kratos","solar","power-storage","commercial-industrial","residential","ev-charging","vibe"],"de":["applications","technology","products","intelligence","company","news","partners","support","contact","press","privacy","terms","discontinued-solar","discontinued-inverters","kratos","solar","power-storage","commercial-industrial","residential","ev-charging","vibe"],"it":["applications","technology","products","intelligence","company","news","partners","support","contact","press","privacy","terms","discontinued-solar","discontinued-inverters","kratos","solar","power-storage","commercial-industrial","residential","ev-charging","vibe"],"es":["applications","technology","products","intelligence","company","news","partners","support","contact","press","privacy","terms","discontinued-solar","discontinued-inverters","kratos","solar","power-storage","commercial-industrial","residential","ev-charging","vibe"]},"b2c":{"nl":["producten","zonnepanelen","thuisbatterij","omvormer","laadpaal","energiebeheer","besparing","verwijs","reserveren","over-ons","nieuws","klantenservice","contact","discontinued-solar","discontinued-inverters"],"en":["producten","zonnepanelen","thuisbatterij","omvormer","laadpaal","energiebeheer","besparing","verwijs","reserveren","over-ons","nieuws","klantenservice","contact","discontinued-solar","discontinued-inverters"],"fr":["producten","zonnepanelen","thuisbatterij","omvormer","laadpaal","energiebeheer","besparing","verwijs","reserveren","over-ons","nieuws","klantenservice","contact","discontinued-solar","discontinued-inverters"]}};
+  var SHARES = {"b2b":{"de":["energycabinet-g1","energywall-h1","etappro","gaia","gaia-smart","helios","helios-440","helios-light","helios-xl","huc-60138-hybrid-ultracapacitor-cell","hyperion","hyperion-410","hyperion-72","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox-1250","powerbox-640","powerbox-s1-5","powerbox-s3-10","sc-60138-supercapacitor-cell","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p","supercapacitor-modules-and-racks","theia","themis","vibe-pole","vibe-wall"],"en":["energycabinet-g1","energywall-h1","etappro","gaia","gaia-smart","helios","helios-440","helios-light","helios-xl","huc-60138-hybrid-ultracapacitor-cell","hyperion","hyperion-410","hyperion-72","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox-1250","powerbox-640","powerbox-s1-5","powerbox-s3-10","sc-60138-supercapacitor-cell","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p","supercapacitor-modules-and-racks","theia","themis","vibe-pole","vibe-wall"],"es":["energycabinet-g1","energywall-h1","etappro","gaia","gaia-smart","helios","helios-440","helios-light","helios-xl","huc-60138-hybrid-ultracapacitor-cell","hyperion","hyperion-410","hyperion-72","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox-1250","powerbox-640","powerbox-s1-5","powerbox-s3-10","sc-60138-supercapacitor-cell","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p","supercapacitor-modules-and-racks","theia","themis","vibe-pole","vibe-wall"],"fr":["energycabinet-g1","energywall-h1","etappro","gaia","gaia-smart","helios","helios-440","helios-light","helios-xl","huc-60138-hybrid-ultracapacitor-cell","hyperion","hyperion-410","hyperion-72","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox-1250","powerbox-640","powerbox-s1-5","powerbox-s3-10","sc-60138-supercapacitor-cell","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p","supercapacitor-modules-and-racks","theia","themis","vibe-pole","vibe-wall"],"it":["energycabinet-g1","energywall-h1","etappro","gaia","gaia-smart","helios","helios-440","helios-light","helios-xl","huc-60138-hybrid-ultracapacitor-cell","hyperion","hyperion-410","hyperion-72","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox-1250","powerbox-640","powerbox-s1-5","powerbox-s3-10","sc-60138-supercapacitor-cell","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p","supercapacitor-modules-and-racks","theia","themis","vibe-pole","vibe-wall"],"nl":["energycabinet-g1","energywall-h1","etappro","gaia","gaia-smart","helios","helios-440","helios-light","helios-xl","huc-60138-hybrid-ultracapacitor-cell","hyperion","hyperion-410","hyperion-72","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox-1250","powerbox-640","powerbox-s1-5","powerbox-s3-10","sc-60138-supercapacitor-cell","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p","supercapacitor-modules-and-racks","theia","themis","vibe-pole","vibe-wall"]},"b2c":{"en":["energywall-h1","ev-charger-etappro","gaia","gaia-smart","helios-440","hyperion-410","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p"],"fr":["borne-de-recharge-etappro","energywall-h1","gaia","gaia-smart","helios-440","hyperion-410","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p"],"nl":["energywall-h1","gaia","gaia-smart","helios-440","hyperion-410","laadpaal-etappro","nova-54-hjt","nova-60-hjt","nova-topcon-450","nox-60-ibc","nox-66-ibc","powerbox","solis-rhi-3p","solis-s5-eh1p","solis-s6-eh3p"]}};
+  var B2B_BASE = { en: "index.html", nl: "nl.html", fr: "fr.html", de: "de.html", it: "it.html", es: "es.html" };
+  var B2C_BASE = { nl: "index.html", en: "en.html", fr: "fr.html" };
+  function seg() { return /\/b2c\//.test(location.pathname) ? "b2c" : "b2b"; }
+  function has(map, l, id) { var s = map[seg()] && map[seg()][l]; return !!(s && s.indexOf(id) >= 0); }
+  function pageId() { return (location.hash || "").replace(/^#/, "").split(/[?&]/)[0]; }
+  function dir() { return seg() === "b2c" ? "/b2c/" : "/"; }
+  function pagePath(id) {
+    var l = lang(), base = (seg() === "b2c" ? B2C_BASE : B2B_BASE)[l] || "index.html";
+    return dir() + (id && has(STUBS, l, id) ? l + "-" + id + ".html" : base);
   }
+  function cleanSearch() { return location.search.replace(/([?&])p=[^&]*&?/, "$1").replace(/[?&]$/, ""); }
+  function shareUrl(sl) {
+    var l = lang();
+    if (sl && has(SHARES, l, sl)) return "https://www.belinus.com" + (seg() === "b2c" ? "/b2c" : "") + "/share/" + l + "/" + sl + "/";
+    var id = pageId();
+    return "https://www.belinus.com" + pagePath(id) + (sl ? "?p=" + encodeURIComponent(sl) : "") + (id ? "#" + id : "");
+  }
+  /* keep the address bar on the preview URL of the page being viewed, so a copied link shows the right card */
+  function syncUrl() {
+    try {
+      var id = pageId(), want = pagePath(id);
+      if (location.pathname !== want) history.replaceState(history.state, "", want + location.search + location.hash);
+    } catch (e) {}
+  }
+  syncUrl();
+  addEventListener("hashchange", syncUrl);
+  addEventListener("popstate", syncUrl);
 
   var ICON_LI = c("svg", { viewBox: "0 0 24 24", width: 16, height: 16, "aria-hidden": "true" },
     c("path", { fill: "currentColor", d: "M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9.75h4v11.25H3zM9.5 9.75h3.8v1.6h.06c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.77 2.6 4.77 6v5.7h-4v-5.05c0-1.2-.02-2.75-1.7-2.75-1.7 0-1.95 1.3-1.95 2.66V21H9.5z" }));
@@ -103,7 +124,7 @@
     var want = new URLSearchParams(location.search).get("p");
     if (want) {
       var n = 0, iv = setInterval(function () {
-        var el = document.getElementById("p-" + want) || (want === "kratos" && document.getElementById("kratos"));
+        var el = document.getElementById("p-" + want) || (/^(kratos|vibe-wall|vibe-pole)$/.test(want) && document.getElementById(want));
         if (el || ++n > 40) {
           clearInterval(iv);
           if (el) setTimeout(function () {

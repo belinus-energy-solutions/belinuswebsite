@@ -605,7 +605,7 @@
         c("div", { className: "pl-foot" },
           c("a", { href: "#ev-charging", className: "btn-ghost label" }, t.back),
           c("a", { href: "#products", className: "btn-ghost label" }, t.all, " →")),
-        c(window.ShareRow || function () { return null; }, { slug: "vibe-wall", title: "Vibe" })));
+        c(window.ShareRow || function () { return null; }, { page: true })));
   }
 
   /* banner on the EV charging line page, pointing to the Vibe page */
