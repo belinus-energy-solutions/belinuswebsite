@@ -9,9 +9,9 @@
   /* ---------- Lease prices (Belgium, companies) ----------
      EUR per month, excl. VAT. Fill in the numbers; null = table row hidden. */
   var LEASE_PRICES = {
-    "wall":   { 36: null, 48: null, 60: null },
-    "single": { 36: null, 48: null, 60: null },
-    "double": { 36: null, 48: null, 60: null }
+    "wall":   { 36: 69,  48: 59,  60: 55 },
+    "single": { 36: 79,  48: 69,  60: 59 },
+    "double": { 36: 149, 48: 129, 60: 109 }
   };
 
   /* ---------- datasheets: EN / NL / FR, other languages fall back to EN ---------- */
@@ -152,27 +152,27 @@
     en: { tag: "Lease · companies in Belgium", h: "Vibe for a fixed monthly fee.", b: "Companies in Belgium can lease Vibe Wall and Vibe Pole for a fixed monthly fee over 36, 48 or 60 months, without investing in the hardware up front.",
       inc: "Included in the monthly fee", items: ["Maintenance and 24-hour replacement service for the full term", "Back office: OCPP platform, charge sessions and reporting", "Reimbursement of home charging: the kWh charged at the employee’s home is settled with the employer", "Option to buy the charger at the end of the term"],
       model: "Model", m: "months", per: "/ month", wall: "Vibe Wall · 22 kW", single: "Vibe Pole single · 22 kW", dbl: "Vibe Pole double · 2 × 22 kW",
-      note: "Prices excl. VAT. Offer for companies with a Belgian enterprise number.", cta: "Request a lease offer", noPrice: "Ask us for the monthly fee for your number of charge points." },
+      note: "Prices excl. VAT. Installation billed separately. Offer for companies with a Belgian enterprise number.", cta: "Request a lease offer", noPrice: "Ask us for the monthly fee for your number of charge points." },
     nl: { tag: "Lease · bedrijven in België", h: "Vibe voor een vast maandbedrag.", b: "Bedrijven in België leasen Vibe Wall en Vibe Pole voor een vast maandbedrag over 36, 48 of 60 maanden, zonder vooraf in de hardware te investeren.",
       inc: "Inbegrepen in het maandbedrag", items: ["Onderhoud en vervangservice binnen 24 uur gedurende de hele looptijd", "Backoffice: OCPP-platform, laadsessies en rapportering", "Terugbetaling van thuisladen: de kWh die bij de werknemer thuis geladen wordt, wordt met de werkgever verrekend", "Aankoopoptie op de laadpaal aan het einde van de looptijd"],
       model: "Model", m: "maanden", per: "/ maand", wall: "Vibe Wall · 22 kW", single: "Vibe Pole enkel · 22 kW", dbl: "Vibe Pole dubbel · 2 × 22 kW",
-      note: "Prijzen excl. btw. Aanbod voor bedrijven met een Belgisch ondernemingsnummer.", cta: "Vraag een leaseofferte aan", noPrice: "Vraag ons het maandbedrag voor uw aantal laadpunten." },
+      note: "Prijzen excl. btw. Installatie apart gefactureerd. Aanbod voor bedrijven met een Belgisch ondernemingsnummer.", cta: "Vraag een leaseofferte aan", noPrice: "Vraag ons het maandbedrag voor uw aantal laadpunten." },
     fr: { tag: "Location · entreprises en Belgique", h: "Vibe pour une mensualité fixe.", b: "Les entreprises en Belgique peuvent louer Vibe Wall et Vibe Pole pour une mensualité fixe sur 36, 48 ou 60 mois, sans investir d’avance dans le matériel.",
       inc: "Compris dans la mensualité", items: ["Entretien et remplacement en 24 heures pendant toute la durée", "Back-office : plateforme OCPP, sessions de recharge et rapports", "Remboursement de la recharge à domicile : les kWh rechargés chez le collaborateur sont décomptés avec l’employeur", "Option d’achat de la borne en fin de contrat"],
       model: "Modèle", m: "mois", per: "/ mois", wall: "Vibe Wall · 22 kW", single: "Vibe Pole simple · 22 kW", dbl: "Vibe Pole double · 2 × 22 kW",
-      note: "Prix hors TVA. Offre réservée aux entreprises disposant d’un numéro d’entreprise belge.", cta: "Demander une offre de location", noPrice: "Demandez-nous la mensualité pour votre nombre de points de charge." },
+      note: "Prix hors TVA. Installation facturée séparément. Offre réservée aux entreprises disposant d’un numéro d’entreprise belge.", cta: "Demander une offre de location", noPrice: "Demandez-nous la mensualité pour votre nombre de points de charge." },
     de: { tag: "Leasing · Unternehmen in Belgien", h: "Vibe zu einer festen Monatsrate.", b: "Unternehmen in Belgien leasen Vibe Wall und Vibe Pole zu einer festen Monatsrate über 36, 48 oder 60 Monate, ohne vorab in die Hardware zu investieren.",
       inc: "In der Monatsrate enthalten", items: ["Wartung und Austauschservice innerhalb von 24 Stunden während der gesamten Laufzeit", "Backoffice: OCPP-Plattform, Ladevorgänge und Berichte", "Erstattung des Heimladens: die beim Mitarbeiter zu Hause geladenen kWh werden mit dem Arbeitgeber abgerechnet", "Kaufoption für die Ladestation am Ende der Laufzeit"],
       model: "Modell", m: "Monate", per: "/ Monat", wall: "Vibe Wall · 22 kW", single: "Vibe Pole einfach · 22 kW", dbl: "Vibe Pole doppelt · 2 × 22 kW",
-      note: "Preise zzgl. MwSt. Angebot für Unternehmen mit belgischer Unternehmensnummer.", cta: "Leasingangebot anfragen", noPrice: "Fragen Sie uns nach der Monatsrate für Ihre Anzahl an Ladepunkten." },
+      note: "Preise zzgl. MwSt. Installation wird separat berechnet. Angebot für Unternehmen mit belgischer Unternehmensnummer.", cta: "Leasingangebot anfragen", noPrice: "Fragen Sie uns nach der Monatsrate für Ihre Anzahl an Ladepunkten." },
     it: { tag: "Leasing · aziende in Belgio", h: "Vibe a un canone mensile fisso.", b: "Le aziende in Belgio possono noleggiare Vibe Wall e Vibe Pole a un canone mensile fisso per 36, 48 o 60 mesi, senza investire in anticipo nell’hardware.",
       inc: "Incluso nel canone mensile", items: ["Manutenzione e sostituzione entro 24 ore per tutta la durata", "Back office: piattaforma OCPP, sessioni di ricarica e report", "Rimborso della ricarica domestica: i kWh caricati a casa del dipendente vengono conteggiati con il datore di lavoro", "Opzione di acquisto della stazione alla fine del contratto"],
       model: "Modello", m: "mesi", per: "/ mese", wall: "Vibe Wall · 22 kW", single: "Vibe Pole singola · 22 kW", dbl: "Vibe Pole doppia · 2 × 22 kW",
-      note: "Prezzi IVA esclusa. Offerta per aziende con numero d’impresa belga.", cta: "Richieda un’offerta di leasing", noPrice: "Ci chieda il canone mensile per il suo numero di punti di ricarica." },
+      note: "Prezzi IVA esclusa. Installazione fatturata a parte. Offerta per aziende con numero d’impresa belga.", cta: "Richieda un’offerta di leasing", noPrice: "Ci chieda il canone mensile per il suo numero di punti di ricarica." },
     es: { tag: "Leasing · empresas en Bélgica", h: "Vibe por una cuota mensual fija.", b: "Las empresas en Bélgica pueden contratar Vibe Wall y Vibe Pole en leasing por una cuota mensual fija durante 36, 48 o 60 meses, sin invertir por adelantado en el equipo.",
       inc: "Incluido en la cuota mensual", items: ["Mantenimiento y sustitución en 24 horas durante todo el contrato", "Back office: plataforma OCPP, sesiones de carga e informes", "Reembolso de la carga en casa: los kWh cargados en casa del empleado se liquidan con la empresa", "Opción de compra del cargador al final del contrato"],
       model: "Modelo", m: "meses", per: "/ mes", wall: "Vibe Wall · 22 kW", single: "Vibe Pole simple · 22 kW", dbl: "Vibe Pole doble · 2 × 22 kW",
-      note: "Precios sin IVA. Oferta para empresas con número de empresa belga.", cta: "Solicite una oferta de leasing", noPrice: "Consulte la cuota mensual para su número de puntos de carga." }
+      note: "Precios sin IVA. Instalación facturada aparte. Oferta para empresas con número de empresa belga.", cta: "Solicite una oferta de leasing", noPrice: "Consulte la cuota mensual para su número de puntos de carga." }
   };
   var TERMS = [36, 48, 60];
   function eur(n) {
