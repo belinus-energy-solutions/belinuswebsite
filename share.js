@@ -23,6 +23,8 @@
     "Powerbox S3-10": ["HybridInverter", "SiliconCarbide", "10kW", "ThreePhase", "TwoBatteryInputs"],
     "Energywall H1": ["SodiumIon", "Supercapacitor", "LithiumFree", "PlugAndPlay", "1CContinuous", "3CPeak"],
     "ETAPPro": ["EVCharger", "22kW", "IP67", "PlugAndPlay", "FollowsTheCar"],
+    "Vibe Wall": ["22kW", "V2G", "ISO15118-20", "PlugAndCharge", "AFIR2027", "DesignedInBelgium"],
+    "Vibe Pole": ["2x22kW", "V2G", "ISO15118-20", "PlugAndCharge", "LoadSharing", "AFIR2027"],
     "Themis": ["EnergyManagement", "EdgeAI", "GridServices", "SolarBatteryEV", "Roadmap2027"]
   };
   function tagsFor(k) {
@@ -59,7 +61,8 @@
   /* products with their own preview card get a /share/<lang>/<key>/ page (static og tags for LinkedIn / WhatsApp) */
   var CARD = { "kratos": "kratos", "supercapacitor-modules-and-racks": "kratos", "energywall-h1": "energywall",
     "gaia": "gaia", "gaia-smart": "gaia", "powerbox": "powerbox", "powerbox-s1-5": "powerbox", "powerbox-s3-10": "powerbox",
-    "etappro": "etappro", "laadpaal-etappro": "etappro", "borne-de-recharge-etappro": "etappro", "ev-charger-etappro": "etappro" };
+    "etappro": "etappro", "laadpaal-etappro": "etappro", "borne-de-recharge-etappro": "etappro", "ev-charger-etappro": "etappro",
+    "vibe-wall": "vibe", "vibe-pole": "vibe" };
   function shareUrl(sl) {
     var path = location.pathname + (sl ? "?p=" + encodeURIComponent(sl) : "") + (location.hash || "");
     var key = sl && CARD[sl];
