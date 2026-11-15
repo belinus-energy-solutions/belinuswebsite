@@ -46,7 +46,7 @@ export async function buildBoleroPdf(p: { name: string; invested: number; date: 
   };
   const right = (s: string, x: number, bold = false, size = 10) => page.drawText(s, { x: x - (bold ? fb : f).widthOfTextAtSize(s, size), y, size, font: bold ? fb : f, color: INK });
   text("EVChargeking (Some BV)", { size: 10, color: GREY }); y -= 26;
-  text("Voorstel: uitstel van betaling met drie maanden", { size: 17, bold: true }); y -= 20;
+  text("Voorstel: nieuwe betalingsvoorwaarden (uitstel van drie maanden)", { size: 17, bold: true }); y -= 20;
   text("Obligatielening Bolero Crowdfunding (KBC) van 19 september 2025", { size: 11, color: GREY }); y -= 28;
   text(`Investeerder: ${p.name}`, { bold: true }); y -= 15;
   text(`Geïnvesteerd bedrag: ${eur(p.invested)}    Datum: ${p.date}`); y -= 24;
@@ -63,7 +63,7 @@ export async function buildBoleroPdf(p: { name: string; invested: number; date: 
   y -= 2;
   text("Totaal 2027", { bold: true, size: 10, x: cols[0] }); right(eur(p.proposal.planned_total), cols[1], true); right(eur(p.proposal.deferred_total), cols[2], true); right(eur(p.proposal.total), cols[3], true); y -= 28;
   para("De bedragen zijn netto-interest plus kapitaal. Alle andere voorwaarden van de lening blijven ongewijzigd, ook de einddatum van 19 september 2030.", 9.5, 13);
-  para("Uw keuze wordt pas bevestigd wanneer minstens 75% van de uitgebrachte stemmen (gewogen naar geïnvesteerd bedrag) het uitstel steunt, en onder voorbehoud van de definitieve uitvoering door de ondertekening van een addendum bij het contract.", 9.5, 13);
+  para("Het besluit is aangenomen wanneer obligatiehouders die samen minstens drie vierde van het uitstaande bedrag van de obligaties vertegenwoordigen, ermee instemmen. Wie niet stemt, telt niet mee als instemming. Na een aangenomen besluit volgt een online document (addendum) dat digitaal ondertekend wordt. Elke stem weegt naar het uitstaande bedrag van de obligaties op 15 november 2026.", 9.5, 13);
   para(`Stemmen kan${p.deadline ? " tot en met " + p.deadline : ""} met de knop in onze e-mail, of door op de e-mail te antwoorden met JA of NEE. Vragen: Erwin Raets, CEO, +32 475 44 36 69, info@evchargeking.com.`, 9.5, 13);
   return await doc.save();
 }

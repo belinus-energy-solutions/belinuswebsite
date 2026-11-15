@@ -486,14 +486,15 @@ function AdmCampaigns() {
 function VoteTally({ t }) {
   const cast = t.yes + t.no, castAmt = t.yes_amount + t.no_amount;
   const pct = (a, b) => (b ? (100 * a / b).toFixed(1).replace('.', ',') + '%' : '—');
-  const ok = castAmt > 0 && t.yes_amount / castAmt >= 0.75;
+  // Written/electronic vote: three quarters of the total outstanding amount must agree; a holder who does not vote does not count as agreeing.
+  const ok = t.amount > 0 && t.yes_amount / t.amount >= 0.75;
   return <div className="card stack"><h2 style={{ fontSize: 18, margin: 0 }}>Stemming Bolero-investeerders</h2>
-    <div className="tblw"><table className="cards"><thead><tr><th></th><th>Investeerders</th><th>Bedrag</th><th>% van de stemmen (bedrag)</th></tr></thead><tbody>
-      <tr><td data-l="">Ja (uitstel toegestaan)</td><td data-l="Investeerders">{t.yes}</td><td data-l="Bedrag">{eur(t.yes_amount)}</td><td data-l="% van de stemmen">{pct(t.yes_amount, castAmt)}</td></tr>
-      <tr><td data-l="">Nee</td><td data-l="Investeerders">{t.no}</td><td data-l="Bedrag">{eur(t.no_amount)}</td><td data-l="% van de stemmen">{pct(t.no_amount, castAmt)}</td></tr>
+    <div className="tblw"><table className="cards"><thead><tr><th></th><th>Investeerders</th><th>Bedrag</th><th>% van het uitstaande bedrag</th></tr></thead><tbody>
+      <tr><td data-l="">Ja (uitstel toegestaan)</td><td data-l="Investeerders">{t.yes}</td><td data-l="Bedrag">{eur(t.yes_amount)}</td><td data-l="% van het uitstaande bedrag"><b>{pct(t.yes_amount, t.amount)}</b></td></tr>
+      <tr><td data-l="">Nee</td><td data-l="Investeerders">{t.no}</td><td data-l="Bedrag">{eur(t.no_amount)}</td><td data-l="% van het uitstaande bedrag">{pct(t.no_amount, t.amount)}</td></tr>
       <tr><td data-l="">Gestemd</td><td data-l="Investeerders">{cast} van {t.investors} ({pct(cast, t.investors)})</td><td data-l="Bedrag">{eur(castAmt)} van {eur(t.amount)} ({pct(castAmt, t.amount)})</td><td data-l="% van de stemmen"></td></tr>
     </tbody></table></div>
-    <p className="hint" style={{ margin: 0 }}>{cast ? (ok ? 'De drempel van 75% van de uitgebrachte stemmen (naar bedrag) is op dit moment gehaald.' : 'De drempel van 75% van de uitgebrachte stemmen (naar bedrag) is op dit moment niet gehaald.') : 'Er is nog niet gestemd.'} Naar aantal stemmers: {pct(t.yes, cast)} ja.</p></div>;
+    <p className="hint" style={{ margin: 0 }}>{ok ? 'De drempel is gehaald: houders van minstens 75% van het uitstaande bedrag stemmen in.' : 'De drempel is niet gehaald. Nodig: instemming van houders van minstens 75% van het uitstaande bedrag (' + eur(0.75 * t.amount) + '). Nog te halen: ' + eur(Math.max(0, 0.75 * t.amount - t.yes_amount)) + '.'} Wie niet stemt, telt niet mee als instemming.</p></div>;
 }
 function CampaignSend({ c, pending, groupName, groupCount, onDone, stats, limitUntil }) {
   const [sure, setSure] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState(''), [show, setShow] = useState(false), [limit, setLimit] = useState(''), [left, setLeft] = useState(0), [localUntil, setLocalUntil] = useState('');

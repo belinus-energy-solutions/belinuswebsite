@@ -131,13 +131,13 @@ function VotePage({ route }) {
   const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(''), [pick, setPick] = useState('');
   useEffect(() => { fn('bel-inv-auth', { action: 'vote_info', code }).then(setD).catch((x) => setErr(x.message === 'not-found' ? 'Deze link is niet geldig. Gebruik de knop in de e-mail die u van ons ontving.' : x.message === 'too-many' ? 'Te veel pogingen. Probeer het later opnieuw.' : 'Er ging iets mis. Probeer het opnieuw.')); }, [code]);
   async function cast(vote) { setBusy(vote); setErr(''); try { const r = await fn('bel-inv-auth', { action: 'vote_cast', code, vote }); setD({ ...d, vote: r.vote, voted_at: r.voted_at }); setPick(''); } catch (x) { setErr(x.message === 'closed' ? 'De stemming is afgesloten.' : 'Uw stem kon niet worden opgeslagen. Probeer het opnieuw.'); } setBusy(''); }
-  const label = (v) => (v === 'yes' ? 'JA, ik steun de continuïteit en sta het uitstel toe' : 'NEE, ik sta geen uitstel toe');
-  return <AuthFrame><h2>Uw stem: uitstel van betaling</h2>
+  const label = (v) => (v === 'yes' ? 'JA, ik aanvaard de nieuwe betalingsvoorwaarden' : 'NEE, ik aanvaard de nieuwe betalingsvoorwaarden niet');
+  return <AuthFrame><h2>Elektronische stemming: nieuwe betalingsvoorwaarden</h2>
     {!d && !err && <div className="boot"><span className="spin" /></div>}
     <Note kind="error">{err}</Note>
     {d && <div className="stack">
       <p className="lead">{d.first_name ? 'Beste ' + d.first_name + ',' : 'Beste investeerder,'} u heeft via Bolero Crowdfunding {eur(d.invested)} geïnvesteerd in de obligatielening van EVChargeking (Some BV).</p>
-      <p><b>De vraag:</b> steunt u de continuïteit van het bedrijf door een uitstel van betaling met drie maanden toe te staan?</p>
+      <p><b>Het voorstel van besluit:</b> aanvaardt u de nieuwe betalingsvoorwaarden van de obligatielening, namelijk een uitstel van betaling met drie maanden, om de continuïteit van het bedrijf te steunen?</p>
       <p>Het uitstel geldt voor de betalingen van 19 oktober, 19 november en 19 december 2026. Deze bedragen worden progressief gespreid over de maandelijkse betalingen van 2027 (19 januari tot 19 december 2027), bovenop de betalingen die dan al voorzien zijn: het bijkomende deel begint klein en stijgt elke maand.</p>
       {d.proposal && d.proposal.rows.length > 0 && <div className="stack"><p><b>Het exacte voorstel voor uw investering.</b> Uitgesteld bedrag: {eur(d.proposal.deferred_total)} (netto-interest {eur(d.proposal.deferred_net_interest)} en kapitaal {eur(d.proposal.deferred_principal)}).</p>
         <div className="tblw"><table className="cards"><thead><tr><th>Datum</th><th>Voorziene betaling</th><th>Bijkomend deel</th><th>Nieuwe betaling</th></tr></thead><tbody>
@@ -145,11 +145,11 @@ function VotePage({ route }) {
           <tr><td data-l="Datum"><b>Totaal 2027</b></td><td data-l="Voorziene betaling"><b>{eur(d.proposal.planned_total)}</b></td><td data-l="Bijkomend deel"><b>{eur(d.proposal.deferred_total)}</b></td><td data-l="Nieuwe betaling"><b>{eur(d.proposal.total)}</b></td></tr>
         </tbody></table></div><p className="hint">De bedragen zijn netto-interest plus kapitaal.</p></div>}
       {d.deadline && !d.closed && <p>U kunt stemmen tot en met <b>{dayNl(d.deadline)}</b>.</p>}
-      <p className="hint">Uw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract.</p>
+      <p className="hint">Het besluit is aangenomen wanneer obligatiehouders die samen minstens drie vierde van het uitstaande bedrag van de obligaties vertegenwoordigen, ermee instemmen. Wie niet stemt, telt niet mee als instemming. Na een aangenomen besluit volgt een online document (addendum) dat digitaal ondertekend wordt. Elke stem weegt naar het uitstaande bedrag van uw obligaties op 15 november 2026.</p>
       {d.vote && <Note kind="ok">Uw stem is geregistreerd: <b>{label(d.vote)}</b>.{d.closed ? ' De stemming is afgesloten.' : ' Tot de afsluiting kunt u uw stem hieronder nog wijzigen.'}</Note>}
       {d.closed && !d.vote && <Note kind="ok">De stemming is afgesloten.</Note>}
       {!d.closed && (pick ? <div className="stack"><p>U kiest: <b>{label(pick)}</b>. Bevestigt u?</p><div className="row"><Btn busy={!!busy} disabled={!!busy} onClick={() => cast(pick)}>Ja, bevestig mijn stem</Btn><button className="btn ghost sm" onClick={() => setPick('')}>Terug</button></div></div>
-        : <div className="row"><Btn disabled={d.vote === 'yes'} onClick={() => setPick('yes')}>Ja, ik sta het uitstel toe</Btn><Btn kind="ghost" disabled={d.vote === 'no'} onClick={() => setPick('no')}>Nee</Btn></div>)}
+        : <div className="row"><Btn disabled={d.vote === 'yes'} onClick={() => setPick('yes')}>Ja, ik aanvaard</Btn><Btn kind="ghost" disabled={d.vote === 'no'} onClick={() => setPick('no')}>Nee</Btn></div>)}
       <p className="hint">Vragen? Bel Erwin Raets, CEO, op +32 475 44 36 69 of mail naar info@evchargeking.com.</p>
     </div>}
   </AuthFrame>;

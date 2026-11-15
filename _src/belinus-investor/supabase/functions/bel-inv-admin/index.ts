@@ -64,7 +64,7 @@ async function boleroInfo(a: any, inv: any) {
   const { data: v } = await a.from("inv_votes").select("vote, voted_at").eq("investor_id", inv.id).eq("campaign_id", c.id).maybeSingle();
   return { campaign: c, sent: c.status !== "draft", vote: v?.vote || null, voted_at: v?.voted_at || null };
 }
-const VOTE_NL = (v: string) => (v === "yes" ? "JA, ik steun de continuïteit van het bedrijf en sta een uitstel van betaling met drie maanden toe" : "NEE, ik sta geen uitstel van betaling toe");
+const VOTE_NL = (v: string) => (v === "yes" ? "JA, ik aanvaard de nieuwe betalingsvoorwaarden (uitstel van betaling met drie maanden)" : "NEE, ik aanvaard de nieuwe betalingsvoorwaarden niet");
 // Bolero vote campaigns: every Bolero investor with an e-mail address, minus those who already received this campaign.
 async function boleroTargets(a: any, campaignId: string): Promise<any[]> {
   const [{ data: inv }, { data: done }] = await Promise.all([
@@ -691,7 +691,7 @@ Deno.serve(async (req) => {
       if (ex) await a.from("inv_votes").update({ vote, voted_at: now, ip: "admin" }).eq("investor_id", inv.id).eq("campaign_id", b.campaign.id);
       else await a.from("inv_votes").insert({ investor_id: inv.id, campaign_id: b.campaign.id, token_hash: await sha256(randomCode()), vote, voted_at: now, ip: "admin" });
       await audit(a, u, "bolero-vote-recorded", inv.email, { vote, previous: b.vote, note });
-      if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem geregistreerd zoals u die aan ons heeft doorgegeven: ${VOTE_NL(vote)}.\n\nUw stem wordt pas definitief wanneer minstens 75% van de uitgebrachte stemmen het uitstel steunt, en onder voorbehoud van de ondertekening van het addendum bij het contract. Klopt dit niet, antwoord dan op deze e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
+      if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem geregistreerd zoals u die aan ons heeft doorgegeven: ${VOTE_NL(vote)}.\n\nHet besluit is pas aangenomen wanneer obligatiehouders die samen minstens drie vierde van het uitstaande bedrag van de obligaties vertegenwoordigen, ermee instemmen. Daarna volgt een online document (addendum) dat digitaal ondertekend wordt. Klopt dit niet, antwoord dan op deze e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
       return json({ ok: true });
     }
     if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
@@ -702,7 +702,7 @@ Deno.serve(async (req) => {
     const nlD = (d: Date) => d.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" });
     const deadline = b.campaign.vote_deadline ? nlD(new Date(b.campaign.vote_deadline)) : null;
     const pdf = await buildBoleroPdf({ name: inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email, invested: Number(inv.invested), date: nlD(new Date()), deadline, proposal });
-    const sent = await sendMail(a, { to: inv.email, kind: "bolero-proposal", lang: "nl", campaign: b.campaign.id, subject: "Uw persoonlijk voorstel: uitstel van betaling – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nIn de bijlage vindt u het exacte financiële voorstel voor uw investering: de uitgestelde bedragen en de nieuwe betalingen van 2027, maand per maand.\n\nU kunt uw stem uitbrengen${deadline ? " tot en met " + deadline : ""}:\n- met de knop in onze eerdere e-mail, of\n- door op deze e-mail te antwoorden met JA (ik sta het uitstel toe) of NEE.\n\nHeeft u vragen, bel dan Erwin Raets, CEO, op +32 475 44 36 69.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)`, attachments: [{ name: "voorstel-uitstel-betaling-EVChargeking.pdf", type: "application/pdf", data: pdf }] });
+    const sent = await sendMail(a, { to: inv.email, kind: "bolero-proposal", lang: "nl", campaign: b.campaign.id, subject: "Uw persoonlijk voorstel: uitstel van betaling – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nIn de bijlage vindt u het exacte financiële voorstel voor uw investering: de uitgestelde bedragen en de nieuwe betalingen van 2027, maand per maand.\n\nU kunt uw stem uitbrengen${deadline ? " tot en met " + deadline : ""}:\n- met de knop in onze eerdere e-mail, of\n- door op deze e-mail te antwoorden met JA (ik aanvaard de nieuwe betalingsvoorwaarden) of NEE.\n\nHeeft u vragen, bel dan Erwin Raets, CEO, op +32 475 44 36 69.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)`, attachments: [{ name: "voorstel-uitstel-betaling-EVChargeking.pdf", type: "application/pdf", data: pdf }] });
     if (!sent) return json({ error: "mail-failed" }, 502);
     await audit(a, u, "bolero-proposal", inv.email, { bytes: pdf.length });
     return json({ ok: true });
