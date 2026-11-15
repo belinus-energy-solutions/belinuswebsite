@@ -289,7 +289,7 @@ const MENU = ['products', 'library', 'recall', 'orders', 'invoices', 'support', 
 const ICON = {
   products: 'M4 7h16v12H4zM8 7V5h8v2M9 12h6', library: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z', recall: 'M12 3l9 16H3zM12 10v4M12 17h.01', orders: 'M3 7h11v10H3zM14 10h4l3 3v4h-7M7 20a2 2 0 1 0 0-.01M17 20a2 2 0 1 0 0-.01',
   contracts: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4',
-  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', services: 'M12 3l2.5 5.5L20 9.3l-4 4 1 5.7-5-2.8L7 19l1-5.7-4-4 5.5-.8z', messages: 'M3 6h18v12H3zM3 7l9 6 9-6', dashboard: 'M4 20V10M10 20V4M16 20v-7M22 20H2', customers: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  desk: 'M3 5h18v14H3zM3 10h18M8 15h3', haas: 'M7 3h7v18H7zM14 8h3l2 2v6a1.5 1.5 0 0 1-3 0v-3h-2M9.5 7h2M10 12l-1.5 3h3L10 18', services: 'M12 3l2.5 5.5L20 9.3l-4 4 1 5.7-5-2.8L7 19l1-5.7-4-4 5.5-.8z', messages: 'M3 6h18v12H3zM3 7l9 6 9-6', dashboard: 'M4 20V10M10 20V4M16 20v-7M22 20H2', customers: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', invest: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6', menu: 'M4 7h16M4 12h16M4 17h16', search: 'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16', invoices: 'M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4', support: 'M4 12a8 8 0 1 1 16 0v5h-4v-5h4M4 12v5h4v-5H4', assistant: 'M4 5h16v11H9l-5 4zM9 10h.01M12 10h.01M15 10h.01', account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
 const Icon = ({ n }) => <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d={ICON[n]} /></svg>;
 
@@ -317,7 +317,7 @@ function Shell({ me, route, children, counts }) {
   const name = me.full_name || [me.first_name, me.last_name].filter(Boolean).join(' ') || me.email;
   const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
   const secs = [];
-  if (staff) secs.push([t.secManage, me.role === 'super' ? ['dashboard', 'desk', 'customers'] : ['desk'], 'manage']);
+  if (staff) secs.push([t.secManage, me.role === 'super' ? ['dashboard', 'desk', 'customers', 'haas'] : ['desk'], 'manage']);
   secs.push([t.secInstall, ['products', 'services', 'library', 'recall'], 'install'], [t.secOrders, ['orders', 'invoices', 'contracts'], 'orders'], [t.secHelp, ['messages', 'support', 'assistant'], 'help']);
   const filt = (m) => !q || t.menu[m].toLowerCase().includes(q.toLowerCase());
   const tabs = staff ? ['desk', 'products', 'support'] : ['products', 'support', 'assistant'];
@@ -1046,6 +1046,78 @@ function CustomerDetail({ id }) {
   );
 }
 
+// ---------- Vibe HaaS: expressions of interest from belinus.com (super admin) ----------
+const HAAS_ST = ['new', 'contacted', 'qualified', 'won', 'lost', 'waitlist'];
+const HAAS_TONE = { new: 'amber', contacted: 'blue', qualified: 'blue', won: 'green', lost: 'grey', waitlist: 'grey' };
+const HAAS_F = ['open', 'be', 'waitlist', 'all'];
+function Haas({ route, me }) {
+  if (me.role !== 'super') return <SuperOnly me={me} />;
+  return route.parts[1] ? <HaasDetail key={route.parts[1]} id={route.parts[1]} /> : <HaasList route={route} />;
+}
+const haasQty = (x) => [x.qty_wall ? x.qty_wall + '× Wall' : '', x.qty_single ? x.qty_single + '× Pole S' : '', x.qty_double ? x.qty_double + '× Pole D' : ''].filter(Boolean).join(' · ');
+function HaasList({ route }) {
+  const { t, lang } = useT();
+  const H = t.haas;
+  const f = HAAS_F.includes(route.q.get('f')) ? route.q.get('f') : 'open';
+  const [rows, setRows] = useState(null), [err, setErr] = useState(''), [find, setFind] = useState('');
+  useEffect(() => { fn('bel-haas', { action: 'list' }).then((r) => setRows(r.rows)).catch((e) => { setErr(errText(t, e)); setRows([]); }); }, []);
+  if (!rows) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  const n = find.trim().toLowerCase();
+  const list = rows.filter((x) => (f === 'all' || (f === 'be' ? x.available : f === 'waitlist' ? !x.available : !['won', 'lost', 'waitlist'].includes(x.status))) && (!n || `${x.company} ${x.contact_name} ${x.email} ${x.city || ''} ${x.vat || ''}`.toLowerCase().includes(n)));
+  const byCountry = rows.filter((x) => !x.available).reduce((m, x) => { m[x.country] = (m[x.country] || 0) + 1; return m; }, {});
+  const units = (x) => (x.qty_wall || 0) + (x.qty_single || 0) + 2 * (x.qty_double || 0);
+  const open = rows.filter((x) => x.available && !['won', 'lost'].includes(x.status));
+  return (
+    <>
+      <PageHead title={t.menu.haas} lead={H.lead} />
+      <div className="tiles">
+        <a className="tile dash-tile" href="#/haas?f=open"><b style={rows.some((x) => x.status === 'new') ? { color: 'var(--bad)' } : null}>{rows.filter((x) => x.status === 'new').length}</b><span>{H.st.new}</span></a>
+        <a className="tile dash-tile" href="#/haas?f=be"><b>{open.length}</b><span>{H.openBe}</span></a>
+        <a className="tile dash-tile" href="#/haas?f=be"><b>{open.reduce((s, x) => s + units(x), 0)}</b><span>{H.points}</span></a>
+        <a className="tile dash-tile" href="#/haas?f=waitlist"><b>{rows.filter((x) => !x.available).length}</b><span>{H.waitlist}</span></a>
+      </div>
+      {Object.keys(byCountry).length ? <p className="muted">{H.byCountry}: {Object.entries(byCountry).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + v).join(' · ')}</p> : null}
+      <div className="seg desk-seg" role="tablist">{HAAS_F.map((k) => <a key={k} role="tab" aria-selected={k === f} className={'seg-b' + (k === f ? ' on' : '')} href={'#/haas?f=' + k}>{H.filter[k]}</a>)}</div>
+      <div className="desk-find"><input type="search" aria-label={H.search} placeholder={H.search} value={find} onChange={(e) => setFind(e.target.value)} /></div>
+      {!list.length ? <Empty>{H.none}</Empty> : <div className="table-wrap"><table className="tbl"><thead><tr><th>#</th><th>{H.company}</th><th>{H.country}</th><th>{H.chargers}</th><th>{H.term}</th><th>{H.received}</th><th>{H.status}</th></tr></thead>
+        <tbody>{list.map((x) => <tr key={x.id} className="click" onClick={() => go('haas/' + x.id)}><td className="mono">{x.number}</td><td>{x.company}<small className="ref">{x.contact_name} · {x.email}</small></td><td data-l={H.country}>{x.country}</td><td data-l={H.chargers}>{haasQty(x) || '—'}</td><td data-l={H.term}>{x.term_months ? x.term_months + ' ' + H.months : '—'}</td><td data-l={H.received}>{when(x.created_at, lang)}</td><td><Badge tone={HAAS_TONE[x.status]}>{H.st[x.status]}</Badge></td></tr>)}</tbody></table></div>}
+    </>
+  );
+}
+function HaasDetail({ id }) {
+  const { t, lang } = useT();
+  const H = t.haas;
+  const [x, setX] = useState(null), [note, setNote] = useState(''), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [ok, setOk] = useState('');
+  useEffect(() => { fn('bel-haas', { action: 'list' }).then((r) => { const row = r.rows.find((y) => y.id === id); if (!row) setErr(t.errors.generic); else { setX(row); setNote(row.admin_note || ''); } }).catch((e) => setErr(errText(t, e))); }, [id]);
+  async function save(patch, key) { setBusy(key); setErr(''); setOk(''); try { const r = await fn('bel-haas', { action: 'update', id, ...patch }); setX(r.row); setOk(H.saved); } catch (e) { setErr(errText(t, e)); } setBusy(''); }
+  if (!x) return err ? <Note kind="error">{err}</Note> : <p className="muted">{t.loading}</p>;
+  const addr = [x.street, [x.zip, x.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  return (
+    <>
+      <a href="#/haas" className="back">‹ {t.back}</a>
+      <PageHead title={x.company} lead={<><span className="mono">HaaS-{x.number}</span> · {when(x.created_at, lang)} · <Badge tone={HAAS_TONE[x.status]}>{H.st[x.status]}</Badge>{x.available ? null : <> · {H.waitlist} {x.country}</>}</>} />
+      <Note kind="error">{err}</Note><Note kind="ok">{ok}</Note>
+      <div className="desk-grid">
+        <div>
+          <div className="card stack"><h2 style={{ margin: 0 }}>{H.request}</h2>
+            <dl className="kv"><dt>{H.chargers}</dt><dd>{haasQty(x) || '—'}</dd><dt>{H.term}</dt><dd>{x.term_months ? x.term_months + ' ' + H.months : '—'}</dd><dt>{H.use}</dt><dd>{x.use_case || '—'}</dd><dt>{H.start}</dt><dd>{x.start_wish || '—'}</dd><dt>{H.langL}</dt><dd>{String(x.lang).toUpperCase()}</dd></dl>
+            {x.message ? <p className="pre" style={{ margin: 0 }}>{x.message}</p> : null}
+          </div>
+          <div className="card stack"><h2 style={{ margin: 0 }}>{H.notes}</h2>
+            <Field label={H.note}><textarea rows="5" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+            <Btn busy={busy === 'n'} disabled={!!busy} onClick={() => save({ admin_note: note }, 'n')}>{H.save}</Btn>
+            {x.handled_by ? <p className="muted" style={{ margin: 0 }}>{H.lastBy} {x.handled_by} · {when(x.updated_at, lang)}</p> : null}
+          </div>
+        </div>
+        <aside className="desk-side">
+          <div className="card stack"><h3>{H.contact}</h3><dl className="kv"><dt>{H.name}</dt><dd>{x.contact_name}{x.job_title ? ' · ' + x.job_title : ''}</dd><dt>{H.email}</dt><dd><a href={'mailto:' + x.email}>{x.email}</a></dd><dt>{H.phone}</dt><dd>{x.phone ? <a href={'tel:' + x.phone}>{x.phone}</a> : '—'}</dd><dt>{H.vat}</dt><dd>{x.vat || '—'}</dd><dt>{H.address}</dt><dd>{addr || '—'}</dd><dt>{H.country}</dt><dd>{x.country}</dd></dl></div>
+          <div className="card stack"><h3>{H.status}</h3><div className="acts" style={{ flexWrap: 'wrap' }}>{HAAS_ST.map((s) => <button key={s} className={'btn sm' + (x.status === s ? '' : ' ghost')} disabled={!!busy || x.status === s} onClick={() => save({ status: s }, s)}>{H.st[s]}</button>)}</div></div>
+        </aside>
+      </div>
+    </>
+  );
+}
+
 // ---------- Support ----------
 function Support({ route, me }) {
   const id = route.parts[1];
@@ -1491,10 +1563,10 @@ function App() {
       fn('bel-odoo', { action: 'invoices' }).catch(() => ({ invoices: [] })),
       fn('bel-hub', { action: 'messages' }).catch(() => ({ messages: [] })),
     ]);
-    let desk = 0, customers = 0;
+    let desk = 0, customers = 0, haas = 0;
     if (isStaffUser(state.me)) { try { desk = (await fn('bel-support', { action: 'admin_list', queue: 'open' })).tickets.length; } catch (e) {} }
-    if (state.me && state.me.role === 'super') { try { customers = (await fn('bel-hub', { action: 'customers' })).customers.reduce((x, p) => x + p.unread, 0); } catch (e) {} }
-    setCounts({ recall: rc || 0, invoices: inv.invoices.filter((i) => i.kind === 'invoice' && ['open', 'partly_paid', 'overdue'].includes(i.status)).length, desk, customers, messages: msg.messages.filter((m) => m.direction === 'out' && !m.read_at).length });
+    if (state.me && state.me.role === 'super') { try { customers = (await fn('bel-hub', { action: 'customers' })).customers.reduce((x, p) => x + p.unread, 0); } catch (e) {} try { haas = (await fn('bel-haas', { action: 'list' })).rows.filter((x) => x.status === 'new').length; } catch (e) {} }
+    setCounts({ recall: rc || 0, invoices: inv.invoices.filter((i) => i.kind === 'invoice' && ['open', 'partly_paid', 'overdue'].includes(i.status)).length, desk, customers, haas, messages: msg.messages.filter((m) => m.direction === 'out' && !m.read_at).length });
   }, [state.me]);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { loadMe(); }, [loadMe]);
@@ -1520,7 +1592,7 @@ function App() {
   else {
     const me = state.me;
     if (['login', 'signup', 'forgot', ''].includes(page)) { go(me.role === 'super' ? 'dashboard' : isStaffUser(me) ? 'desk' : counts.recall ? 'recall' : 'products'); }
-    const P = { contracts: Contracts, products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, desk: Desk, assistant: Assistant, account: Account, services: Services, messages: Messages, dashboard: Dashboard, customers: Customers }[page] || Products;
+    const P = { contracts: Contracts, products: Products, library: Library, recall: Recall, orders: Orders, invoices: Invoices, support: Support, desk: Desk, assistant: Assistant, account: Account, services: Services, messages: Messages, dashboard: Dashboard, customers: Customers, haas: Haas }[page] || Products;
     body = <Shell me={me} route={route} counts={counts}><P me={me} route={route} refresh={loadCounts} reloadMe={loadMe} /></Shell>;
   }
   return <LangCtx.Provider value={{ t, lang, setLang }}>{body}{remind && state.phase === 'in' && <Remind onClose={() => setRemind(false)} />}</LangCtx.Provider>;
