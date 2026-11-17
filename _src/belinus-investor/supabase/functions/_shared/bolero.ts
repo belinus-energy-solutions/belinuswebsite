@@ -1,4 +1,4 @@
-// Bolero deferral proposal for one investor: the payments of 19 October, 19 November and 19 December 2026 are spread
+// Bolero deferral proposal for one investor: the payments of 19 November and 19 December 2026 are spread
 // progressively over the 12 monthly payments of 2027 (month k carries k/78 of the deferred amount), on top of the
 // payments already planned. Amounts are what the investor receives: net interest plus capital.
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
@@ -6,7 +6,8 @@ import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 export type BoleroRow = { due: string; planned: number; extra: number; total: number };
 export type BoleroProposal = { deferred_net_interest: number; deferred_principal: number; deferred_total: number; rows: BoleroRow[]; planned_total: number; total: number };
 const r2 = (n: number) => Math.round(n * 100) / 100;
-const DEFERRED = ["2026-10-19", "2026-11-19", "2026-12-19"];
+// The payment of 19 October 2026 was executed; only November and December are deferred.
+const DEFERRED = ["2026-11-19", "2026-12-19"];
 
 export function boleroProposal(schedule: any[]): BoleroProposal {
   const orig = (schedule || []).filter((r) => (r.scenario || "original") === "original");
@@ -50,7 +51,7 @@ export async function buildBoleroPdf(p: { name: string; invested: number; date: 
   text("Obligatielening Bolero Crowdfunding (KBC) van 19 september 2025", { size: 11, color: GREY }); y -= 28;
   text(`Investeerder: ${p.name}`, { bold: true }); y -= 15;
   text(`Geïnvesteerd bedrag: ${eur(p.invested)}    Datum: ${p.date}`); y -= 24;
-  para("De betalingen van 19 oktober, 19 november en 19 december 2026 worden niet op de voorziene datum uitgevoerd. Wij stellen voor om deze bedragen progressief te spreiden over de twaalf maandelijkse betalingen van 2027, bovenop de betalingen die dan al voorzien zijn. Het bijkomende deel begint klein en stijgt elke maand.");
+  para("De betaling van 19 oktober 2026 is uitgevoerd. De betalingen van 19 november en 19 december 2026 worden niet op de voorziene datum uitgevoerd. Wij stellen voor om deze bedragen progressief te spreiden over de twaalf maandelijkse betalingen van 2027, bovenop de betalingen die dan al voorzien zijn. Het bijkomende deel begint klein en stijgt elke maand.");
   text("Uitgestelde bedragen (wat u ontvangt, na roerende voorheffing)", { bold: true }); y -= 16;
   text(`Netto-interest: ${eur(p.proposal.deferred_net_interest)}    Kapitaal: ${eur(p.proposal.deferred_principal)}    Totaal: ${eur(p.proposal.deferred_total)}`); y -= 26;
   const cols = [L + 6, 300, 420, R - 6];
@@ -63,7 +64,7 @@ export async function buildBoleroPdf(p: { name: string; invested: number; date: 
   y -= 2;
   text("Totaal 2027", { bold: true, size: 10, x: cols[0] }); right(eur(p.proposal.planned_total), cols[1], true); right(eur(p.proposal.deferred_total), cols[2], true); right(eur(p.proposal.total), cols[3], true); y -= 28;
   para("De bedragen zijn netto-interest plus kapitaal. Alle andere voorwaarden van de lening blijven ongewijzigd, ook de einddatum van 19 september 2030.", 9.5, 13);
-  para("Het besluit is aangenomen wanneer obligatiehouders die samen minstens drie vierde van het uitstaande bedrag van de obligaties vertegenwoordigen, ermee instemmen. Wie niet stemt, telt niet mee als instemming. Na een aangenomen besluit volgt een online document (addendum) dat digitaal ondertekend wordt. Elke stem weegt naar het uitstaande bedrag van de obligaties op 15 november 2026.", 9.5, 13);
+  para("Het besluit is aangenomen wanneer obligatiehouders die samen minstens drie vierde van het uitstaande bedrag van de obligaties vertegenwoordigen, ermee instemmen. Wie niet stemt, telt niet mee als instemming. Na een aangenomen besluit volgt een online document (addendum) dat digitaal ondertekend wordt. Elke stem weegt naar het uitstaande bedrag van de obligaties op 17 november 2026.", 9.5, 13);
   para(`Stemmen kan${p.deadline ? " tot en met " + p.deadline : ""} met de knop in onze e-mail, of door op de e-mail te antwoorden met JA of NEE. Vragen: Erwin Raets, CEO, +32 475 44 36 69, info@evchargeking.com.`, 9.5, 13);
   return await doc.save();
 }
