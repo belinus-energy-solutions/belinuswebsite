@@ -86,7 +86,7 @@ async function boleroTally(a: any, campaignId: string) {
   return t;
 }
 // Announcement campaigns: Winwinner investors (crowd-/winwin- tranches, never Bolero), minus those who already received this campaign.
-// Audience "a_b": investors who chose A or B. "none": investors who have not chosen yet. Any other value: no choice yet, or choice C.
+// Audience "a_b": investors who chose A or B. "none": investors who have not chosen yet. "c": investors who chose C. Any other value: no choice yet, or choice C.
 async function announcementTargets(a: any, campaignId: string, audience?: string | null): Promise<any[]> {
   const [{ data: inv }, { data: ch }, { data: done }] = await Promise.all([
     a.from("inv_investors").select("id, email, first_name, tranche, is_test, is_demo").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name"),
@@ -95,7 +95,7 @@ async function announcementTargets(a: any, campaignId: string, audience?: string
   ]);
   const choice = new Map((ch || []).map((r: any) => [r.investor_id, r.choice]));
   const got = new Set((done || []).map((r: any) => String(r.recipient).toLowerCase()));
-  return (inv || []).filter((i: any) => !i.is_test && !i.is_demo && (audience === "a_b" ? ["A", "B"].includes(choice.get(i.id)) : audience === "none" ? !choice.get(i.id) : (!choice.get(i.id) || choice.get(i.id) === "C")) && !got.has(String(i.email).toLowerCase()));
+  return (inv || []).filter((i: any) => !i.is_test && !i.is_demo && (audience === "a_b" ? ["A", "B"].includes(choice.get(i.id)) : audience === "none" ? !choice.get(i.id) : audience === "c" ? choice.get(i.id) === "C" : (!choice.get(i.id) || choice.get(i.id) === "C")) && !got.has(String(i.email).toLowerCase()));
 }
 
 Deno.serve(async (req) => {
