@@ -77,7 +77,7 @@ export function html(text: string, cta: { url: string; label: string } | undefin
     if (cta && p.trim() === cta.url) return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr><td bgcolor="#2EB9EA" style="background:#2EB9EA;border-radius:999px;padding:12px 28px"><a href="${esc(cta.url)}" style="font-family:${FONT};font-size:15px;font-weight:700;color:#0A0C0F;text-decoration:none">${esc(cta.label)}</a></td></tr></table><p style="margin:0 0 18px;font-family:${FONT};font-size:12px;color:#7A828C">${esc(MC[L].btn)}<br>${esc(cta.url)}</p>`;
     if (p.startsWith("## ")) return `<p style="margin:26px 0 10px;font-family:${FONT};font-size:13px;letter-spacing:.06em;font-weight:700;color:#0A0C0F">${esc(p.slice(3).trim())}</p>`;
     if (/^\d{6}$/.test(p.trim())) return `<p style="margin:6px 0 24px;font-family:${FONT};font-size:40px;line-height:1.2;font-weight:700;letter-spacing:8px;color:#0A0C0F">${esc(p.trim())}</p>`;
-    return `<p style="margin:0 0 18px;font-family:${FONT};font-size:15px;line-height:1.6;color:#222830">${esc(p).replace(/\n/g, "<br>")}</p>`;
+    return `<p style="margin:0 0 18px;font-family:${FONT};font-size:15px;line-height:1.6;color:#222830">${esc(p).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>")}</p>`;
   });
   return `<!doctype html><html lang="${L}"><head><meta charset="utf-8"></head><body style="margin:0;background:#F5F6F7"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px;overflow:hidden">`
     + `<tr><td style="padding:22px 36px;border-bottom:3px solid #2EB9EA"><table role="presentation" width="100%"><tr><td align="left"><img src="https://belinus.com/investor/assets/logo-evchargeking.png" height="30" alt="EVChargeking" style="height:30px;border:0"></td><td align="right"><img src="https://belinus.com/investor/assets/logo-belinus.png" height="24" alt="belinus" style="height:24px;border:0"></td></tr></table></td></tr>`
@@ -94,7 +94,7 @@ export async function sendMail(a: SupabaseClient, m: { to: string; subject: stri
   const L = pickLang(m.lang);
   const log = (provider: string, status: string, msgId?: string | null, error?: string | null) => a.from("inv_mail_log").insert({ recipient: m.to, subject: m.subject, kind: m.kind, provider, status, campaign_id: m.campaign || null, message_id: msgId || null, error: error || null }).then(() => {}, () => {});
   const key = Deno.env.get("MAILGUN_API_KEY"), domain = Deno.env.get("MAILGUN_DOMAIN"), brevo = Deno.env.get("BREVO_API_KEY");
-  const body = m.text.replace(/^## /gm, "") + "\n\n--\n" + MC[L].sig + (m.noreply ? "\nDit is een automatische e-mail. Stuur uw vragen naar info@evchargeking.com of info@winwinner.be." : "");
+  const body = m.text.replace(/^## /gm, "").replace(/\*\*(.+?)\*\*/g, "$1") + "\n\n--\n" + MC[L].sig + (m.noreply ? "\nDit is een automatische e-mail. Stuur uw vragen naar info@evchargeking.com of info@winwinner.be." : "");
   try {
     if (key && domain) {
       const f = new FormData();
