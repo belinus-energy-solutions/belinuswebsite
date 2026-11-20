@@ -297,7 +297,7 @@ function BoleroCard({ id, email, b, reload }) {
   const voteNl = (v) => (v === 'yes' ? 'Ja (uitstel toegestaan)' : v === 'no' ? 'Nee' : 'nog niet gestemd');
   async function send() { setBusy(true); setErr(''); setMsg(''); try { await adm('bolero_send_proposal', { id, confirm: true }); setMsg('Voorstel (PDF) verstuurd naar ' + email + '.'); setSure(false); } catch (x) { setErr(errText(x)); } setBusy(false); }
   async function record() { setBusy(true); setErr(''); setMsg(''); try { await adm('bolero_record_vote', { id, vote, note }); setMsg('Stem geregistreerd. De investeerder krijgt een bevestiging per e-mail.'); setVote(''); setNote(''); reload(); } catch (x) { setErr(errText(x)); } setBusy(false); }
-  return <div className="card stack" style={{ marginTop: 12 }}><h2 style={{ fontSize: 18, margin: 0 }}>Bolero-stemming: uitstel van betaling</h2>
+  return <div className="card stack" style={{ marginTop: 12 }}><h2 style={{ fontSize: 18, margin: 0 }}>Bolero-stemming: nieuwe betalingsvoorwaarden</h2>
     <p style={{ margin: 0 }}>Campagne: {b.campaign.name}. Stem van deze investeerder: <b>{voteNl(b.vote)}</b>{b.voted_at ? ' (' + new Date(b.voted_at).toLocaleDateString('nl-BE', { timeZone: 'Europe/Brussels' }) + ')' : ''}.</p>
     {!b.sent ? <p className="hint" style={{ margin: 0 }}>De campagne is nog niet verstuurd. Daarna kunt u hier het voorstel als PDF versturen en een stem registreren.</p> : <>
       <div className="row">{sure ? <><Btn disabled={busy} busy={busy} onClick={send}>Ja, verstuur naar {email}</Btn><button className="btn ghost sm" onClick={() => setSure(false)}>Annuleren</button></> : <button className="btn ghost sm" onClick={() => setSure(true)}>Stuur voorstel (PDF)</button>}</div>
@@ -576,7 +576,7 @@ function AdmAutomated() {
   return <><div className="page-head"><div><h1 className="page-title">Automatische e-mails</h1><p className="page-sub">Alle e-mails die het systeem zelf verstuurt, met trigger en regels. Campagnes staan onder E-mailcampagnes.</p></div></div>
     <div className="card"><div className="tblw"><table className="tbl cards"><thead><tr><th>E-mail</th><th>Trigger</th><th>Regels</th><th>Inhoud</th></tr></thead><tbody>{AUTO_MAILS.map(([k, n, tr, rule, body]) => <tr key={k}><td data-l="E-mail"><b>{n}</b><br /><span className="hint">{k}</span></td><td data-l="Trigger">{tr}</td><td data-l="Regels">{rule}</td><td data-l="Inhoud">{body}<div style={{ marginTop: 8 }}><AutoPreview kind={k} /></div></td></tr>)}</tbody></table></div></div></>;
 }
-const FIN_ST = { paid: ['betaald', 'ok'], planned: ['gepland', ''], pending: ['wacht op handtekening', 'warn'], cancelled: ['geannuleerd', 'bad'] };
+const FIN_ST = { paid: ['betaald', 'ok'], overdue: ['achterstallig', 'bad'], planned: ['gepland', ''], pending: ['wacht op handtekening', 'warn'], cancelled: ['geannuleerd', 'bad'] };
 const FIN_VIEW = [['planned', 'Origineel contract'], ['confirmed', 'Bevestigde keuzes'], ['signed', 'Getekende keuzes']];
 const FIN_KIND = [['bolero', 'Bolero'], ['winwinlening', 'Winwinlening'], ['winwin_raise', 'Crowdlening (winwin raise)']];
 const FIN_ALL = FIN_KIND.map(([k]) => k);
@@ -595,7 +595,7 @@ function AdmFinancial() {
     setBusy(true); setErr('');
     try {
       const X = await loadXlsx(), wb = X.utils.book_new();
-      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.dates.map((x) => ({ Datum: x.due, 'Bruto rente': x.gross_interest, 'Roerende voorheffing': x.withholding, 'Netto rente': x.net_interest, Kapitaal: x.principal, Totaal: x.total, Investeerders: x.investors }))), 'Betalingen');
+      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.dates.map((x) => ({ Datum: x.due, 'Bruto rente': x.gross_interest, 'Roerende voorheffing': x.withholding, 'Netto rente': x.net_interest, Kapitaal: x.principal, Totaal: x.total, 'Waarvan achterstallig': x.overdue, 'Waarvan betaald': x.paid, Investeerders: x.investors }))), 'Betalingen');
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(d.lines.map((l) => ({ Datum: l.due, Investeerder: l.investor, 'E-mail': l.email, Tranche: l.tranche, Keuze: l.choice, Bron: l.source, 'Bruto rente': l.gross_interest, 'Roerende voorheffing': l.withholding, 'Netto rente': l.net_interest, Kapitaal: l.principal, Totaal: Math.round((l.gross_interest + l.principal) * 100) / 100, Status: (FIN_ST[l.status] || [l.status])[0] }))), 'Details');
       X.writeFile(wb, 'betalingen-' + view + (future ? '-toekomst' : '') + '.xlsx');
     } catch (x) { setErr(errText(x)); }
@@ -605,11 +605,12 @@ function AdmFinancial() {
     <Note kind="error">{err}</Note><div style={{ height: 12 }} />
     <div className="card stack"><div className="seg" role="tablist">{FIN_VIEW.map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={'seg-b' + (view === k ? ' on' : '')} onClick={() => setView(k)}>{l}</button>)}</div>
       <FinKinds kinds={kinds} setKinds={setKinds} />
-      <label className="check"><input type="checkbox" checked={future} onChange={(e) => setFuture(e.target.checked)} /><span>Verberg vervallen betalingen</span></label></div>
+      <label className="check"><input type="checkbox" checked={future} onChange={(e) => setFuture(e.target.checked)} /><span>Verberg betaalde betalingen (toon wat nog te betalen is, ook achterstallig)</span></label>
+      <span className="hint">Totaal = bruto rente + kapitaal (de voorheffing gaat naar de fiscus en is dus ook een uitgave). Bolero: in ‘Bevestigde keuzes’ geldt de nieuwe planning zodra houders van minstens 75% van het uitstaande bedrag instemmen{d.bolero_new ? ' (nu toegepast)' : ' (nu niet toegepast)'}; in ‘Getekende keuzes’ pas na de ondertekening van het addendum.</span></div>
     <div style={{ height: 16 }} />
-    <div className="card">{!d.dates.length ? <p style={{ margin: 0 }}>Geen betalingen gevonden.</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Datum</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Kapitaal</th><th className="n">Totaal</th><th className="n">Investeerders</th></tr></thead><tbody>
-      {d.dates.map((x) => <tr key={x.due}><td data-l="Datum">{dayNl(x.due + 'T12:00:00Z')}</td><td data-l="Bruto rente" className="n">{eur(x.gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(x.withholding)}</td><td data-l="Netto rente" className="n">{eur(x.net_interest)}</td><td data-l="Kapitaal" className="n">{eur(x.principal)}</td><td data-l="Totaal" className="n"><b>{eur(x.total)}</b></td><td data-l="Investeerders" className="n">{x.investors}</td></tr>)}
-      <tr><td><b>Totaal</b></td><td className="n"><b>{eur(sum('gross_interest'))}</b></td><td className="n"><b>{eur(sum('withholding'))}</b></td><td className="n"><b>{eur(sum('net_interest'))}</b></td><td className="n"><b>{eur(sum('principal'))}</b></td><td className="n"><b>{eur(sum('total'))}</b></td><td /></tr>
+    <div className="card">{!d.dates.length ? <p style={{ margin: 0 }}>Geen betalingen gevonden.</p> : <div className="tblw"><table className="tbl cards"><thead><tr><th>Datum</th><th className="n">Bruto rente</th><th className="n">Voorheffing</th><th className="n">Netto rente</th><th className="n">Kapitaal</th><th className="n">Totaal</th><th className="n">Waarvan achterstallig</th><th className="n">Investeerders</th></tr></thead><tbody>
+      {d.dates.map((x) => <tr key={x.due}><td data-l="Datum">{dayNl(x.due + 'T12:00:00Z')}</td><td data-l="Bruto rente" className="n">{eur(x.gross_interest)}</td><td data-l="Voorheffing" className="n">{eur(x.withholding)}</td><td data-l="Netto rente" className="n">{eur(x.net_interest)}</td><td data-l="Kapitaal" className="n">{eur(x.principal)}</td><td data-l="Totaal" className="n"><b>{eur(x.total)}</b></td><td data-l="Waarvan achterstallig" className="n">{x.overdue ? eur(x.overdue) : '—'}</td><td data-l="Investeerders" className="n">{x.investors}</td></tr>)}
+      <tr><td><b>Totaal</b></td><td className="n"><b>{eur(sum('gross_interest'))}</b></td><td className="n"><b>{eur(sum('withholding'))}</b></td><td className="n"><b>{eur(sum('net_interest'))}</b></td><td className="n"><b>{eur(sum('principal'))}</b></td><td className="n"><b>{eur(sum('total'))}</b></td><td className="n"><b>{eur(sum('overdue'))}</b></td><td /></tr>
       </tbody></table></div>}</div></>;
 }
 function AdmFinancialGraphs() {

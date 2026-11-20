@@ -4,7 +4,7 @@
 //   { action: "check", code }             -> { ok, email } while the link is valid
 //   { action: "set_password", code, password } -> { ok, email }; the page then signs in with the password
 //   { action: "provider_link", code } (with the Microsoft/Google session as bearer) -> { ok, email }; e-mail must match the invitation
-import { boleroProposal } from "../_shared/bolero.ts";
+import { boleroPlan } from "../_shared/bolero.ts";
 import { adminClient, audit, clientIp, cors, EMAIL, hello, json, mailConfigured, pickLang, sendAccessLink, sendMail, sha256, str, strong } from "../_shared/inv.ts";
 
 // At least 12 characters, at least 3 of the 4 character types, no more than 2 identical characters in a row (Steve, 8 November 2026).
@@ -51,11 +51,11 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
       await a.from("inv_votes").update({ vote, voted_at: now, ip }).eq("investor_id", v.investor_id).eq("campaign_id", v.campaign_id);
       await audit(a, null, "bolero-vote", inv.email, { vote, previous: v.vote, ip });
-      if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem goed ontvangen: ${vote === "yes" ? "JA, ik aanvaard de nieuwe betalingsvoorwaarden (uitstel van betaling met drie maanden)" : "NEE, ik aanvaard de nieuwe betalingsvoorwaarden niet"}.\n\nHet besluit is pas aangenomen wanneer obligatiehouders die samen minstens drie vierde van het uitstaande bedrag van de obligaties vertegenwoordigen, ermee instemmen. Daarna volgt een online document (addendum) dat digitaal ondertekend wordt. Tot de afsluiting van de stemming kunt u uw stem nog wijzigen via de link in onze eerdere e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
+      if (mailConfigured()) await sendMail(a, { to: inv.email, kind: "vote-confirm", lang: "nl", subject: "Bevestiging van uw stem – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nWij hebben uw stem goed ontvangen: ${vote === "yes" ? "JA, ik aanvaard de nieuwe betalingsvoorwaarden (zes maanden zonder betaling, een latere einddatum en een hogere interest)" : "NEE, ik aanvaard de nieuwe betalingsvoorwaarden niet"}.\n\nHet besluit is pas aangenomen wanneer obligatiehouders die samen minstens drie vierde van het uitstaande bedrag van de obligaties vertegenwoordigen, ermee instemmen. Daarna volgt een online document (addendum) dat digitaal ondertekend wordt. Tot de afsluiting van de stemming kunt u uw stem nog wijzigen via de link in onze eerdere e-mail.\n\nHartelijk dank.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)` });
       return json({ ok: true, vote, voted_at: now });
     }
-    const { data: sch } = await a.from("inv_schedule").select("scenario, due, net_interest, principal").eq("investor_id", v.investor_id).gte("due", "2026-10-01").lte("due", "2027-12-31");
-    return json({ ok: true, first_name: inv.first_name, invested: inv.invested, vote: v.vote, voted_at: v.voted_at, closed, deadline: c?.vote_deadline || null, proposal: boleroProposal(sch || []) });
+    const { data: sch } = await a.from("inv_schedule").select("scenario, due, gross_interest, withholding, net_interest, principal").eq("investor_id", v.investor_id).order("due");
+    return json({ ok: true, first_name: inv.first_name, invested: inv.invested, vote: v.vote, voted_at: v.voted_at, closed, deadline: c?.vote_deadline || null, plan: boleroPlan(sch || []) });
   }
 
   if (action === "start") {

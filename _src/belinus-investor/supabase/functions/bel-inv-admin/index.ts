@@ -1,6 +1,6 @@
 // bel-inv-admin — superadmins of the investor area: Belinus (role belinus) and EVChargeking (role evc). This function only reads the EVChargeking investor tables (inv_*). Second factor required.
 import { deleteMeeting, moveMeeting, teamsConfigured } from "../_shared/teams.ts";
-import { boleroProposal, buildBoleroPdf } from "../_shared/bolero.ts";
+import { BOLERO_LAST_PAID, boleroPlan, buildBoleroPdf } from "../_shared/bolero.ts";
 import { lastMailError, randomCode, sendChoiceConfirmation, sha256 } from "../_shared/inv.ts";
 import { bSchedule as bSched, cent, loanKind as kindFor, planRow, leadRows as leadRowsShared, optionBRows as optionBShared } from "../_shared/finance.ts";
 import { buildInfoPdf } from "../_shared/infopdf.ts";
@@ -64,7 +64,7 @@ async function boleroInfo(a: any, inv: any) {
   const { data: v } = await a.from("inv_votes").select("vote, voted_at").eq("investor_id", inv.id).eq("campaign_id", c.id).maybeSingle();
   return { campaign: c, sent: c.status !== "draft", vote: v?.vote || null, voted_at: v?.voted_at || null };
 }
-const VOTE_NL = (v: string) => (v === "yes" ? "JA, ik aanvaard de nieuwe betalingsvoorwaarden (uitstel van betaling met drie maanden)" : "NEE, ik aanvaard de nieuwe betalingsvoorwaarden niet");
+const VOTE_NL = (v: string) => (v === "yes" ? "JA, ik aanvaard de nieuwe betalingsvoorwaarden (zes maanden zonder betaling, een latere einddatum en een hogere interest)" : "NEE, ik aanvaard de nieuwe betalingsvoorwaarden niet");
 // Bolero vote campaigns: every Bolero investor with an e-mail address, minus those who already received this campaign.
 async function boleroTargets(a: any, campaignId: string): Promise<any[]> {
   const [{ data: inv }, { data: done }] = await Promise.all([
@@ -696,13 +696,13 @@ Deno.serve(async (req) => {
     }
     if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
-    const { data: sch } = await a.from("inv_schedule").select("scenario, due, net_interest, principal").eq("investor_id", inv.id).gte("due", "2026-10-01").lte("due", "2027-12-31");
-    const proposal = boleroProposal(sch || []);
-    if (!proposal.rows.length) return json({ error: "no-schedule" }, 400);
+    const { data: sch } = await a.from("inv_schedule").select("scenario, due, gross_interest, withholding, net_interest, principal").eq("investor_id", inv.id).order("due");
+    const plan = boleroPlan(sch || []);
+    if (!plan) return json({ error: "no-schedule" }, 400);
     const nlD = (d: Date) => d.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" });
     const deadline = b.campaign.vote_deadline ? nlD(new Date(b.campaign.vote_deadline)) : null;
-    const pdf = await buildBoleroPdf({ name: inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email, invested: Number(inv.invested), date: nlD(new Date()), deadline, proposal });
-    const sent = await sendMail(a, { to: inv.email, kind: "bolero-proposal", lang: "nl", campaign: b.campaign.id, subject: "Uw persoonlijk voorstel: uitstel van betaling – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nIn de bijlage vindt u het exacte financiële voorstel voor uw investering: de uitgestelde bedragen en de nieuwe betalingen van 2027, maand per maand.\n\nU kunt uw stem uitbrengen${deadline ? " tot en met " + deadline : ""}:\n- met de knop in onze eerdere e-mail, of\n- door op deze e-mail te antwoorden met JA (ik aanvaard de nieuwe betalingsvoorwaarden) of NEE.\n\nHeeft u vragen, bel dan Erwin Raets, CEO, op +32 475 44 36 69.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)`, attachments: [{ name: "voorstel-uitstel-betaling-EVChargeking.pdf", type: "application/pdf", data: pdf }] });
+    const pdf = await buildBoleroPdf({ name: inv.company_name || [inv.first_name, inv.last_name].filter(Boolean).join(" ") || inv.email, invested: Number(inv.invested), date: nlD(new Date()), deadline, plan });
+    const sent = await sendMail(a, { to: inv.email, kind: "bolero-proposal", lang: "nl", campaign: b.campaign.id, subject: "Uw persoonlijk voorstel: nieuwe betalingsvoorwaarden – EVChargeking", text: `${hello(inv.first_name, "nl")}\n\nIn de bijlage vindt u het exacte financiële voorstel voor uw investering: de zes maanden zonder betaling, de nieuwe einddatum, de hogere interest en de volledige nieuwe betaalplanning.\n\nU kunt uw stem uitbrengen${deadline ? " tot en met " + deadline : ""}:\n- met de knop in onze eerdere e-mail, of\n- door op deze e-mail te antwoorden met JA (ik aanvaard de nieuwe betalingsvoorwaarden) of NEE.\n\nHeeft u vragen, bel dan Erwin Raets, CEO, op +32 475 44 36 69.\n\nMet vriendelijke groeten,\n\nErwin Raets\nCEO, EVChargeking (Some BV)`, attachments: [{ name: "voorstel-uitstel-betaling-EVChargeking.pdf", type: "application/pdf", data: pdf }] });
     if (!sent) return json({ error: "mail-failed" }, 502);
     await audit(a, u, "bolero-proposal", inv.email, { bytes: pdf.length });
     return json({ ok: true });
@@ -899,6 +899,14 @@ Deno.serve(async (req) => {
     }
     const name = (i: any) => i.company_name || [i.first_name, i.last_name].filter(Boolean).join(" ") || i.email;
     const STATUS: Record<string, string> = { paid: "paid", planned: "planned", deferred: "planned" };
+    // Bolero has no choice A or B. Its new schedule (six months without payment, then every payment six months later with a higher
+    // interest) applies to ALL Bolero investors once the bondholder decision is adopted: holders of at least three quarters of the
+    // outstanding amount agree ("confirmed" view), and in the "signed" view once the campaign is marked as signed.
+    let boleroNew = false, boleroSigned = false;
+    if (view !== "planned" && kinds.has("bolero")) {
+      const { data: bc } = await a.from("inv_campaigns").select("id, status").eq("mail_kind", "bolero_vote").order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (bc) { const bt = await boleroTally(a, bc.id); boleroSigned = bc.status === "signed"; boleroNew = bt.amount > 0 && bt.yes_amount / bt.amount >= 0.75 && (view === "confirmed" || boleroSigned); }
+    }
     const year = (due: string) => Number(String(due).slice(0, 4));
     const plain = (r: any) => ({ period: r.period, due: r.due, gross_interest: Number(r.gross_interest), withholding: Number(r.withholding), net_interest: Number(r.net_interest), principal: Number(r.principal) });
     const addMonths = (due: string, n: number) => { const x = new Date(String(due) + "T12:00:00Z"); x.setUTCMonth(x.getUTCMonth() + n); return x.toISOString().slice(0, 10); };
@@ -964,6 +972,11 @@ Deno.serve(async (req) => {
       // confirmed view: choice A/B made; signed view: only choices with a signed addendum. Otherwise the original contract.
       const applyNew = view !== "planned" && !!ch && (ch.choice === "A" || ch.choice === "B") && (view === "confirmed" || signed);
       const add = (r: any, source: string, status: string) => lines.push({ due: r.due, period: r.period, investor: name(inv), email: inv.email, tranche: inv.tranche, kind, choice: ch?.choice || "—", source, gross_interest: r.gross_interest, withholding: r.withholding, net_interest: r.net_interest, principal: r.principal, status });
+      if (kind === "bolero" && boleroNew) {
+        for (const r of g.original.filter((x: any) => String(x.due) <= BOLERO_LAST_PAID)) add(plain(r), "original", STATUS[r.status] || "planned");
+        for (const r of boleroPlan(g.original)?.rows || []) add({ period: null, due: r.due, gross_interest: r.gross_interest, withholding: r.withholding, net_interest: r.net_interest, principal: r.principal }, "bolero besluit", boleroSigned ? "planned" : "pending");
+        continue;
+      }
       if (!applyNew) {
         for (const r of g.original) add(plain(r), "original", STATUS[r.status] || "planned");
         continue;
@@ -972,20 +985,24 @@ Deno.serve(async (req) => {
       const rows = leadRows(ch.choice === "A" ? g.A.map((r: any) => ({ ...plain(r), st: r.status })) : optionBRows(inv, g, t, kind), g.original);
       for (const r of rows) add(r, "option " + ch.choice, newStatus(r.st));
     }
-    const shown = futureOnly ? lines.filter((l) => l.due >= today) : lines;
+    // A payment that is past its due date and not paid is overdue: it is still cash to pay, so it is never hidden.
+    for (const l of lines) if (l.status !== "paid" && l.due < today) l.status = "overdue";
+    const shown = futureOnly ? lines.filter((l) => l.status !== "paid") : lines;
     const byDate = new Map<string, any>();
     for (const l of shown) {
-      if (!byDate.has(l.due)) byDate.set(l.due, { due: l.due, gross_interest: 0, withholding: 0, net_interest: 0, principal: 0, total: 0, investors: new Set() });
+      if (!byDate.has(l.due)) byDate.set(l.due, { due: l.due, gross_interest: 0, withholding: 0, net_interest: 0, principal: 0, total: 0, overdue: 0, paid: 0, investors: new Set() });
       const d = byDate.get(l.due);
       d.gross_interest = cent(d.gross_interest + Number(l.gross_interest));
       d.withholding = cent(d.withholding + Number(l.withholding));
       d.net_interest = cent(d.net_interest + Number(l.net_interest));
       d.principal = cent(d.principal + Number(l.principal));
       d.total = cent(d.total + cent(Number(l.gross_interest) + Number(l.principal)));
+      if (l.status === "overdue") d.overdue = cent(d.overdue + cent(Number(l.gross_interest) + Number(l.principal)));
+      if (l.status === "paid") d.paid = cent(d.paid + cent(Number(l.gross_interest) + Number(l.principal)));
       d.investors.add(l.email);
     }
     const dates = [...byDate.values()].sort((x, y) => (x.due < y.due ? -1 : 1)).map((d) => ({ ...d, investors: d.investors.size }));
-    return json({ ok: true, view, future_only: futureOnly, kinds: [...kinds], dates, lines: shown.sort((x, y) => (x.due < y.due ? -1 : x.due > y.due ? 1 : x.investor.localeCompare(y.investor))) });
+    return json({ ok: true, view, future_only: futureOnly, kinds: [...kinds], bolero_new: boleroNew, dates, lines: shown.sort((x, y) => (x.due < y.due ? -1 : x.due > y.due ? 1 : x.investor.localeCompare(y.investor))) });
   }
   if (action === "blocked") {
     const day = String(body.day || "");
