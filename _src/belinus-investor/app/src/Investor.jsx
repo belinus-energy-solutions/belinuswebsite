@@ -138,10 +138,10 @@ function VotePage({ route }) {
     {d && <div className="stack">
       <p className="lead">{d.first_name ? 'Beste ' + d.first_name + ',' : 'Beste investeerder,'} u heeft via Bolero Crowdfunding {eur(d.invested)} geïnvesteerd in de obligatielening van EVChargeking (Some BV).</p>
       <p><b>Het voorstel van besluit:</b> aanvaardt u de nieuwe betalingsvoorwaarden van de obligatielening, om de continuïteit van het bedrijf te steunen?</p>
-      <p>Alle betalingen tot en met 19 oktober 2026 zijn uitgevoerd. De nieuwe voorwaarden zijn:</p>
-      <ol><li><b>Zes maanden zonder betaling.</b> Van 19 november 2026 tot en met 19 april 2027 worden geen kapitaal en geen interest betaald.</li>
+      <p>Alle betalingen tot en met 19 november 2026 zijn uitgevoerd. De nieuwe voorwaarden zijn:</p>
+      <ol><li><b>Zes maanden zonder betaling.</b> Van 19 december 2026 tot en met 19 mei 2027 worden geen kapitaal en geen interest betaald.</li>
         <li><b>Alle resterende betalingen schuiven zes maanden op.</b> {d.plan ? <>De eerste betaling gebeurt op {dayNl(d.plan.resume)}. De einddatum wordt {dayNl(d.plan.end_new)} in plaats van {dayNl(d.plan.end_old)}.</> : null}</li>
-        <li><b>Compensatie van de interest.</b> De interest die u in deze zes maanden niet ontvangt{d.plan ? <> ({eur(d.plan.lost_gross)} bruto)</> : null}, wordt volledig gecompenseerd door een hogere interest op elke latere betaling. De interestvoet stijgt van 8,04% naar ongeveer 10,05% per jaar. Het kapitaal van elke betaling blijft ongewijzigd.</li></ol>
+        <li><b>Compensatie van de interest.</b> De interest die u in deze zes maanden niet ontvangt{d.plan ? <> ({eur(d.plan.lost_gross)} bruto)</> : null}, wordt volledig gecompenseerd door een hogere interest op elke latere betaling. De interestvoet stijgt van 8,04% naar ongeveer 10,09% per jaar. Het kapitaal van elke betaling blijft ongewijzigd.</li></ol>
       {d.plan && <div className="stack"><p><b>Het exacte voorstel voor uw investering</b> (uitstaand kapitaal: {eur(d.plan.outstanding)}).</p>
         <div className="tblw"><table className="cards"><thead><tr><th></th><th>Huidige voorwaarden</th><th>Voorstel</th><th>Verschil</th></tr></thead><tbody>
           {[['Kapitaal', d.plan.old.principal, d.plan.neu.principal], ['Bruto-interest', d.plan.old.gross_interest, d.plan.neu.gross_interest], ['Netto-interest (na roerende voorheffing)', d.plan.old.net_interest, d.plan.neu.net_interest], ['U ontvangt in totaal', d.plan.old.receive, d.plan.neu.receive]].map(([l, x, y]) => <tr key={l}><td data-l=""><b>{l}</b></td><td data-l="Huidige voorwaarden">{eur(x)}</td><td data-l="Voorstel">{eur(y)}</td><td data-l="Verschil">{eur(Math.round((y - x) * 100) / 100)}</td></tr>)}

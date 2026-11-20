@@ -1,9 +1,9 @@
 // Bolero proposal for one investor: no payments (capital and interest) for six months after the last executed payment
-// (19 October 2026), every remaining payment moves six months later (end date 19 March 2031 instead of 19 September 2030),
+// (19 November 2026), every remaining payment moves six months later (end date 19 March 2031 instead of 19 September 2030),
 // and the interest not paid during the pause is compensated by a higher interest on every payment after the pause.
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 
-export const BOLERO_LAST_PAID = "2026-10-19";
+export const BOLERO_LAST_PAID = "2026-11-19";
 export const BOLERO_PAUSE_MONTHS = 6;
 export type BoleroRow = { due_old: string; due: string; principal: number; gross_interest: number; withholding: number; net_interest: number; old_net_interest: number; receive: number };
 export type BoleroPlan = {
@@ -66,10 +66,10 @@ export async function buildBoleroPdf(p: { name: string; invested: number; date: 
   text("Obligatielening Bolero Crowdfunding (KBC) van 19 september 2025", { size: 11, color: GREY }); y -= 28;
   text(`Investeerder: ${p.name}`, { bold: true }); y -= 15;
   text(`Ingetekend bedrag: ${eur(p.invested)}    Uitstaand kapitaal: ${eur(pl.outstanding)}    Datum: ${p.date}`); y -= 24;
-  para(`Alle betalingen tot en met 19 oktober 2026 zijn uitgevoerd. Wij stellen de volgende nieuwe betalingsvoorwaarden voor:`);
-  para(`1. Zes maanden zonder betaling. Van 19 november 2026 tot en met 19 april 2027 worden geen kapitaal en geen interest betaald.`);
+  para(`Alle betalingen tot en met 19 november 2026 zijn uitgevoerd. Wij stellen de volgende nieuwe betalingsvoorwaarden voor:`);
+  para(`1. Zes maanden zonder betaling. Van 19 december 2026 tot en met 19 mei 2027 worden geen kapitaal en geen interest betaald.`);
   para(`2. Alle resterende betalingen schuiven zes maanden op. De eerste betaling gebeurt op ${nl(pl.resume)}. De einddatum van de lening wordt ${nl(pl.end_new)} in plaats van ${nl(pl.end_old)}.`);
-  para(`3. Compensatie van de interest. De interest die u in deze zes maanden niet ontvangt (${eur(pl.lost_gross)} bruto), wordt volledig gecompenseerd door een hogere interest op elke betaling vanaf ${nl(pl.resume)}. De interestvoet stijgt daardoor van 8,04% naar ongeveer 10,05% per jaar. Het kapitaal van elke betaling blijft ongewijzigd.`);
+  para(`3. Compensatie van de interest. De interest die u in deze zes maanden niet ontvangt (${eur(pl.lost_gross)} bruto), wordt volledig gecompenseerd door een hogere interest op elke betaling vanaf ${nl(pl.resume)}. De interestvoet stijgt daardoor van 8,04% naar ongeveer 10,09% per jaar. Het kapitaal van elke betaling blijft ongewijzigd.`);
   y -= 4;
   text("Samenvatting voor uw investering (resterende looptijd)", { bold: true }); y -= 18;
   const c3 = [L + 6, 330, 440, R - 6];
