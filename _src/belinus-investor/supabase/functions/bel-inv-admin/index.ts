@@ -120,7 +120,8 @@ Deno.serve(async (req) => {
     ]);
     const byC = new Map((ch || []).map((c: any) => [c.investor_id, c]));
     // Invitation campaigns with their mail counts, shown under the platform table on the overview.
-    const { data: camps } = await a.from("inv_campaigns").select("id, name, group_code, mail_kind, status").in("mail_kind", ["invite", "reminder"]).order("created_at", { ascending: false }).limit(10);
+    // All campaigns, newest first; the overview shows them in the section of their platform (a Bolero vote under Bolero, all others under Winwinner).
+    const { data: camps } = await a.from("inv_campaigns").select("id, name, group_code, mail_kind, status, sent_at, vote_deadline, auto_choice, auto_choice_at, auto_choice_done_at").order("created_at", { ascending: false }).limit(30);
     const sent = await invitedMap(a);
     // Per campaign: mails sent and failed (exact counts), and invitations still to send for its group.
     const campaigns = await Promise.all((camps || []).map(async (c: any) => {
@@ -128,11 +129,17 @@ Deno.serve(async (req) => {
       const { data: gm } = await a.from("inv_group_members").select("investor_id").eq("group_code", c.group_code);
       const ids = new Set((gm || []).map((m: any) => m.investor_id));
       const pending = (inv || []).filter((i: any) => ids.has(i.id) && !i.is_test && i.status === "invited" && /^(winwin|crowd)/.test(String(i.tranche || "")) && !sent.has(i.email)).length;
-      return { ...c, sent: await count("sent"), failed: await count("failed"), pending };
+      // "Still to send" is only meaningful for invitations (one per investor); other kinds show it on their own page.
+      return { ...c, platform: c.mail_kind === "bolero_vote" ? "bolero" : "winwinner", sent: await count("sent"), failed: await count("failed"), pending: c.mail_kind === "invite" ? pending : null };
     }));
+    // Bolero vote: each investor's vote in the latest vote campaign, and its tally.
+    const bc = (camps || []).find((c: any) => c.mail_kind === "bolero_vote");
+    const { data: bv } = bc ? await a.from("inv_votes").select("investor_id, vote").eq("campaign_id", bc.id).limit(5000) : { data: [] };
+    const voteBy = new Map((bv || []).map((v: any) => [v.investor_id, v.vote]));
+    const boleroVote = bc ? { campaign_id: bc.id, tally: await boleroTally(a, bc.id) } : null;
     const { data: unread } = await a.from("inv_messages").select("investor_id").eq("direction", "in").is("read_at", null);
     const un = new Map<string, number>(); for (const r of unread || []) un.set(r.investor_id, (un.get(r.investor_id) || 0) + 1);
-    return json({ ok: true, role: acc.role, campaigns, unread: Object.fromEntries(un), investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });
+    return json({ ok: true, role: acc.role, campaigns, unread: Object.fromEntries(un), bolero_vote: boleroVote, investors: (inv || []).map((i: any) => ({ ...i, choice: byC.get(i.id) || null, vote: voteBy.get(i.id) || null, invited_at: sent.get(i.email) || null })), followups: fu, tranches: tr, settings: await settings(a) });
   }
   if (action === "detail") {
     const [{ data: inv }, { data: sch }, { data: log }, { data: bk }] = await Promise.all([

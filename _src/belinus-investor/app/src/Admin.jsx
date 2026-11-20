@@ -81,6 +81,15 @@ function AdmSystem() {
     </div>
   </>;
 }
+// Overview: one block of totals for everything, then a section per platform (Winwinner, Bolero) with its own figures,
+// its e-mail campaigns and its tranches.
+const CAMP_KIND = { invite: 'uitnodiging', reminder: 'herinnering', announcement: 'mededeling', bolero_vote: 'stemming', bolero_notice: 'mededeling' };
+function OvCampaigns({ list, empty }) {
+  if (!list.length) return <p className="hint" style={{ margin: 0 }}>{empty}</p>;
+  return <div className="tblw"><table className="tbl cards"><thead><tr><th>Campagne</th><th>Soort</th><th>Status</th><th className="n">Verstuurd</th><th className="n">Mislukt</th><th className="n">Nog te versturen</th></tr></thead><tbody>
+    {list.map((c) => <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => { location.hash = '#/campagnes/' + c.id; }}><td data-l="Campagne"><b>{c.name}</b>{c.auto_choice && <><br /><span className="hint">Automatische keuze {c.auto_choice} op {dayNl(c.auto_choice_at)}{c.auto_choice_done_at ? ' (uitgevoerd)' : ''}</span></>}{c.vote_deadline && <><br /><span className="hint">Stemmen tot en met {dayNl(c.vote_deadline)}</span></>}</td><td data-l="Soort">{CAMP_KIND[c.mail_kind] || c.mail_kind}</td><td data-l="Status"><span className={'chip ' + (c.status === 'sent' ? 'ok' : c.status === 'draft' ? '' : 'warn')}>{CAMP_ST[c.status] || c.status}</span></td><td data-l="Verstuurd" className="n">{c.sent}</td><td data-l="Mislukt" className="n">{c.failed}</td><td data-l="Nog te versturen" className="n">{c.pending == null ? '—' : c.pending}</td></tr>)}
+  </tbody></table></div>;
+}
 function AdmOverview() {
   const [d, reload, err] = useLoad('dashboard');
   const [at, setAt] = useState(null);
@@ -88,26 +97,60 @@ function AdmOverview() {
   if (!d) return <Wait err={err} />;
   const real = d.investors.filter((i) => !i.is_test);
   const list = real.length ? real : d.investors;
-  const cnt = (f) => { const x = list.filter(f); return [x.length, x.reduce((n, i) => n + Number(i.invested), 0)]; };
-  const uitgenodigd = (i) => i.status === 'invited' || i.status === 'active';
-  const T = [['Totaal investeerders', () => true], ['Uitgenodigd', uitgenodigd], ['Account actief', (i) => i.status === 'active'], ['Keuze gemaakt', (i) => i.choice], ['Keuze A', (i) => i.choice?.choice === 'A'], ['Keuze B', (i) => i.choice?.choice === 'B'], ['Keuze C', (i) => i.choice?.choice === 'C'], ['Waarvan automatisch (B)', (i) => i.choice?.auto], ['Geen antwoord', (i) => uitgenodigd(i) && !i.choice]];
   const plOf = (i) => d.tranches.find((t) => t.code === i.tranche)?.platform || 'winwinner';
-  const stat = (x) => { const c = (k) => x.filter((i) => i.choice?.choice === k).length; return { n: x.length, s: x.reduce((n, i) => n + Number(i.invested), 0), act: x.filter((i) => i.status === 'active').length, A: c('A'), B: c('B'), C: c('C'), none: x.filter((i) => !i.choice).length }; };
-  const plRow = (label, x, bold) => { const v = stat(x); return <tr key={label} style={bold ? { fontWeight: 700 } : undefined}><td data-l="Platform">{label}</td><td data-l="Investeerders" className="n">{v.n}</td><td data-l="Bedrag" className="n">{eur(v.s)}</td><td data-l="Account actief" className="n">{v.act}</td><td data-l="A" className="n">{v.A}</td><td data-l="B" className="n">{v.B}</td><td data-l="C" className="n">{v.C}</td><td data-l="Geen antwoord" className="n">{v.none}</td></tr>; };
+  const ww = list.filter((i) => plOf(i) !== 'bolero'), bo = list.filter((i) => plOf(i) === 'bolero');
+  const amt = (x) => x.reduce((n, i) => n + Number(i.invested), 0);
+  const Tile = ({ n, l, x, sub }) => <div className="tile"><b>{n}</b><span>{l}{x ? ' · ' + eur(amt(x)) : ''}{sub ? <><br />{sub}</> : null}</span></div>;
+  const uitgenodigd = (i) => i.status === 'invited' || i.status === 'active';
+  // Winwinner: choice A or B = change accepted, C = not accepted. Bolero: vote yes / no.
+  const wA = ww.filter((i) => i.choice?.choice === 'A'), wB = ww.filter((i) => i.choice?.choice === 'B'), wC = ww.filter((i) => i.choice?.choice === 'C'), wNone = ww.filter((i) => !i.choice), wAuto = ww.filter((i) => i.choice?.auto);
+  const wSigned = ww.filter((i) => i.choice?.addendum_status === 'signed');
+  const bYes = bo.filter((i) => i.vote === 'yes'), bNo = bo.filter((i) => i.vote === 'no'), bNone = bo.filter((i) => !i.vote);
+  const accepted = [...wA, ...wB, ...bYes], notAnswered = [...wNone, ...bNone], refused = [...wC, ...bNo];
+  const camps = d.campaigns || [];
+  const bt = d.bolero_vote?.tally;
+  const pct = (x, y) => (y ? (100 * x / y).toFixed(1).replace('.', ',') + '%' : '—');
+  const trTable = (codes) => <div className="tblw"><table className="tbl cards"><thead><tr><th>Tranche</th><th className="n">Investeerders</th><th className="n">Bedrag</th>{codes === 'bolero' ? <><th className="n">Ja</th><th className="n">Nee</th><th className="n">Niet gestemd</th></> : <><th className="n">A</th><th className="n">B</th><th className="n">C</th><th className="n">Geen antwoord</th></>}</tr></thead><tbody>
+    {d.tranches.filter((t) => (t.platform === 'bolero') === (codes === 'bolero')).map((t) => { const inT = list.filter((i) => i.tranche === t.code), c = (k) => inT.filter((i) => i.choice?.choice === k).length, v = (k) => inT.filter((i) => i.vote === k).length; return <tr key={t.code}><td data-l="Tranche">{t.name}</td><td data-l="Investeerders" className="n">{inT.length}</td><td data-l="Bedrag" className="n">{eur(amt(inT))}</td>{codes === 'bolero' ? <><td data-l="Ja" className="n">{v('yes')}</td><td data-l="Nee" className="n">{v('no')}</td><td data-l="Niet gestemd" className="n">{inT.filter((i) => !i.vote).length}</td></> : <><td data-l="A" className="n">{c('A')}</td><td data-l="B" className="n">{c('B')}</td><td data-l="C" className="n">{c('C')}</td><td data-l="Geen antwoord" className="n">{inT.filter((i) => !i.choice).length}</td></>}</tr>; })}
+  </tbody></table></div>;
   return <>
-    <div className="page-head"><div><h1 className="page-title">Overzicht</h1><p className="page-sub">Uiterste datum: {dayNl(d.settings.deadline)}{!real.length && d.investors.length ? ' · enkel testinvesteerders geladen' : ''}</p></div><div className="row" style={{ alignItems: 'center', gap: 12 }}>{at && <span className="hint">bijgewerkt om {at.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' })}</span>}<Btn kind="ghost" onClick={reload}>Vernieuwen</Btn></div></div>
-    <div className="tiles">{T.map(([l, f]) => { const [n, s] = cnt(f); return <div className="tile" key={l}><b>{n}</b><span>{l} · {eur(s)}</span></div>; })}</div>
-    <div className="card"><h2>Per platform</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Platform</th><th className="n">Investeerders</th><th className="n">Bedrag</th><th className="n">Account actief</th><th className="n">A</th><th className="n">B</th><th className="n">C</th><th className="n">Geen antwoord</th></tr></thead><tbody>
-      {Object.keys(PLATFORMS).map((k) => plRow(PLATFORMS[k], list.filter((i) => plOf(i) === k)))}{plRow('Totaal', list, true)}
-    </tbody></table></div>
+    <div className="page-head"><div><h1 className="page-title">Overzicht</h1><p className="page-sub">Uiterste datum Winwinner: {dayNl(d.settings.deadline)}{!real.length && d.investors.length ? ' · enkel testinvesteerders geladen' : ''}</p></div><div className="row" style={{ alignItems: 'center', gap: 12 }}>{at && <span className="hint">bijgewerkt om {at.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' })}</span>}<Btn kind="ghost" onClick={reload}>Vernieuwen</Btn></div></div>
+    <h2 style={{ margin: '0 0 12px' }}>Alle investeerders</h2>
+    <div className="tiles">
+      <Tile n={list.length} l="Totaal investeerders" x={list} />
+      <Tile n={accepted.length} l="Contractwijziging aanvaard" x={accepted} sub={'Winwinner A of B: ' + (wA.length + wB.length) + ' · Bolero ja: ' + bYes.length + ' · getekend: ' + wSigned.length} />
+      <Tile n={notAnswered.length} l="Niet geantwoord" x={notAnswered} sub={'Winwinner: ' + wNone.length + ' · Bolero: ' + bNone.length} />
+      <Tile n={refused.length} l="Niet aanvaard (keuze C of nee)" x={refused} sub={'Winwinner C: ' + wC.length + ' · Bolero nee: ' + bNo.length} />
     </div>
-    <div className="card"><h2>Campagnes</h2>
-      {(d.campaigns || []).length ? (d.campaigns || []).map((c, ci) => <details key={c.id} open={ci === 0} style={{ borderTop: '1px solid var(--line, #eee)', padding: '10px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600 }}>{c.name} · groep {c.group_code} · {CAMP_ST[c.status] || c.status}</summary><div style={{ padding: '8px 0 0 16px' }}><p style={{ margin: '4px 0' }}>Verstuurd: {c.sent} · Mislukt: {c.failed} · Nog te versturen: {c.pending}</p><p style={{ margin: '4px 0' }}><a href={'#/campagnes/' + c.id}>Open campagne</a></p></div></details>) : <p style={{ margin: '4px 0' }}>Er zijn nog geen uitnodigingscampagnes.</p>}
-      {!(d.campaigns || []).some((c) => c.group_code === 'bolero') && <details style={{ borderTop: '1px solid var(--line, #eee)', padding: '10px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600 }}>Bolero Crowdfunding (KBC) · geen campagne</summary><div style={{ padding: '8px 0 0 16px' }}><p style={{ margin: '4px 0' }}>Er is geen uitnodigingscampagne ingesteld voor Bolero; er worden geen uitnodigingen verstuurd.</p></div></details>}
+    <div className="card stack"><h2 style={{ margin: 0 }}>Winwinner (Winwinlening en Crowdlening)</h2>
+      <div className="tiles" style={{ marginBottom: 0 }}>
+        <Tile n={ww.length} l="Investeerders" x={ww} />
+        <Tile n={ww.filter(uitgenodigd).length} l="Uitgenodigd" x={ww.filter(uitgenodigd)} />
+        <Tile n={ww.filter((i) => i.status === 'active').length} l="Account actief" x={ww.filter((i) => i.status === 'active')} />
+        <Tile n={wA.length} l="Keuze A" x={wA} />
+        <Tile n={wB.length} l="Keuze B" x={wB} sub={wAuto.length ? 'waarvan automatisch: ' + wAuto.length : null} />
+        <Tile n={wC.length} l="Keuze C" x={wC} />
+        <Tile n={wNone.length} l="Geen antwoord" x={wNone} />
+      </div>
+      <h3 style={{ fontSize: 16, margin: '8px 0 0' }}>E-mailcampagnes Winwinner</h3>
+      <OvCampaigns list={camps.filter((c) => c.platform !== 'bolero')} empty="Er zijn nog geen campagnes voor Winwinner." />
+      <h3 style={{ fontSize: 16, margin: '8px 0 0' }}>Per tranche</h3>
+      {trTable('winwinner')}
     </div>
-    <div className="card"><h2>Per tranche</h2><div className="tblw"><table className="tbl cards"><thead><tr><th>Tranche</th><th className="n">Investeerders</th><th className="n">Bedrag</th><th className="n">A</th><th className="n">B</th><th className="n">C</th><th className="n">Geen antwoord</th></tr></thead><tbody>
-      {d.tranches.map((t) => { const inT = list.filter((i) => i.tranche === t.code), c = (k) => inT.filter((i) => i.choice?.choice === k).length; return <tr key={t.code}><td data-l="Tranche">{t.name}</td><td data-l="Investeerders" className="n">{inT.length}</td><td data-l="Bedrag" className="n">{eur(inT.reduce((n, i) => n + Number(i.invested), 0))}</td><td data-l="A" className="n">{c('A')}</td><td data-l="B" className="n">{c('B')}</td><td data-l="C" className="n">{c('C')}</td><td data-l="Geen antwoord" className="n">{inT.filter((i) => !i.choice).length}</td></tr>; })}
-    </tbody></table></div></div></>;
+    <div style={{ height: 16 }} />
+    <div className="card stack"><h2 style={{ margin: 0 }}>Bolero Crowdfunding (KBC)</h2>
+      <div className="tiles" style={{ marginBottom: 0 }}>
+        <Tile n={bo.length} l="Obligatiehouders" x={bo} />
+        <Tile n={bYes.length} l="Stem ja" x={bYes} sub={bt ? pct(bt.yes_amount, bt.amount) + ' van het uitstaande bedrag' : null} />
+        <Tile n={bNo.length} l="Stem nee" x={bNo} />
+        <Tile n={bNone.length} l="Niet gestemd" x={bNone} />
+        {bt && <Tile n={pct(bt.yes_amount, bt.amount)} l="Instemming (nodig: 75%)" sub={'Nog te halen: ' + eur(Math.max(0, 0.75 * bt.amount - bt.yes_amount))} />}
+      </div>
+      <h3 style={{ fontSize: 16, margin: '8px 0 0' }}>E-mailcampagnes Bolero</h3>
+      <OvCampaigns list={camps.filter((c) => c.platform === 'bolero')} empty="Er is nog geen campagne voor Bolero." />
+      <h3 style={{ fontSize: 16, margin: '8px 0 0' }}>Per tranche</h3>
+      {trTable('bolero')}
+    </div></>;
 }
 const isCompany = (i) => !!String(i.company_name || '').trim();
 function AdmInvestors() {
