@@ -590,7 +590,7 @@ function AdmFinancial() {
   const kk = kinds.join(',');
   useEffect(() => { let live = true; setErr(''); adm('financial', { view, kinds, future_only: future }).then((r) => { if (live) setD(r); }).catch((x) => { if (live) setErr(errText(x)); }); return () => { live = false; }; }, [view, kk, future]);
   if (!d) return <Wait err={err} />;
-  const sum = (k) => d.dates.reduce((s, x) => s + x[k], 0);
+  const sum = (k) => d.dates.reduce((s, x) => s + (x[k] || 0), 0);
   async function exportXls() {
     setBusy(true); setErr('');
     try {
