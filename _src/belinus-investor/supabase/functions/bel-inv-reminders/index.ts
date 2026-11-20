@@ -1,7 +1,7 @@
 // bel-inv-reminders — e-mail reminder 15 minutes before each video or call-back appointment.
 // Called every 5 minutes by a scheduled job (see supabase/migrations/20261109_inv_reminders.sql). Each booking is reminded once
 // (inv_bookings.reminder_sent_at); the window is 10–20 minutes ahead, so a 5-minute run never misses one.
-import { adminClient, APP_URL, cors, dateIn, hello, json, KIND_L, pickLang, sendMail, settings } from "../_shared/inv.ts";
+import { adminClient, APP_URL, applyChoice, audit, cors, dateIn, hello, json, KIND_L, pickLang, sendMail, settings } from "../_shared/inv.ts";
 
 const KIND_NL: Record<string, string> = { video: "Videogesprek", callback: "Terugbelverzoek" };
 const SUBJ = { nl: "Herinnering: uw afspraak begint over 15 minuten – EVChargeking", fr: "Rappel : votre rendez-vous commence dans 15 minutes – EVChargeking", en: "Reminder: your appointment starts in 15 minutes – EVChargeking" } as const;
@@ -30,5 +30,24 @@ Deno.serve(async (req) => {
     await a.from("inv_bookings").update({ reminder_sent_at: new Date().toISOString() }).eq("id", b.id);
     sent++;
   }
-  return json({ ok: true, sent });
+  // Automatic choice: a sent campaign with auto_choice registers that choice, once, for every recipient who still has no choice
+  // when auto_choice_at has passed. The campaign is marked done first, so a second run can never register twice.
+  let auto = 0;
+  const { data: camps } = await a.from("inv_campaigns").select("id, name, auto_choice").not("auto_choice", "is", null).is("auto_choice_done_at", null).eq("status", "sent").lte("auto_choice_at", new Date().toISOString());
+  for (const c of (camps || []) as any[]) {
+    const { data: claimed } = await a.from("inv_campaigns").update({ auto_choice_done_at: new Date().toISOString() }).eq("id", c.id).is("auto_choice_done_at", null).select("id");
+    if (!claimed?.length) continue;
+    const { data: logs } = await a.from("inv_mail_log").select("recipient").eq("campaign_id", c.id).eq("status", "sent").limit(5000);
+    const emails = [...new Set((logs || []).map((l: any) => String(l.recipient).toLowerCase()))];
+    for (const email of emails) {
+      const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang, tranche, is_test, is_demo").ilike("email", email.replace(/[%_\\]/g, "\\$&")).maybeSingle();
+      if (!inv || inv.is_test || inv.is_demo) continue;
+      const { data: ch } = await a.from("inv_choices").select("choice").eq("investor_id", inv.id).maybeSingle();
+      if (ch) continue;
+      try { await applyChoice(a, inv, { choice: c.auto_choice, auto: true, note: `Automatisch geregistreerd: geen antwoord op campagne "${c.name}"` }); auto++; }
+      catch (e) { console.error("auto choice", inv.email, (e as Error).message); }
+    }
+    await audit(a, null, "auto-choice", c.id, { choice: c.auto_choice, registered: auto });
+  }
+  return json({ ok: true, sent, auto });
 });

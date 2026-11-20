@@ -295,12 +295,13 @@ const OPT = [
   ['C', 'C – Ik ga niet akkoord.', 'Vermeld kort waarom. We nemen binnen de 5 werkdagen contact met u op. Uw bestaande overeenkomst blijft ongewijzigd van toepassing.'],
 ];
 function Keuze({ d, reload }) {
-  const locked = d.choice?.choice === 'A' || d.choice?.choice === 'B';
+  const locked = !d.choice?.auto && (d.choice?.choice === 'A' || d.choice?.choice === 'B');
   const [c, setC] = useState(d.choice?.choice || ''), [wish, setWish] = useState(d.choice?.wish || ''), [reason, setReason] = useState(d.choice?.reason || ''), [ok, setOk] = useState(false), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [done, setDone] = useState(false);
   async function save() { setErr(''); setBusy(true); try { await fn('bel-inv', { action: 'choose', choice: c, wish, reason, confirm: ok }); await reload(); setDone(true); setOk(false); window.scrollTo(0, 0); } catch (x) { setErr(errText(x)); } setBusy(false); }
   return <>
     <div className="page-head"><div><h1 className="page-title">{t('Uw keuze')}</h1><p className="page-sub">{t('We rekenen verder op uw steun en vragen uw vertrouwen in EVChargeking. Maak hieronder uw keuze.')}</p></div>{choiceChip(d)}</div>
     {done && <div style={{ marginBottom: 16 }}><Note kind="ok">{t('Uw keuze is bewaard. U ontvangt een bevestiging per e-mail.')}</Note></div>}
+    {d.choice?.auto && <div style={{ marginBottom: 16 }}><Note kind="warn">Keuze {d.choice.choice} is automatisch voor u geregistreerd omdat wij geen antwoord ontvingen. Deze keuze is niet bindend zolang u de contractwijziging niet heeft ondertekend. U kunt hieronder nog zelf een keuze maken.</Note></div>}
     {locked && <div style={{ marginBottom: 16 }}><Note kind="warn">{t('Uw keuze kan niet meer gewijzigd worden.')}</Note></div>}
     {d.choice?.choice === 'C' && !locked && <div style={{ marginBottom: 16 }}><Note>{t('U kunt uw keuze op elk moment wijzigen. Kiest u alsnog keuze A of B, dan ligt die keuze daarna vast.')}</Note></div>}
     {d.choice?.choice && <div style={{ marginBottom: 16 }}><Note kind="ok">{t('Hartelijk dank voor uw vertrouwen en uw steun aan EVChargeking.')}</Note></div>}

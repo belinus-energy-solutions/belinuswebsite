@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
     const [{ data: tr }, { data: sch }, { data: ch }, { data: bk }, { data: ev }, { data: used }, { data: slotRows }] = await Promise.all([
       a.from("inv_tranches").select("*").eq("code", inv.tranche).single(),
       a.from("inv_schedule").select("scenario, period, due, gross_interest, withholding, net_interest, principal, remaining, status, paid_at").eq("investor_id", inv.id).order("period"),
-      a.from("inv_choices").select("choice, wish, reason, confirmed_at, addendum_status").eq("investor_id", inv.id).maybeSingle(),
+      a.from("inv_choices").select("choice, wish, reason, confirmed_at, addendum_status, auto").eq("investor_id", inv.id).maybeSingle(),
       a.from("inv_bookings").select("id, kind, starts_at, ends_at, arrival, persons, phone, topic, status, event_id, meet_url").eq("investor_id", inv.id).order("starts_at"),
       a.from("inv_events").select("id, title, starts_at, ends_at, address, capacity, arrival_slots, description, slot_minutes").eq("active", true).gte("ends_at", new Date().toISOString()).order("starts_at"),
       a.from("inv_bookings").select("event_id, arrival, persons").eq("kind", "visit").eq("status", "confirmed"),
@@ -218,9 +218,10 @@ Deno.serve(async (req) => {
     const choice = String(body.choice || "");
     if (!["A", "B", "C"].includes(choice)) return json({ error: "bad-choice" }, 400);
     if (body.confirm !== true) return json({ error: "confirm-required" }, 400);
-    const { data: cur } = await a.from("inv_choices").select("choice, addendum_status").eq("investor_id", inv.id).maybeSingle();
+    const { data: cur } = await a.from("inv_choices").select("choice, addendum_status, auto").eq("investor_id", inv.id).maybeSingle();
     // A or B is final (addendum). Choice C has no addendum and can still be changed, also after the deadline.
-    if (cur && (cur.choice === "A" || cur.choice === "B")) return json({ error: "already-chosen" }, 400);
+    // A choice the portal registered automatically is not binding and can still be changed by the investor.
+    if (cur && !cur.auto && (cur.choice === "A" || cur.choice === "B")) return json({ error: "already-chosen" }, 400);
     const reason = str(body.reason, 2000), wish = str(body.wish, 2000);
     if (choice === "C" && !reason) return json({ error: "reason-required" }, 400);
     await applyChoice(a, inv, { choice, reason, wish, ip });

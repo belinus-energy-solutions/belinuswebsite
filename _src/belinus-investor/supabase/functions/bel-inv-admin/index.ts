@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
   if (action === "dashboard") {
     const [{ data: inv }, { data: ch }, { data: fu }, { data: tr }] = await Promise.all([
       a.from("inv_investors").select("id, email, first_name, last_name, company_name, phone, tranche, invested, status, is_test, is_demo, activated_at, last_login_at").order("last_name"),
-      a.from("inv_choices").select("investor_id, choice, wish, reason, confirmed_at, addendum_status"),
+      a.from("inv_choices").select("investor_id, choice, wish, reason, confirmed_at, addendum_status, auto"),
       a.from("inv_followups").select("id, investor_id, kind, due_date, status, notes").neq("status", "cancelled"),
       a.from("inv_tranches").select("*").order("code"),
     ]);
@@ -197,8 +197,8 @@ Deno.serve(async (req) => {
     const { data: inv } = await a.from("inv_investors").select("id, email, first_name, lang, tranche").eq("id", id).single();
     if (!inv) return json({ error: "not-found" }, 404);
     // As for the investor: A and B are final once confirmed; only C can still be changed.
-    const { data: cur } = await a.from("inv_choices").select("choice").eq("investor_id", id).maybeSingle();
-    if (cur && (cur.choice === "A" || cur.choice === "B")) return json({ error: "already-chosen" }, 400);
+    const { data: cur } = await a.from("inv_choices").select("choice, auto").eq("investor_id", id).maybeSingle();
+    if (cur && !cur.auto && (cur.choice === "A" || cur.choice === "B")) return json({ error: "already-chosen" }, 400);
     await applyChoice(a, inv, { choice, reason, wish, note, by_admin: u.id });
     await audit(a, u, "choice-by-admin", inv.email, { choice, note });
     return json({ ok: true });
