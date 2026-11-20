@@ -86,7 +86,7 @@ async function boleroTally(a: any, campaignId: string) {
   return t;
 }
 // Announcement campaigns: Winwinner investors (crowd-/winwin- tranches, never Bolero), minus those who already received this campaign.
-// Audience "a_b": investors who chose A or B. Any other value: investors who have not chosen yet or who chose C.
+// Audience "a_b": investors who chose A or B. "none": investors who have not chosen yet. Any other value: no choice yet, or choice C.
 async function announcementTargets(a: any, campaignId: string, audience?: string | null): Promise<any[]> {
   const [{ data: inv }, { data: ch }, { data: done }] = await Promise.all([
     a.from("inv_investors").select("id, email, first_name, tranche, is_test, is_demo").or("tranche.like.winwin*,tranche.like.crowd*").order("last_name"),
@@ -95,7 +95,7 @@ async function announcementTargets(a: any, campaignId: string, audience?: string
   ]);
   const choice = new Map((ch || []).map((r: any) => [r.investor_id, r.choice]));
   const got = new Set((done || []).map((r: any) => String(r.recipient).toLowerCase()));
-  return (inv || []).filter((i: any) => !i.is_test && !i.is_demo && (audience === "a_b" ? ["A", "B"].includes(choice.get(i.id)) : (!choice.get(i.id) || choice.get(i.id) === "C")) && !got.has(String(i.email).toLowerCase()));
+  return (inv || []).filter((i: any) => !i.is_test && !i.is_demo && (audience === "a_b" ? ["A", "B"].includes(choice.get(i.id)) : audience === "none" ? !choice.get(i.id) : (!choice.get(i.id) || choice.get(i.id) === "C")) && !got.has(String(i.email).toLowerCase()));
 }
 
 Deno.serve(async (req) => {
@@ -736,6 +736,8 @@ Deno.serve(async (req) => {
     if (!mailConfigured()) return json({ error: "mail-not-configured" }, 503);
     const { data: c } = await a.from("inv_campaigns").select("id, mail_kind, status, subject, body, audience").eq("id", String(body.campaign || "")).maybeSingle();
     if (!c || c.mail_kind !== "announcement" || !["draft", "sending"].includes(c.status)) return json({ error: "bad-input" }, 400);
+    // A passage between square brackets (other than the first-name placeholder) still has to be filled in or confirmed.
+    if (String(c.body).replace("[voornaam]", "").includes("[")) return json({ error: "text-not-final" }, 400);
     const todo = await announcementTargets(a, c.id, c.audience);
     await a.from("inv_campaigns").update({ status: "sending" }).eq("id", c.id);
     let ok = 0, failed = 0;
